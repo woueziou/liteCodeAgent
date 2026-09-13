@@ -138,7 +138,19 @@ export async function loadConfig(projectRoot: string): Promise<{ config: Config;
       `No ${CONFIG_FILENAME} at ${path}. Run \`litecode init\` in the target repo first.`,
     );
   }
-  const parsed = ConfigSchema.safeParse(await file.json());
+  const raw = await file.text();
+  // `init` seeds placeholders on purpose; installing with them still in place would bake
+  // "TODO" into agent prompts, where it reads as an instruction rather than an omission.
+  if (/\bTODO\b/.test(raw)) {
+    const lines = raw
+      .split("\n")
+      .map((line, i) => [i + 1, line] as const)
+      .filter(([, line]) => /\bTODO\b/.test(line))
+      .map(([n, line]) => `  ${String(n).padStart(4)}: ${line.trim()}`)
+      .join("\n");
+    throw new Error(`${CONFIG_FILENAME} still has unfilled placeholders:\n${lines}`);
+  }
+  const parsed = ConfigSchema.safeParse(JSON.parse(raw));
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`)
