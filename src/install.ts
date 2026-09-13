@@ -50,6 +50,53 @@ export function requiredPaths(files: { rel: string; source: string }[]): string[
   return [...all].sort();
 }
 
+/**
+ * Checks that every skill named in the config actually resolves to something.
+ *
+ * A skill reference is satisfied by a pack being installed, or by a file the project owns
+ * (a local overlay). Anything else is a typo or a pack the project forgot to install —
+ * either way the harness would silently look for a skill that isn't there.
+ */
+async function validateSkillReferences(
+  projectRoot: string,
+  config: Config,
+  packSkills: Set<string>,
+): Promise<void> {
+  const refs = new Map<string, string[]>();
+  const add = (skill: string, where: string) => {
+    refs.set(skill, [...(refs.get(skill) ?? []), where]);
+  };
+
+  for (const [agent, skills] of Object.entries(config.project.agentSkills)) {
+    for (const skill of skills) add(skill, `agentSkills.${agent}`);
+  }
+  for (const angle of config.project.angles) {
+    for (const skill of angle.skills) add(skill, `angles.${angle.name}`);
+  }
+  for (const [i, domain] of config.project.domains.entries()) {
+    for (const skill of domain.skills) add(skill, `domains[${i}]`);
+  }
+
+  const problems: string[] = [];
+  for (const [skill, where] of refs) {
+    if (packSkills.has(skill)) continue;
+    const local = resolve(projectRoot, config.outDir, "skills", skill, "SKILL.md");
+    if (await Bun.file(local).exists()) continue;
+    problems.push(
+      `  - '${skill}' (referenced by ${[...new Set(where)].join(", ")}) — not in any installed pack, ` +
+        `and no local ${join(config.outDir, "skills", skill, "SKILL.md")}`,
+    );
+  }
+
+  if (problems.length > 0) {
+    throw new Error(
+      `litecode.config.json references skill(s) that do not exist:\n${problems.join("\n")}\n\n` +
+        `Either install the pack that provides them (see \`litecode packs\`), write them as a ` +
+        `local overlay under ${join(config.outDir, "skills")}/, or remove the reference.`,
+    );
+  }
+}
+
 export async function buildPlan(
   projectRoot: string,
   packsRoot: string,
@@ -59,6 +106,7 @@ export async function buildPlan(
   const entries: PlanEntry[] = [];
   const packVersions: Record<string, string> = {};
   const seen = new Map<string, string>();
+  const packSkills = new Set<string>();
 
   for (const packName of config.packs) {
     const pack = await loadPack(packsRoot, packName);
@@ -69,6 +117,9 @@ export async function buildPlan(
     }
 
     for (const file of pack.files) {
+      const skill = /^skills\/([^/]+)\/SKILL\.md$/.exec(file.rel);
+      if (skill?.[1]) packSkills.add(skill[1]);
+
       const rel = join(config.outDir, file.rel);
       const owner = seen.get(rel);
       if (owner) {
@@ -97,6 +148,8 @@ export async function buildPlan(
       entries.push({ rel, target, pack: packName, version: pack.manifest.version, content, status });
     }
   }
+
+  await validateSkillReferences(projectRoot, config, packSkills);
 
   const produced = new Set(entries.map((e) => e.rel));
   const orphans = Object.keys(previous?.files ?? {}).filter((rel) => !produced.has(rel));

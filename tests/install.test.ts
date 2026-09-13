@@ -13,13 +13,23 @@ async function exampleConfig() {
   return ConfigSchema.parse(await Bun.file(EXAMPLE).json());
 }
 
+/**
+ * A target repo as it really is: the example config references `orpc-expert`, which is
+ * deliberately a local overlay rather than a pack skill.
+ */
+async function targetRepo(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), "litecode-"));
+  await Bun.write(join(root, ".claude", "skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");
+  return root;
+}
+
 test("the shipped example config is valid", async () => {
   await expect(exampleConfig()).resolves.toBeDefined();
 });
 
 test("a full render produces no unresolved template syntax", async () => {
   const config = await exampleConfig();
-  const root = await mkdtemp(join(tmpdir(), "litecode-"));
+  const root = await targetRepo();
   const plan = await buildPlan(root, PACKS, config);
   expect(plan.entries.length).toBeGreaterThan(20);
   for (const entry of plan.entries) {
@@ -30,7 +40,7 @@ test("a full render produces no unresolved template syntax", async () => {
 
 test("install writes a lockfile that owns only what it rendered", async () => {
   const config = await exampleConfig();
-  const root = await mkdtemp(join(tmpdir(), "litecode-"));
+  const root = await targetRepo();
   const plan = await buildPlan(root, PACKS, config);
   await applyPlan(root, plan, "0.0.0-test", { force: false });
 
@@ -40,7 +50,6 @@ test("install writes a lockfile that owns only what it rendered", async () => {
   expect(lock!.packs).toEqual({ core: "0.1.0", web: "0.1.0" });
 
   // A file the project owns is invisible to the kit.
-  await Bun.write(join(root, ".claude", "skills", "orpc-expert", "SKILL.md"), "local overlay\n");
   const second = await buildPlan(root, PACKS, config);
   expect(second.orphans).toEqual([]);
   expect(second.entries.every((e) => e.status === "unchanged")).toBe(true);
@@ -48,7 +57,7 @@ test("install writes a lockfile that owns only what it rendered", async () => {
 
 test("a hand-edited managed file is reported as drift and never silently overwritten", async () => {
   const config = await exampleConfig();
-  const root = await mkdtemp(join(tmpdir(), "litecode-"));
+  const root = await targetRepo();
   await applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", { force: false });
 
   const victim = join(root, ".claude", "agents", "planner.md");
@@ -59,4 +68,22 @@ test("a hand-edited managed file is reported as drift and never silently overwri
   await expect(applyPlan(root, plan, "0.0.0-test", { force: false })).rejects.toThrow(/hand/);
   await applyPlan(root, plan, "0.0.0-test", { force: true });
   expect(await Bun.file(victim).text()).not.toContain("local tweak");
+});
+
+test("a skill reference that resolves to nothing fails the install", async () => {
+  const config = await exampleConfig();
+  config.project.agentSkills.planner = ["typescript-expert", "nonexistent-expert"];
+  await expect(buildPlan(await targetRepo(), PACKS, config)).rejects.toThrow(/nonexistent-expert/);
+});
+
+test("a skill provided only as a local overlay is accepted", async () => {
+  const config = await exampleConfig();
+  // `orpc-expert` deliberately lives in the project, not in a pack.
+  await expect(buildPlan(await targetRepo(), PACKS, config)).resolves.toBeDefined();
+});
+
+test("dropping the web pack surfaces the now-dangling skill references", async () => {
+  const config = await exampleConfig();
+  config.packs = ["core"];
+  await expect(buildPlan(await targetRepo(), PACKS, config)).rejects.toThrow(/frontend-expert/);
 });
