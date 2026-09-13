@@ -18,16 +18,16 @@ test("no pack file hardcodes a project literal", async () => {
   // The whole point of the packs is portability: a literal that only makes sense on one
   // repo belongs in that repo's config, not in a shared pack.
   const forbidden = [/kp-dev-org/, /ts-employee-service/, /@service\//, /apps\/web/, /bun --filter/];
+  const leaks: string[] = [];
   for (const name of await listPacks(PACKS)) {
     const pack = await loadPack(PACKS, name);
     for (const file of pack.files) {
       for (const pattern of forbidden) {
-        expect(`${name}/${file.rel}: ${pattern}`).toBe(
-          pattern.test(file.source) ? `LEAKED ${name}/${file.rel}` : `${name}/${file.rel}: ${pattern}`,
-        );
+        if (pattern.test(file.source)) leaks.push(`${name}/${file.rel} contains ${pattern}`);
       }
     }
   }
+  expect(leaks).toEqual([]);
 });
 
 test("packs declare a capability tier, never a concrete model", async () => {
@@ -36,7 +36,7 @@ test("packs declare a capability tier, never a concrete model", async () => {
     for (const file of pack.files.filter((f) => f.rel.startsWith("agents/"))) {
       const { data } = parseFrontmatter(file.source, file.rel);
       expect(data.model).toBeUndefined();
-      expect(["fast", "balanced", "reasoning"]).toContain(data.tier);
+      expect(data.tier ?? "(missing)").toMatch(/^(fast|balanced|reasoning)$/);
     }
   }
 });
