@@ -1,0 +1,6 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "description": "Expert skills for TypeScript / React web work: types, frontend, UI/UX, visual design, mobile.",
+  "requires": ["core"]
+}

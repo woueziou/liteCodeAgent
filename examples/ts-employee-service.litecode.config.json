@@ -1,0 +1,206 @@
+{
+  "packs": [
+    "core",
+    "web"
+  ],
+  "outDir": ".claude",
+  "target": "claude-code",
+  "tiers": {
+    "fast": "haiku",
+    "balanced": "sonnet",
+    "reasoning": "opus"
+  },
+  "project": {
+    "name": "ts-employee-service",
+    "repo": "kp-dev-org/ts-employee-service",
+    "defaultBranch": "main",
+    "checkCommand": "bun run check",
+    "typecheckCommands": [
+      "bun --filter server check-types",
+      "bun --filter @service/api check-types"
+    ],
+    "worktreeRoot": "../worktrees",
+    "adrDir": "docs/decisions",
+    "conventions": [
+      "Handlers stay thin — query logic lives in `features/<domain>/helpers/*.service.ts` (static-method service classes); handlers orchestrate services and never call `db` directly.",
+      "Procedures are built from `publicProcedure`/`protectedProcedeure` in `packages/api/src/routers/router.base.ts` (keep the existing spelling), and each declares `.route({ method, path, summary })` plus an `.output(...)` Zod schema.",
+      "Errors are `ORPCError(\"UNAUTHORIZED\" | \"FORBIDDEN\" | \"NOT_FOUND\" | \"BAD_REQUEST\", { message })` — never a bare `throw new Error` in a handler.",
+      "Reuse generated schemas from `@service/validators` instead of hand-writing shapes; regenerate after schema changes rather than editing generated files.",
+      "Schema changes go `packages/db/src/schema/*.schema.ts` -> `db:generate` -> review the SQL -> `db:migrate`. Never hand-edit `src/migrations/`, and never run `db:migrate-prod` without explicit per-command human approval.",
+      "Env vars are per-app (`apps/server/.env` via `packages/env`, `apps/web/.env` via `apps/web/src/env.ts`) — never consolidated into a root `.env`, and `.env*` secrets are never read or echoed.",
+      "Formatting is oxfmt's job — don't reflow unrelated code."
+    ],
+    "trustBoundaries": [
+      "`authenticatedUser()` middleware reads the gateway-injected `userid` header into `context.userId` — never trust a caller-supplied identity beyond that header. Reading identity from a body, query param, or other header is a spoofing vector: flag it as critical.",
+      "`isHRStaff()` gates HR-only routes — verify every HR-only route actually applies it; a route copy-pasted from a public one is the most common way this gets missed.",
+      "`packages/api/src/myidtravel/` talks to an external partner API — treat its responses as untrusted input requiring validation, not as safe to pass through unchecked.",
+      "This service handles employee/HR personal data, so object-level authorization on employee/relative/travel-request IDs is the highest-value thing to audit."
+    ],
+    "angles": [
+      {
+        "name": "correctness",
+        "covers": "Does the change actually solve the stated problem, and what edge cases does it miss.",
+        "triggeredBy": "always — every non-trivial change gets this angle",
+        "skills": [
+          "critique-expert"
+        ],
+        "always": true
+      },
+      {
+        "name": "schema",
+        "covers": "Drizzle schema/migration implications and backward compatibility of existing rows.",
+        "triggeredBy": "the change touches `packages/db/src/schema/`, requires a migration, or changes a Drizzle field/table",
+        "skills": [
+          "orpc-expert"
+        ]
+      },
+      {
+        "name": "contract",
+        "covers": "Breaking changes for consumers of an oRPC procedure's `.route()`/`.input()`/`.output()` or an exported type.",
+        "triggeredBy": "the change touches a procedure signature or a type exported from `@service/api` / `@service/validators`",
+        "skills": [
+          "orpc-expert",
+          "typescript-expert"
+        ]
+      },
+      {
+        "name": "auth",
+        "covers": "`authenticatedUser()`/`isHRStaff()` correctness and caller-supplied identity trust boundaries — check BOLA first.",
+        "triggeredBy": "the change touches auth middleware, permission gating, or any fetch-by-ID handler",
+        "skills": [
+          "security-expert"
+        ]
+      },
+      {
+        "name": "operability",
+        "covers": "Logging, error handling, observability, and `ORPCError` usage — how failures get diagnosed in production.",
+        "triggeredBy": "the change affects error paths, logging, or external-call failure handling",
+        "skills": [
+          "orpc-expert",
+          "frontend-expert"
+        ]
+      }
+    ],
+    "domains": [
+      {
+        "match": "backend logic in `packages/api`",
+        "skills": [
+          "orpc-expert",
+          "typescript-expert"
+        ]
+      },
+      {
+        "match": "`apps/web` component/flow work",
+        "skills": [
+          "frontend-expert",
+          "ui-ux-expert"
+        ]
+      },
+      {
+        "match": "visual layout as part of the ticket",
+        "skills": [
+          "design-expert"
+        ]
+      },
+      {
+        "match": "a small viewport or touch interaction",
+        "skills": [
+          "mobile-expert",
+          "mobile-ui-ux-expert",
+          "mobile-design-expert"
+        ]
+      },
+      {
+        "match": "auth, user input validation, or an external integration",
+        "skills": [
+          "security-expert"
+        ]
+      }
+    ],
+    "sizeRules": [
+      {
+        "size": "medium",
+        "signals": [
+          "adds or changes a Drizzle schema field non-destructively",
+          "adds a new oRPC procedure",
+          "changes internal service logic used by multiple callers"
+        ]
+      },
+      {
+        "size": "large",
+        "signals": [
+          "changes or removes a Drizzle column/table",
+          "changes an existing oRPC procedure's `.output()` signature",
+          "changes a type exported from `@service/api` or `@service/validators`",
+          "touches `authenticatedUser` or `isHRStaff`"
+        ]
+      }
+    ],
+    "lessons": [
+      "A subagent once mutated a pre-existing branch because its self-report was trusted without checking `git diff` — verify every step's diff yourself before moving on.",
+      "On #111/PR #171 a reviewer note about a `previousData` type was \"fixed\" in a follow-up commit pushed without re-running `check-types`, so the real mismatch shipped to CI instead of being caught locally. Re-run the actual check after every fixup.",
+      "Tool restrictions declared in an agent's frontmatter are a stated intent, not an enforced boundary here — an agent without Edit/Write declared was still able to modify a file. That is why the `Agent:` git trailer is mandatory regardless of declared tool scope."
+    ],
+    "agentSkills": {
+      "debate-angle": [
+        "orpc-expert",
+        "security-expert",
+        "typescript-expert",
+        "frontend-expert",
+        "critique-expert"
+      ],
+      "planner": [
+        "orpc-expert",
+        "typescript-expert",
+        "frontend-expert"
+      ],
+      "implementer": [
+        "agent-attribution",
+        "github-project-sync",
+        "frontend-expert",
+        "orpc-expert",
+        "typescript-expert",
+        "design-expert",
+        "ui-ux-expert",
+        "mobile-expert",
+        "mobile-ui-ux-expert",
+        "mobile-design-expert",
+        "security-expert"
+      ],
+      "reviewer": [
+        "agent-attribution",
+        "github-project-sync",
+        "typescript-expert",
+        "orpc-expert",
+        "security-expert",
+        "frontend-expert",
+        "critique-expert"
+      ],
+      "triage": [
+        "github-project-sync"
+      ],
+      "dispatcher": [
+        "github-project-sync"
+      ],
+      "tracker": [
+        "github-project-sync",
+        "agent-attribution"
+      ]
+    },
+    "board": {
+      "enabled": true,
+      "owner": "kp-dev-org",
+      "number": 1,
+      "dataFile": ".claude/data/board.json",
+      "itemIdCache": ".claude/data/github-project-item-ids.json"
+    },
+    "web": {
+      "appDir": "apps/web",
+      "framework": "TanStack Start / React 19",
+      "apiClient": "generated via `openapi-ts` into `src/lib/api/client/` — regenerate with `bun --filter web gen:api`, never hand-edit generated files",
+      "typeSourceOfTruth": "Drizzle schema via `drizzle-zod`, exported as `@service/validators`",
+      "typecheck": "bun --filter web check-types",
+      "styling": "Tailwind"
+    }
+  }
+}
