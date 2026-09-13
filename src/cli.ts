@@ -9,7 +9,8 @@ import { ensureAuth } from "./board/gh.ts";
 import { fetchProject } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
-import { init } from "./init.ts";
+import { init, summarize } from "./init.ts";
+import { isInteractive } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,7 +29,8 @@ const c = {
 function usage(): void {
   console.log(`${c.bold("litecode")} ${c.dim(`v${VERSION}`)}
 
-  ${c.bold("litecode init")} [--packs core,web]  write a starter litecode.config.json
+  ${c.bold("litecode init")} [--yes]              interactive setup: detects your repo, asks, writes the config
+                                     ${c.dim("--yes skips the questions and uses only what it detects")}
   ${c.bold("litecode packs")}                    list available packs
   ${c.bold("litecode install")} [--apply] [--force]
                                      render packs into the target repo's .claude/
@@ -184,9 +186,14 @@ try {
   const code = await (async () => {
     switch (argv[0]) {
       case "init": {
-        const packs = (arg(argv, "--packs") ?? "core").split(",").map((s) => s.trim());
-        const path = await init(root, packs);
-        console.log(`${c.green("Wrote")} ${path}\nFill in every TODO, then run ${c.bold("litecode install")}.`);
+        const packsArg = arg(argv, "--packs");
+        const yes = argv.includes("--yes") || argv.includes("-y");
+        const path = await init(root, {
+          packs: packsArg ? packsArg.split(",").map((s) => s.trim()) : undefined,
+          yes,
+          packsRoot: PACKS_ROOT,
+        });
+        console.log(`\n${summarize(path, !yes && isInteractive())}`);
         return 0;
       }
       case "upgrade": {

@@ -16,3 +16,17 @@ First extraction of the pipeline out of a single repo into installable packs.
   cannot do it without regenerating every option id and nulling every item's Status.
 - Agents declare a capability `tier` rather than a model id, so the same pack can be
   rendered for a different provider later.
+
+## 0.2.0 — unreleased
+
+- `litecode init` is now a wizard. It detects the repo (git remote, scripts and lockfile,
+  dependencies across `apps/*`/`packages/*`, ADR directory, skills you already own, the
+  convention bullets in your `CLAUDE.md`, your GitHub Projects) and proposes real answers.
+  `domains` and `agentSkills` are derived rather than asked. `--yes` skips the questions.
+- `install.sh`: one-command bootstrap, clones via `gh` so it works on a private repo.
+  Re-running it updates.
+- `litecode upgrade`: self-update the kit, refusing to pull over local edits.
+- `install` now fails on a skill reference that resolves to neither an installed pack nor
+  a local overlay, naming where each dangling reference came from.
+- Fixed: directory detection used `Bun.file().exists()`, which is false for directories,
+  so ADR/skill/workspace discovery silently found nothing.
