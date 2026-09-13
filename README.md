@@ -31,57 +31,80 @@ gh auth status   # must show you logged in before `litecode board ...`
 
 ## Install the CLI
 
+One command. It clones into `~/.litecode`, installs dependencies, and puts `litecode` on
+your PATH. Run it again later to update.
+
 ```bash
-git clone git@github.com:woueziou/liteCodeAgent.git
-cd liteCodeAgent
-bun install
-bun link          # puts `litecode` on your PATH
-litecode packs    # check it works
+gh repo clone woueziou/liteCodeAgent /tmp/lca -- --depth=1 && bash /tmp/lca/install.sh
 ```
 
-To update later: `git pull && bun install`. The `litecode` command follows the clone, so
-every project you've installed into picks up new pack versions on its next `litecode install`.
+`gh` carries your GitHub auth, so this works on the private repo. Override the location
+with `LITECODE_HOME=/somewhere`.
 
-> Prefer not to link globally? Every command below also works as
-> `bun /path/to/liteCodeAgent/src/cli.ts <command>`.
+Check it:
 
----
+```bash
+litecode packs
+```
 
-## Set up a project — five steps
+Later:
+
+```bash
+litecode upgrade     # pull the latest packs into your install
+```
+
+`upgrade` refuses to pull over uncommitted changes in `~/.litecode` — if you edited a pack
+there, that change belongs upstream, not in your local copy.
+
+## Set up a project
 
 Run these from the root of the repo you want the pipeline in.
 
-### 1. Create the config
+### 1. Answer a few questions
 
 ```bash
 cd /path/to/your/project
-litecode init --packs core,web
+litecode init
 ```
 
-This writes `litecode.config.json`. It is full of `TODO` placeholders on purpose — the CLI
-refuses to install while any remain, because a `TODO` left in an agent prompt reads to the
-model as an instruction rather than as something you forgot.
+`init` reads your repo first and proposes real answers rather than blank fields. It picks
+up, across a monorepo (not just the root manifest):
 
-### 2. Fill in the config
-
-Open `litecode.config.json`. The fields that matter most:
-
-| Field | What it is |
+| Detected | From |
 | --- | --- |
-| `project.repo` | `owner/repo` — where issues and PRs go |
-| `project.checkCommand` | the command that must pass before an agent calls work done (`bun run check`, `npm test`, `make check`…) |
-| `project.typecheckCommands` | extra verification commands, run when types moved |
-| `project.conventions` | one line per house rule. This is what `implementer`/`reviewer`/`planner` are held to — the single highest-leverage field in the file |
-| `project.trustBoundaries` | one line per trust boundary `security-expert` should assume |
-| `project.lessons` | incidents this project already lived through, injected into `implementer` so the lesson travels with the agent |
-| `project.angles` | the debate angles for this codebase (schema, contract, auth… keep `correctness` with `"always": true`) |
-| `project.domains` | which expert skill to load for which kind of change |
-| `project.agentSkills` | skills preloaded per agent — must only name skills that exist in your installed packs |
-| `project.board.owner` | the GitHub org or user that owns the project board |
-| `project.web` | required only if you install the `web` pack |
+| repo, owner, default branch | your git remote |
+| check and type-check commands | your `package.json` scripts and lockfile |
+| framework, styling, ORM, API layer, auth | dependencies across `apps/*` and `packages/*` |
+| ADR directory | whether `docs/decisions/` exists |
+| skills you already own | `.claude/skills/*/SKILL.md` |
+| house rules | the bullet list under a "Conventions" heading in your `CLAUDE.md`/`AGENTS.md` |
+| board | `gh project list` for your org — pick from the real list |
 
-`examples/ts-employee-service.litecode.config.json` is a complete, real, filled-in config —
-copy from it rather than starting from the blank one.
+You confirm or correct each one. Two things are derived rather than asked, because they're
+mechanical and drift the moment a human maintains them by hand:
+
+- **`domains`** — which expert skill loads for which kind of change, from your detected stack.
+- **`agentSkills`** — what each agent preloads, from the angles and domains you just chose.
+  A stack-specific skill you already own locally (say `orpc-expert`) gets wired in wherever
+  it applies.
+
+Prefer no questions at all? `litecode init --yes` writes a config from detection alone and
+marks anything it couldn't determine as `TODO`.
+
+### 2. Skim the result
+
+Open `litecode.config.json`. `init` will have filled nearly all of it; what's worth a second
+look:
+
+| Field | Why |
+| --- | --- |
+| `project.conventions` | the rules `implementer`/`reviewer` are held to — the highest-leverage field in the file |
+| `project.trustBoundaries` | what `security-expert` must assume; only you know these |
+| `project.lessons` | incidents this project already lived through, injected into `implementer` so the lesson travels with the agent |
+
+`litecode install` refuses to run while any `TODO` remains, because a `TODO` left in an
+agent prompt reads to the model as an instruction rather than as something you forgot.
+`examples/ts-employee-service.litecode.config.json` is a complete, real, filled-in config.
 
 ### 3. Render the packs
 
@@ -101,10 +124,12 @@ rewritten, or deleted by the CLI.
 The pipeline is board-backed: state lives in a GitHub Project, not in issue comments.
 
 ```bash
-# Using an existing project board:
-litecode board init --owner my-org --number 1
-litecode board init --owner my-org --number 1 --apply
+litecode board init          # dry run; uses the board you picked during init
+litecode board init --apply
 ```
+
+If you skipped the board question, pass it explicitly:
+`litecode board init --owner my-org --number 1`.
 
 This creates any missing fields (`Status`, `Priority`, `Size`, `Assigned Agent`,
 `Due Date`) and labels (`bug`, `feature`, `doc`, `chore`), then writes every resolved id
@@ -207,6 +232,10 @@ guide) belongs in that repo's `.claude/` as a local overlay — not in a pack.
 - **Capability tiers, not model ids.** Packs declare `tier: fast | balanced | reasoning`;
   the tier→model mapping lives in your config. That's what will let the same packs drive
   an OpenAI- or DeepSeek-backed runner without touching a single agent file.
+- **Dangling skill references fail the install.** If your config names a skill that is in
+  no installed pack and has no local overlay, `install` stops and tells you where each
+  reference came from — rather than rendering an agent that asks the harness for something
+  that isn't there.
 - **Lockfile, not templating-by-copy.** `install` can tell "you're behind this pack
   version" apart from "you edited this file by hand", and refuses to clobber the latter
   without `--force`.
@@ -216,7 +245,7 @@ guide) belongs in that repo's `.claude/` as a local overlay — not in a pack.
 ## Upgrading and undoing
 
 ```bash
-cd liteCodeAgent && git pull && bun install
+litecode upgrade                                    # updates ~/.litecode
 cd /path/to/your/project && litecode install        # dry run shows the delta
 litecode install --apply
 ```
@@ -247,6 +276,9 @@ bun install
 bun test
 bun x tsc --noEmit
 ```
+
+Working on the kit itself? `git clone` it anywhere and `bun link` — that takes over the
+`litecode` command, and `litecode upgrade` will then refuse to touch your working tree.
 
 Pack changes are content changes: edit the Markdown under `packs/`, bump the pack's
 `version` in `pack.json`, and run `bun test` — the suite checks that no project literal
