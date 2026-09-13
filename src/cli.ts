@@ -10,6 +10,7 @@ import { fetchProject } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
 import { init } from "./init.ts";
+import { upgrade } from "./upgrade.ts";
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKS_ROOT = join(KIT_ROOT, "packs");
@@ -35,6 +36,7 @@ function usage(): void {
   ${c.bold("litecode status")}                   show installed packs + drift
   ${c.bold("litecode board init")} [--apply]     provision/resolve the GitHub Project board
   ${c.bold("litecode board doctor")}             check board.json against the live board
+  ${c.bold("litecode upgrade")}                   pull the latest packs into this install
 
 Global: --project <dir>   target repo (default: cwd)
 `);
@@ -185,6 +187,10 @@ try {
         const packs = (arg(argv, "--packs") ?? "core").split(",").map((s) => s.trim());
         const path = await init(root, packs);
         console.log(`${c.green("Wrote")} ${path}\nFill in every TODO, then run ${c.bold("litecode install")}.`);
+        return 0;
+      }
+      case "upgrade": {
+        for (const line of await upgrade(KIT_ROOT)) console.log(line ? `  ${line}` : "");
         return 0;
       }
       case "packs": return cmdPacks();
