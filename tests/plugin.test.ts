@@ -9,6 +9,7 @@ test("Claude Code plugin metadata stays installable and versioned with the CLI",
   const plugin = await Bun.file(join(ROOT, ".claude-plugin/plugin.json")).json();
   const marketplace = await Bun.file(join(ROOT, ".claude-plugin/marketplace.json")).json();
 
+  expect(pkg.name).toBe("litecodeagent");
   expect(plugin.name).toBe("litecode-agent");
   expect(plugin.version).toBe(pkg.version);
   expect(marketplace.plugins).toContainEqual(
@@ -20,6 +21,8 @@ test("Claude Code plugin metadata stays installable and versioned with the CLI",
   expect(plugin.agents).toBeUndefined();
   expect(plugin.skills).toBeUndefined();
 
-  const mode = (await stat(join(ROOT, "bin/litecode"))).mode;
-  expect(mode & 0o111).not.toBe(0);
+  for (const executable of ["litecode", "litecodeagent"]) {
+    const mode = (await stat(join(ROOT, "bin", executable))).mode;
+    expect(mode & 0o111).not.toBe(0);
+  }
 });

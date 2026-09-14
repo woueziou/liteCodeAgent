@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { resolve, dirname, join } from "node:path";
+import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadConfig, CONFIG_FILENAME } from "./config.ts";
 import { buildPlan, applyPlan } from "./install.ts";
@@ -12,7 +13,13 @@ import { doctor } from "./board/doctor.ts";
 import { init, summarize } from "./init.ts";
 import { isInteractive } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
-import { runConfiguredAgent, type TraceEvent } from "./runner/index.ts";
+import {
+  RunCancelledError,
+  RunnerExecutionError,
+  runConfiguredAgentDetailed,
+  type RunOutcome,
+  type TraceEvent,
+} from "./runner/index.ts";
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKS_ROOT = join(KIT_ROOT, "packs");
@@ -28,24 +35,42 @@ const c = {
 };
 
 function usage(): void {
-  console.log(`${c.bold("litecode")} ${c.dim(`v${VERSION}`)}
+  console.log(`${c.bold("litecodeagent")} ${c.dim(`v${VERSION}`)}
 
-  ${c.bold("litecode init")} [--yes]              interactive setup: detects your repo, asks, writes the config
+  ${c.bold("bunx litecodeagent setup")} [--apply] [--yes]
+                                     initialize the project if needed, then render its packs
+                                     ${c.dim("(dry-run by default; --apply writes)")}
+  ${c.bold("bunx litecodeagent init")} [--yes]              interactive setup: detects your repo, asks, writes the config
                                      ${c.dim("--yes skips the questions and uses only what it detects")}
-  ${c.bold("litecode packs")}                    list available packs
-  ${c.bold("litecode install")} [--apply] [--force]
+  ${c.bold("bunx litecodeagent packs")}                    list available packs
+  ${c.bold("bunx litecodeagent install")} [--apply] [--force]
                                      render packs into the target repo's .claude/
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("litecode status")}                   show installed packs + drift
-  ${c.bold("litecode run")} <agent> --prompt <text>
+  ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
+  ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
-                                     ${c.dim("--prompt-file <path>; --trace shows agent/tool activity")}
-  ${c.bold("litecode board init")} [--apply]     provision/resolve the GitHub Project board
-  ${c.bold("litecode board doctor")}             check board.json against the live board
-  ${c.bold("litecode upgrade")}                   pull the latest packs into this install
+                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
+  ${c.bold("bunx litecodeagent board init")} [--apply]     provision/resolve the GitHub Project board
+  ${c.bold("bunx litecodeagent board doctor")}             check board.json against the live board
+  ${c.bold("litecode upgrade")}                   update a legacy git-clone install
 
 Global: --project <dir>   target repo (default: cwd)
 `);
+}
+
+async function cmdSetup(root: string, argv: string[]): Promise<number> {
+  const configPath = resolve(root, CONFIG_FILENAME);
+  if (!(await Bun.file(configPath).exists())) {
+    const packsArg = arg(argv, "--packs");
+    const yes = argv.includes("--yes") || argv.includes("-y");
+    const path = await init(root, {
+      packs: packsArg ? packsArg.split(",").map((s) => s.trim()) : undefined,
+      yes,
+      packsRoot: PACKS_ROOT,
+    });
+    console.log(`\n${c.green("Wrote")} ${path}\n`);
+  }
+  return cmdInstall(root, argv);
 }
 
 function arg(argv: string[], name: string): string | undefined {
@@ -122,12 +147,24 @@ function traceLine(event: TraceEvent): string {
   if (event.type === "agent-end") return `${"  ".repeat(event.depth)}← ${event.agent} (${event.turns} turn${event.turns === 1 ? "" : "s"})`;
   if (event.type === "tool-start") return `  ${"  ".repeat(1)}${event.agent}: ${event.tool}`;
   if (event.type === "tool-end") return "";
-  return `  ${event.agent}: ${event.usage.input} in / ${event.usage.output} out`;
+  if (event.type === "retry") {
+    const request = event.requestId ? ` · ${event.requestId}` : "";
+    return `  ${event.agent}: retry ${event.retry}/${event.maxRetries} after HTTP ${event.status} in ${event.delayMs}ms${request}`;
+  }
+  const cost = event.totalCostUsd === null ? "cost unknown" : `$${event.totalCostUsd.toFixed(6)}`;
+  if (!event.usage) return `  ${event.agent}: usage unavailable · ${cost}`;
+  return `  ${event.agent}: ${event.usage.input} in / ${event.usage.output} out · ${cost}`;
+}
+
+function usageLine(report: RunOutcome): string {
+  const cost = report.usage.costUsd === null ? "cost unknown" : `$${report.usage.costUsd.toFixed(6)}`;
+  return `${report.usage.requests} request${report.usage.requests === 1 ? "" : "s"} · ` +
+    `${report.usage.input} input / ${report.usage.output} output tokens · ${cost}`;
 }
 
 async function cmdRun(root: string, argv: string[]): Promise<number> {
   const agent = argv[1];
-  if (!agent) throw new Error("Usage: litecode run <agent> --prompt <text>");
+  if (!agent) throw new Error("Usage: bunx litecodeagent run <agent> --prompt <text>");
   const directPrompt = arg(argv, "--prompt");
   const promptFile = arg(argv, "--prompt-file");
   if (directPrompt && promptFile) throw new Error("Pass either --prompt or --prompt-file, not both");
@@ -143,16 +180,43 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
         if (line) console.error(c.dim(line));
       }
     : undefined;
-  const result = await runConfiguredAgent({
-    projectRoot: root,
-    packsRoot: PACKS_ROOT,
-    config,
-    agent,
-    prompt,
-    trace,
-  });
-  console.log(result);
-  return 0;
+  const controller = new AbortController();
+  const cancel = (signal: string) => controller.abort(new RunCancelledError(`Run cancelled by ${signal}`));
+  const onSigint = () => cancel("SIGINT");
+  const onSigterm = () => cancel("SIGTERM");
+  process.once("SIGINT", onSigint);
+  process.once("SIGTERM", onSigterm);
+  let report: RunOutcome;
+  try {
+    report = await runConfiguredAgentDetailed({
+      projectRoot: root,
+      packsRoot: PACKS_ROOT,
+      config,
+      agent,
+      prompt,
+      trace,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (!(error instanceof RunnerExecutionError)) throw error;
+    report = error.report;
+  } finally {
+    process.off("SIGINT", onSigint);
+    process.off("SIGTERM", onSigterm);
+  }
+  const recordPath = arg(argv, "--record");
+  if (recordPath) {
+    const destination = resolve(root, recordPath);
+    await mkdir(dirname(destination), { recursive: true });
+    await Bun.write(destination, `${JSON.stringify(report, null, 2)}\n`);
+  }
+  if (argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
+  else if (report.status === "completed") console.log(report.output);
+  else console.error(c.red(`\n${report.error.message}`));
+  if (!argv.includes("--json") && (argv.includes("--usage") || argv.includes("--trace"))) {
+    console.error(c.dim(usageLine(report)));
+  }
+  return report.status === "completed" ? 0 : 1;
 }
 
 async function cmdBoard(root: string, argv: string[]): Promise<number> {
@@ -227,6 +291,15 @@ const root = resolve(arg(argv, "--project") ?? process.cwd());
 try {
   const code = await (async () => {
     switch (argv[0]) {
+      case "--version":
+      case "-v":
+        console.log(VERSION);
+        return 0;
+      case "--help":
+      case "-h":
+        usage();
+        return 0;
+      case "setup": return cmdSetup(root, argv);
       case "init": {
         const packsArg = arg(argv, "--packs");
         const yes = argv.includes("--yes") || argv.includes("-y");

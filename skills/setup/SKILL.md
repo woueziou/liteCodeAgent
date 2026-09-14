@@ -25,8 +25,13 @@ by this plugin and is available to Bash while the plugin is enabled.
 
 If the user wants to run agents outside Claude Code, help them add a `runner` block containing the
 provider and concrete model id for each capability tier. Store only the API key's environment
-variable name in `apiKeyEnv`, never the key itself. A live `litecode run` call can incur provider
-charges, so run it only when the user has asked to execute an agent, not merely while configuring.
+variable name in `apiKeyEnv`, never the key itself. When they want cost reporting, have them copy
+current prices from their provider into `runner.pricing`; do not guess or hard-code volatile prices.
+A project can tune `runTimeoutMs`, `requestTimeoutMs`, and the bounded retry settings when the
+defaults do not fit its workloads. Do not recommend retrying authentication, billing, or validation
+errors, and do not weaken the global timeout merely to hide a recurring failure.
+A live `litecode run` call can incur provider charges, so run it only when the user has asked to
+execute an agent, not merely while configuring.
 
 Files under `.claude/` that are absent from `.claude/.litecode-lock.json` belong to the project.
 Do not read, rewrite, or remove them as part of setup.

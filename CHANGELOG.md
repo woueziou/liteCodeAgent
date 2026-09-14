@@ -52,3 +52,34 @@ First extraction of the pipeline out of a single repo into installable packs.
 - `Agent` runs child agents synchronously, executes sibling `Agent` calls in parallel, selects each
   child's model from its capability tier, and enforces depth, turn, and total-agent budgets.
 - DeepSeek thinking continuations preserve `reasoning_content` across tool turns.
+
+## 0.5.0 — unreleased
+
+- Every run can return a structured report containing request and token totals, elapsed time,
+  agent-call count, and a per-agent/model usage breakdown.
+- Optional model pricing in project config calculates cost without baking volatile provider prices
+  into LiteCodeAgent. `maxCostUsd` acts as a circuit breaker and fails closed when usage is missing.
+- `litecode run --usage` prints a concise stderr summary, `--json` emits the full report, and
+  `--record <path>` persists the same report without storing the input prompt.
+
+## 0.6.0 — unreleased
+
+- Provider requests retry bounded transient HTTP responses with exponential backoff and honor
+  `Retry-After`; permanent client errors, transport failures, and ambiguous timed-out POSTs are not
+  replayed.
+- Global run and per-request timeouts are configurable. `SIGINT`/`SIGTERM` cancellation propagates
+  across provider calls, retry waits, child agents, searches, and active Bash subprocesses.
+- Failed runs expose structured partial reports with status, completed usage, retry count, provider
+  request ids, and typed error diagnostics. `--json` and `--record` preserve this report on exit 1.
+
+## 0.7.0 — unreleased
+
+- The npm package is now named `litecodeagent` and exposes matching `litecodeagent` plus compatible
+  `litecode` executables, enabling `bunx litecodeagent <command>` without a global installation.
+- `bunx litecodeagent setup` initializes a missing config and renders the packs in one flow. It
+  preserves the existing dry-run default; `--apply` is still explicit and all drift guards remain.
+- Interactive init now asks for the web-pack values that previously remained as `TODO`, so a fully
+  answered wizard can proceed directly to rendering.
+- The published file set is explicit and tested from the generated package archive; source tests and
+  development dependencies are excluded. Package-cache installs explain that `@latest` replaces the
+  legacy git-only `upgrade` operation.

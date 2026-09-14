@@ -14,10 +14,9 @@ export async function upgrade(kitRoot: string): Promise<string[]> {
   };
 
   if (!(await Bun.file(`${kitRoot}/.git/HEAD`).exists())) {
-    throw new Error(
-      `${kitRoot} is not a git checkout, so there is nothing to pull. ` +
-        `Re-run install.sh to set up a managed install.`,
-    );
+    log.push("This copy is managed by Bun's package cache; there is no checkout to pull.");
+    log.push("Use `bunx litecodeagent@latest <command>` when you need to force the latest release.");
+    return log;
   }
 
   const before = await run(["git", "rev-parse", "--short", "HEAD"], kitRoot);
