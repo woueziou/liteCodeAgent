@@ -1,0 +1,16 @@
+{
+  "name": "litecode",
+  "owner": {
+    "name": "woueziou",
+    "url": "https://github.com/woueziou"
+  },
+  "description": "Portable, versioned multi-agent software development pipelines.",
+  "plugins": [
+    {
+      "name": "litecode-agent",
+      "source": "./",
+      "description": "Configure and install the liteCodeAgent pipeline in a project.",
+      "category": "Development"
+    }
+  ]
+}

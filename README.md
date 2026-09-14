@@ -21,7 +21,8 @@ idea → classifier → panel-selector → debate-angle ×N → synthesizer → 
 | --- | --- |
 | [Bun](https://bun.sh) ≥ 1.1 | runs the CLI |
 | [GitHub CLI](https://cli.github.com) (`gh`), authenticated | board provisioning and everything the agents do on GitHub |
-| Claude Code | the harness the packs currently render for |
+| Claude Code | optional: native plugin and rendered-agent harness |
+| Provider API key | required only for `litecode run` outside Claude Code |
 
 ```bash
 gh auth status   # must show you logged in before `litecode board ...`
@@ -29,10 +30,33 @@ gh auth status   # must show you logged in before `litecode board ...`
 
 ---
 
-## Install the CLI
+## Install through Claude Code
+
+Add this repository as a marketplace, then install the plugin:
+
+```text
+/plugin marketplace add woueziou/liteCodeAgent
+/plugin install litecode-agent@litecode
+/reload-plugins
+```
+
+This works with the private repository when your existing git credentials can access it. In the
+target project, start the guided setup with:
+
+```text
+/litecode-agent:setup
+```
+
+The plugin makes `litecode` available to Claude Code's Bash tool and installs its Bun dependencies
+from the committed lockfile. The setup skill still renders the parameterized packs through the
+same config validation and lockfile rules described below; it never loads pack templates directly.
+Update it later with `/plugin update litecode-agent@litecode`.
+
+## Install the CLI globally
 
 One command. It clones into `~/.litecode`, installs dependencies, and puts `litecode` on
-your PATH. Run it again later to update.
+your shell's PATH. Use this route when you also want to run `litecode` directly from a terminal.
+Run it again later to update.
 
 ```bash
 gh repo clone woueziou/liteCodeAgent /tmp/lca -- --depth=1 && bash /tmp/lca/install.sh
@@ -208,6 +232,55 @@ Run `board doctor` after anyone edits the project's fields in the GitHub UI.
 
 ---
 
+## Run outside Claude Code
+
+Add a `runner` block to `litecode.config.json`. Model ids stay in project config; packs continue to
+declare only `fast`, `balanced`, or `reasoning` tiers.
+
+```json
+{
+  "runner": {
+    "provider": "openai",
+    "models": {
+      "fast": "fast-model-id",
+      "balanced": "balanced-model-id",
+      "reasoning": "reasoning-model-id"
+    },
+    "maxTurns": 30,
+    "maxDepth": 4,
+    "maxAgentCalls": 32
+  }
+}
+```
+
+Replace the three example ids with models supported by the provider. API keys are read from
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `DEEPSEEK_API_KEY`; set `apiKeyEnv` to use another
+environment variable. `baseUrl` can point the matching adapter at a gateway or proxy.
+
+Run any pack agent:
+
+```bash
+litecode run orchestrator --prompt "users should be able to cancel a request after approval" --trace
+litecode run reviewer --prompt-file /tmp/review-request.md
+```
+
+The runner renders pack templates directly from the same config used by `install`; unresolved
+placeholders remain hard errors. It enforces each agent's declared tool list and supplies local
+`Read`, `Write`, `Edit`, `Grep`, `Glob`, `Bash`, and `Skill` implementations. File tools resolve
+symlinks and stay within the project and configured worktree roots. `Bash` is intentionally a real
+local shell with the current user's permissions, so only agents declaring `Bash` receive it.
+
+`Agent` is a synchronous tool: the parent resumes only when the child has returned its final text.
+When a model emits several `Agent` calls in one turn, their children run in parallel. All children
+share `maxDepth` and `maxAgentCalls` limits, and every individual loop is capped by `maxTurns`.
+
+Project-local Claude overlays under `.claude/` remain outside the runner. To make a local expert
+available to direct API agents, place it under a separate `<skill-dir>/<name>/SKILL.md` tree and add
+that parent directory to `runner.skillDirs`. Runner skill directories are rejected if they point
+inside `.claude/`, preserving project ownership of files outside the LiteCodeAgent lockfile.
+
+---
+
 ## Packs
 
 - **`core`** — the 11 pipeline agents (`classifier`, `panel-selector`, `debate-angle`,
@@ -230,8 +303,8 @@ guide) belongs in that repo's `.claude/` as a local overlay — not in a pack.
 - **An unresolved placeholder is a hard error.** A prompt with a hole in it is worse than
   a build that fails.
 - **Capability tiers, not model ids.** Packs declare `tier: fast | balanced | reasoning`;
-  the tier→model mapping lives in your config. That's what will let the same packs drive
-  an OpenAI- or DeepSeek-backed runner without touching a single agent file.
+  the tier→model mapping lives in your config. The same packs now drive OpenAI, Anthropic,
+  and DeepSeek adapters without changing an agent file.
 - **Dangling skill references fail the install.** If your config names a skill that is in
   no installed pack and has no local overlay, `install` stops and tells you where each
   reference came from — rather than rendering an agent that asks the harness for something
@@ -261,11 +334,10 @@ then the lockfile and `litecode.config.json`. Your own `.claude/` files are unto
 
 ## Status
 
-Phase 1 — packs, install, board provisioning — is done and driving a real repo.
-
-Next: a plugin manifest for native `/plugin install`, then the provider-agnostic runner
-(an agent loop with its own tool layer and `Agent` spawning) so the same packs run against
-OpenAI-compatible providers instead of only inside Claude Code.
+Phase 1 (packs/install/board), phase 2 (native Claude Code plugin), and phase 3 (direct API
+runner with recursive `Agent`) are implemented. Provider adapters, orchestration semantics, and an
+end-to-end CLI call are covered with deterministic tests; a live smoke run requires the
+corresponding API key.
 
 ---
 
