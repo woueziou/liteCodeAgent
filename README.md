@@ -254,7 +254,12 @@ declare only `fast`, `balanced`, or `reasoning` tiers.
     "maxCostUsd": 2,
     "maxTurns": 30,
     "maxDepth": 4,
-    "maxAgentCalls": 32
+    "maxAgentCalls": 32,
+    "runTimeoutMs": 1800000,
+    "requestTimeoutMs": 300000,
+    "maxRetries": 2,
+    "retryBaseDelayMs": 500,
+    "retryMaxDelayMs": 10000
   }
 }
 ```
@@ -284,6 +289,18 @@ prevents another request once the limit is reached. The response that crosses th
 billed, and sibling requests already in flight may also finish, so this is a circuit breaker rather
 than a prepaid spending guarantee. If a provider omits usage while a limit is configured, the run
 fails instead of pretending the limit was enforced.
+
+The complete agent tree is bounded by `runTimeoutMs`; each HTTP attempt is bounded separately by
+`requestTimeoutMs`. `Ctrl-C` and `SIGTERM` propagate through provider requests, retry waits, child
+agents, `Grep`, and `Bash`, terminating active subprocesses. Successful and failed JSON reports use
+`completed`, `failed`, `cancelled`, or `timed_out` status values. A failed `--record` run still writes
+its partial token totals, retry count, request ids, and structured error before exiting with code 1.
+
+Transient HTTP responses (`408`, `409`, `429`, and `5xx`) are retried up to `maxRetries` with bounded
+exponential backoff, respecting `Retry-After` when present. Authentication, permission, balance, and
+validation errors are not retried. Transport failures and request timeouts are also not replayed:
+the runner cannot prove whether a raw POST reached the provider, so an automatic retry could charge
+for the same model turn twice. `--trace` shows every retry and any provider request id returned.
 
 The runner renders pack templates directly from the same config used by `install`; unresolved
 placeholders remain hard errors. It enforces each agent's declared tool list and supplies local
@@ -355,10 +372,11 @@ then the lockfile and `litecode.config.json`. Your own `.claude/` files are unto
 
 ## Status
 
-Phases 1–4 are implemented: packs/install/board, the native Claude Code plugin, the direct API
-runner with recursive `Agent`, and runner usage/cost reporting. Provider adapters, orchestration
-semantics, budgets, and an end-to-end structured CLI call are covered with deterministic tests; a
-live smoke run requires the corresponding API key.
+Phases 1–5 are implemented: packs/install/board, the native Claude Code plugin, the direct API
+runner with recursive `Agent`, usage/cost reporting, and runner reliability. Provider adapters,
+orchestration semantics, retries, cancellation, timeouts, budgets, partial failure reports, and
+structured CLI calls are covered with deterministic tests; a live smoke run requires the
+corresponding API key.
 
 ---
 

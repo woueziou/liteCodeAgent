@@ -13,7 +13,13 @@ import { doctor } from "./board/doctor.ts";
 import { init, summarize } from "./init.ts";
 import { isInteractive } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
-import { runConfiguredAgentDetailed, type RunReport, type TraceEvent } from "./runner/index.ts";
+import {
+  RunCancelledError,
+  RunnerExecutionError,
+  runConfiguredAgentDetailed,
+  type RunOutcome,
+  type TraceEvent,
+} from "./runner/index.ts";
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKS_ROOT = join(KIT_ROOT, "packs");
@@ -123,12 +129,16 @@ function traceLine(event: TraceEvent): string {
   if (event.type === "agent-end") return `${"  ".repeat(event.depth)}← ${event.agent} (${event.turns} turn${event.turns === 1 ? "" : "s"})`;
   if (event.type === "tool-start") return `  ${"  ".repeat(1)}${event.agent}: ${event.tool}`;
   if (event.type === "tool-end") return "";
+  if (event.type === "retry") {
+    const request = event.requestId ? ` · ${event.requestId}` : "";
+    return `  ${event.agent}: retry ${event.retry}/${event.maxRetries} after HTTP ${event.status} in ${event.delayMs}ms${request}`;
+  }
   const cost = event.totalCostUsd === null ? "cost unknown" : `$${event.totalCostUsd.toFixed(6)}`;
   if (!event.usage) return `  ${event.agent}: usage unavailable · ${cost}`;
   return `  ${event.agent}: ${event.usage.input} in / ${event.usage.output} out · ${cost}`;
 }
 
-function usageLine(report: RunReport): string {
+function usageLine(report: RunOutcome): string {
   const cost = report.usage.costUsd === null ? "cost unknown" : `$${report.usage.costUsd.toFixed(6)}`;
   return `${report.usage.requests} request${report.usage.requests === 1 ? "" : "s"} · ` +
     `${report.usage.input} input / ${report.usage.output} output tokens · ${cost}`;
@@ -152,14 +162,30 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
         if (line) console.error(c.dim(line));
       }
     : undefined;
-  const report = await runConfiguredAgentDetailed({
-    projectRoot: root,
-    packsRoot: PACKS_ROOT,
-    config,
-    agent,
-    prompt,
-    trace,
-  });
+  const controller = new AbortController();
+  const cancel = (signal: string) => controller.abort(new RunCancelledError(`Run cancelled by ${signal}`));
+  const onSigint = () => cancel("SIGINT");
+  const onSigterm = () => cancel("SIGTERM");
+  process.once("SIGINT", onSigint);
+  process.once("SIGTERM", onSigterm);
+  let report: RunOutcome;
+  try {
+    report = await runConfiguredAgentDetailed({
+      projectRoot: root,
+      packsRoot: PACKS_ROOT,
+      config,
+      agent,
+      prompt,
+      trace,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (!(error instanceof RunnerExecutionError)) throw error;
+    report = error.report;
+  } finally {
+    process.off("SIGINT", onSigint);
+    process.off("SIGTERM", onSigterm);
+  }
   const recordPath = arg(argv, "--record");
   if (recordPath) {
     const destination = resolve(root, recordPath);
@@ -167,11 +193,12 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
     await Bun.write(destination, `${JSON.stringify(report, null, 2)}\n`);
   }
   if (argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
-  else console.log(report.output);
+  else if (report.status === "completed") console.log(report.output);
+  else console.error(c.red(`\n${report.error.message}`));
   if (!argv.includes("--json") && (argv.includes("--usage") || argv.includes("--trace"))) {
     console.error(c.dim(usageLine(report)));
   }
-  return 0;
+  return report.status === "completed" ? 0 : 1;
 }
 
 async function cmdBoard(root: string, argv: string[]): Promise<number> {

@@ -1,10 +1,13 @@
 import type { Config } from "../config.ts";
 import type { AgentCatalog } from "./catalog.ts";
+import { ProviderError } from "./providers.ts";
 import { agentToolDefinition, LocalTools } from "./tools.ts";
 import type {
   AssistantMessage,
   Provider,
   RunReport,
+  RunFailureReport,
+  RunReportBase,
   RunUsage,
   RunnerMessage,
   TokenUsage,
@@ -20,6 +23,7 @@ export type RuntimeOptions = {
   provider: Provider;
   catalog: AgentCatalog;
   trace?: (event: TraceEvent) => void;
+  signal?: AbortSignal;
 };
 
 type MutableUsage = {
@@ -40,9 +44,29 @@ type Session = {
   total: number;
   costUsd: number | null;
   usage: Map<string, MutableUsage>;
+  retries: number;
+  requestIds: string[];
 };
 
-export class CostBudgetExceededError extends Error {}
+export class CostBudgetExceededError extends Error {
+  override name = "CostBudgetExceededError";
+}
+
+export class RunTimeoutError extends Error {
+  override name = "RunTimeoutError";
+}
+
+export class RunCancelledError extends Error {
+  override name = "RunCancelledError";
+}
+
+export class RunnerExecutionError extends Error {
+  override name = "RunnerExecutionError";
+
+  constructor(readonly report: RunFailureReport, cause: Error) {
+    super(cause.message, { cause });
+  }
+}
 
 function inputRecord(input: unknown): Record<string, unknown> {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
@@ -70,6 +94,7 @@ export class AgentRuntime {
 
   async runDetailed(agent: string, prompt: string): Promise<RunReport> {
     const started = Date.now();
+    const startedAt = new Date(started).toISOString();
     const session: Session = {
       agentCalls: 0,
       requests: 0,
@@ -78,21 +103,76 @@ export class AgentRuntime {
       total: 0,
       costUsd: 0,
       usage: new Map(),
+      retries: 0,
+      requestIds: [],
     };
-    const output = await this.runAgent(agent, prompt, 0, session);
-    return {
-      output,
-      provider: this.options.provider.name,
-      agent,
-      agentCalls: session.agentCalls,
-      startedAt: new Date(started).toISOString(),
-      durationMs: Date.now() - started,
-      usage: this.usageReport(session),
+    const controller = new AbortController();
+    const timeout = new RunTimeoutError(`Run timed out after ${this.options.config.runner.runTimeoutMs}ms`);
+    const timer = setTimeout(() => controller.abort(timeout), this.options.config.runner.runTimeoutMs);
+    const cancel = () => {
+      const reason = this.options.signal?.reason;
+      controller.abort(reason instanceof Error ? reason : new RunCancelledError("Run cancelled"));
     };
+    if (this.options.signal?.aborted) cancel();
+    else this.options.signal?.addEventListener("abort", cancel, { once: true });
+
+    try {
+      const output = await this.runAgent(agent, prompt, 0, session, controller.signal);
+      return {
+        ...this.reportBase(agent, startedAt, started, session),
+        status: "completed",
+        output,
+        error: null,
+      };
+    } catch (error) {
+      const thrown = error instanceof Error ? error : new Error(String(error));
+      const cause = controller.signal.aborted && controller.signal.reason instanceof Error
+        ? controller.signal.reason
+        : thrown;
+      if (cause instanceof ProviderError && cause.requestId) session.requestIds.push(cause.requestId);
+      const report: RunFailureReport = {
+        ...this.reportBase(agent, startedAt, started, session),
+        status: cause instanceof RunTimeoutError
+          ? "timed_out"
+          : cause instanceof RunCancelledError || controller.signal.aborted
+            ? "cancelled"
+            : "failed",
+        output: null,
+        error: {
+          name: cause.name,
+          message: cause.message,
+          ...(cause instanceof ProviderError
+            ? {
+                code: cause.code,
+                ...(cause.status === undefined ? {} : { statusCode: cause.status }),
+                ...(cause.requestId === undefined ? {} : { requestId: cause.requestId }),
+                attempts: cause.attempts,
+              }
+            : {}),
+        },
+      };
+      throw new RunnerExecutionError(report, cause);
+    } finally {
+      clearTimeout(timer);
+      this.options.signal?.removeEventListener("abort", cancel);
+    }
   }
 
   private emit(event: TraceEvent): void {
     this.options.trace?.(event);
+  }
+
+  private reportBase(agent: string, startedAt: string, started: number, session: Session): RunReportBase {
+    return {
+      provider: this.options.provider.name,
+      agent,
+      agentCalls: session.agentCalls,
+      startedAt,
+      durationMs: Date.now() - started,
+      retries: session.retries,
+      requestIds: [...session.requestIds],
+      usage: this.usageReport(session),
+    };
   }
 
   private usageReport(session: Session): RunUsage {
@@ -170,7 +250,13 @@ export class AgentRuntime {
     }
   }
 
-  private async runAgent(agentName: string, prompt: string, depth: number, session: Session): Promise<string> {
+  private async runAgent(
+    agentName: string,
+    prompt: string,
+    depth: number,
+    session: Session,
+    signal: AbortSignal,
+  ): Promise<string> {
     const { config, catalog, provider, projectRoot } = this.options;
     if (depth > config.runner.maxDepth) {
       throw new Error(`Agent depth limit exceeded (${config.runner.maxDepth})`);
@@ -183,12 +269,14 @@ export class AgentRuntime {
     const agent = catalog.agent(agentName);
     const model = config.runner.models[agent.tier];
     const system = await catalog.systemPrompt(agent, projectRoot);
+    if (signal.aborted) throw signal.reason;
     const definitions = this.tools.definitions(agent.tools);
     if (agent.tools.includes("Agent")) definitions.push(agentToolDefinition(catalog.agentNames()));
     const messages: RunnerMessage[] = [{ role: "user", content: prompt }];
     this.emit({ type: "agent-start", agent: agentName, depth, model });
 
     for (let turn = 1; turn <= config.runner.maxTurns; turn++) {
+      if (signal.aborted) throw signal.reason;
       this.assertBudgetAvailable(session);
       const completion = await provider.complete({
         system,
@@ -196,7 +284,15 @@ export class AgentRuntime {
         messages,
         tools: definitions,
         maxOutputTokens: config.runner.maxOutputTokens,
+        signal,
+        onRetry: (event) => {
+          session.retries++;
+          if (event.requestId) session.requestIds.push(event.requestId);
+          this.emit({ type: "retry", agent: agentName, model, ...event });
+        },
       });
+      if (signal.aborted) throw signal.reason;
+      if (completion.requestId) session.requestIds.push(completion.requestId);
       const assistant = completion.message;
       messages.push(assistant);
       this.recordUsage(agentName, model, completion.usage, session);
@@ -207,7 +303,7 @@ export class AgentRuntime {
         return assistant.content;
       }
 
-      const execute = (call: ToolCall) => this.executeTool(agentName, agent.tools, call, depth, session);
+      const execute = (call: ToolCall) => this.executeTool(agentName, agent.tools, call, depth, session, signal);
       const results: ToolMessage[] = [];
       if (assistant.toolCalls.every((call) => call.name === "Agent")) {
         results.push(...(await Promise.all(assistant.toolCalls.map(execute))));
@@ -225,6 +321,7 @@ export class AgentRuntime {
     call: ToolCall,
     depth: number,
     session: Session,
+    signal: AbortSignal,
   ): Promise<ToolMessage> {
     this.emit({ type: "tool-start", agent: agentName, tool: call.name, callId: call.id });
     let result: ToolResult;
@@ -240,13 +337,19 @@ export class AgentRuntime {
         if (typeof subagent !== "string" || typeof prompt !== "string" || !prompt) {
           throw new Error("Agent requires non-empty 'subagent_type' and 'prompt' strings");
         }
-        result = { content: await this.runAgent(subagent, prompt, depth + 1, session) };
+        result = { content: await this.runAgent(subagent, prompt, depth + 1, session, signal) };
       } catch (error) {
-        if (error instanceof CostBudgetExceededError) throw error;
+        if (
+          error instanceof CostBudgetExceededError ||
+          error instanceof RunTimeoutError ||
+          error instanceof RunCancelledError ||
+          signal.aborted
+        ) throw error;
+        if (error instanceof ProviderError && error.requestId) session.requestIds.push(error.requestId);
         result = { content: (error as Error).message, isError: true };
       }
     } else {
-      result = await this.tools.execute(call.name, call.input, this.options.projectRoot);
+      result = await this.tools.execute(call.name, call.input, this.options.projectRoot, signal);
     }
     this.emit({
       type: "tool-end",

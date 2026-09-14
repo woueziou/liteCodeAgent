@@ -20,7 +20,7 @@ litecode.config.json qui fournit les valeurs. `litecode install` fait le rendu v
 .claude/, traqué par un lockfile qui distingue "tu es en retard" de "tu as édité à
 la main" — et refuse d'écraser le second sans --force.
 
-ÉTAT : phases 1 à 4 terminées, v0.5.0, 41 tests verts, tsc propre.
+ÉTAT : phases 1 à 5 terminées, v0.6.0, 49 tests verts, tsc propre.
 Fait : les 11 agents + 13 skills en packs, le moteur de template, install avec
 lockfile et validation des références de skills, board init/doctor (GitHub Projects),
 init assisté avec détection du repo, install.sh, litecode upgrade, et installation
@@ -28,6 +28,8 @@ native Claude Code via le marketplace embarqué (`litecode-agent@litecode`). Le 
 direct supporte OpenAI Responses, Anthropic Messages et DeepSeek Chat Completions, avec
 une couche d'outils locale et un outil `Agent` récursif/synchrone. Les rapports structurés
 agrègent tokens et coûts par agent/modèle; un budget configurable arrête les runs trop chers.
+Le runner borne les requêtes et le run complet, réessaie uniquement les réponses HTTP
+transitoires, propage l'annulation jusqu'à Bash et conserve un rapport partiel en cas d'échec.
 
 INVARIANTS À NE PAS CASSER
 1. Aucun littéral projet dans packs/ — tests/packs.test.ts le garde.

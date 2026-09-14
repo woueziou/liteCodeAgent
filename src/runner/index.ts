@@ -17,6 +17,7 @@ export async function runConfiguredAgent(options: {
   agent: string;
   prompt: string;
   trace?: (event: TraceEvent) => void;
+  signal?: AbortSignal;
 }): Promise<string> {
   return (await runConfiguredAgentDetailed(options)).output;
 }
@@ -28,6 +29,7 @@ export async function runConfiguredAgentDetailed(options: {
   agent: string;
   prompt: string;
   trace?: (event: TraceEvent) => void;
+  signal?: AbortSignal;
 }): Promise<RunReport> {
   const runner = options.config.runner;
   if (!runner) {
@@ -41,17 +43,34 @@ export async function runConfiguredAgentDetailed(options: {
 
   const config = { ...options.config, runner };
   const catalog = await AgentCatalog.load(options.projectRoot, options.packsRoot, config);
-  const provider = createProvider({ provider: runner.provider, apiKey, baseUrl: runner.baseUrl });
+  const provider = createProvider({
+    provider: runner.provider,
+    apiKey,
+    baseUrl: runner.baseUrl,
+    reliability: {
+      requestTimeoutMs: runner.requestTimeoutMs,
+      maxRetries: runner.maxRetries,
+      retryBaseDelayMs: runner.retryBaseDelayMs,
+      retryMaxDelayMs: runner.retryMaxDelayMs,
+    },
+  });
   return new AgentRuntime({
     projectRoot: options.projectRoot,
     config,
     provider,
     catalog,
     trace: options.trace,
+    signal: options.signal,
   }).runDetailed(options.agent, options.prompt);
 }
 
 export { AgentCatalog } from "./catalog.ts";
-export { AgentRuntime, CostBudgetExceededError } from "./runtime.ts";
-export { AnthropicProvider, DeepSeekProvider, OpenAIProvider, createProvider } from "./providers.ts";
+export {
+  AgentRuntime,
+  CostBudgetExceededError,
+  RunCancelledError,
+  RunnerExecutionError,
+  RunTimeoutError,
+} from "./runtime.ts";
+export { AnthropicProvider, DeepSeekProvider, OpenAIProvider, ProviderError, createProvider } from "./providers.ts";
 export type * from "./types.ts";

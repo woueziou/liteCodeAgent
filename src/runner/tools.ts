@@ -101,6 +101,11 @@ function stringValue(input: ToolInput, key: string): string {
   return value;
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw signal.reason instanceof Error ? signal.reason : new Error("Run cancelled");
+}
+
 async function canonical(path: string): Promise<string> {
   let existing = path;
   const suffix: string[] = [];
@@ -155,8 +160,9 @@ export class LocalTools {
     return `${value.slice(0, this.outputLimit)}\n… truncated ${value.length - this.outputLimit} characters`;
   }
 
-  async execute(name: string, rawInput: unknown, cwd: string): Promise<ToolResult> {
+  async execute(name: string, rawInput: unknown, cwd: string, signal?: AbortSignal): Promise<ToolResult> {
     try {
+      throwIfAborted(signal);
       const input = record(rawInput);
       switch (name) {
         case "Read": {
@@ -195,7 +201,10 @@ export class LocalTools {
           }
           const glob = new Bun.Glob(pattern);
           const files: string[] = [];
-          for await (const entry of glob.scan({ cwd: base, onlyFiles: true })) files.push(entry);
+          for await (const entry of glob.scan({ cwd: base, onlyFiles: true })) {
+            throwIfAborted(signal);
+            files.push(entry);
+          }
           files.sort();
           return { content: this.truncate(files.join("\n")) };
         }
@@ -204,12 +213,13 @@ export class LocalTools {
           const args = ["rg", "--line-number", "--no-heading", "--color", "never"];
           if (typeof input.glob === "string") args.push("--glob", input.glob);
           args.push(requiredString(input, "pattern"), target);
-          const proc = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "pipe" });
+          const proc = Bun.spawn(args, { cwd, stdout: "pipe", stderr: "pipe", signal });
           const [stdout, stderr, exit] = await Promise.all([
             new Response(proc.stdout).text(),
             new Response(proc.stderr).text(),
             proc.exited,
           ]);
+          throwIfAborted(signal);
           if (exit > 1) throw new Error(stderr.trim() || `rg exited ${exit}`);
           return { content: this.truncate(stdout.trim()) };
         }
@@ -218,7 +228,12 @@ export class LocalTools {
           const base = await this.path(typeof input.cwd === "string" ? input.cwd : ".", cwd);
           const requested = typeof input.timeout_ms === "number" ? Math.trunc(input.timeout_ms) : this.bashTimeoutMs;
           const timeoutMs = Math.min(600_000, Math.max(1, requested));
-          const proc = Bun.spawn(["/bin/zsh", "-lc", command], { cwd: base, stdout: "pipe", stderr: "pipe" });
+          const proc = Bun.spawn(["/bin/zsh", "-lc", command], {
+            cwd: base,
+            stdout: "pipe",
+            stderr: "pipe",
+            signal,
+          });
           let timedOut = false;
           const timer = setTimeout(() => {
             timedOut = true;
@@ -229,6 +244,7 @@ export class LocalTools {
             new Response(proc.stderr).text(),
             proc.exited,
           ]).finally(() => clearTimeout(timer));
+          throwIfAborted(signal);
           const output = [stdout.trimEnd(), stderr.trimEnd()].filter(Boolean).join("\n");
           return {
             content: this.truncate(`${output}${output ? "\n" : ""}[exit ${exit}${timedOut ? ", timed out" : ""}]`),
@@ -243,6 +259,7 @@ export class LocalTools {
           throw new Error(`Runner does not implement tool '${name}'`);
       }
     } catch (error) {
+      throwIfAborted(signal);
       return { content: (error as Error).message, isError: true };
     }
   }

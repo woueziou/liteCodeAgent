@@ -1,6 +1,6 @@
 {
   "name": "lite-code-agent",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Portable, versioned multi-agent pipeline packs with Claude Code and direct API runners.",
   "type": "module",
   "bin": { "litecode": "./src/cli.ts" },
