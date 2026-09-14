@@ -1,9 +1,39 @@
 {
-  "name": "lite-code-agent",
-  "version": "0.4.0",
+  "name": "litecodeagent",
+  "version": "0.7.0",
   "description": "Portable, versioned multi-agent pipeline packs with Claude Code and direct API runners.",
   "type": "module",
-  "bin": { "litecode": "./src/cli.ts" },
+  "bin": {
+    "litecodeagent": "./bin/litecodeagent",
+    "litecode": "./bin/litecode"
+  },
+  "files": [
+    ".claude-plugin/",
+    "bin/",
+    "examples/",
+    "packs/",
+    "skills/",
+    "src/",
+    "CHANGELOG.md",
+    "HANDOFF.md",
+    "install.sh"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/woueziou/liteCodeAgent.git"
+  },
+  "homepage": "https://github.com/woueziou/liteCodeAgent#readme",
+  "bugs": "https://github.com/woueziou/liteCodeAgent/issues",
+  "keywords": [
+    "agents",
+    "multi-agent",
+    "claude-code",
+    "openai",
+    "developer-tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "litecode": "bun run src/cli.ts",
     "check": "tsc --noEmit",

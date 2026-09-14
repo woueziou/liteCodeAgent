@@ -20,13 +20,17 @@ litecode.config.json qui fournit les valeurs. `litecode install` fait le rendu v
 .claude/, traqué par un lockfile qui distingue "tu es en retard" de "tu as édité à
 la main" — et refuse d'écraser le second sans --force.
 
-ÉTAT : phases 1 à 3 terminées, v0.4.0, 40 tests verts, tsc propre.
+ÉTAT : phases 1 à 5 et distribution bunx terminées, v0.7.0, 52 tests verts,
+tsc propre. Le paquet npm est prêt mais pas encore publié faute de session npm authentifiée.
 Fait : les 11 agents + 13 skills en packs, le moteur de template, install avec
 lockfile et validation des références de skills, board init/doctor (GitHub Projects),
-init assisté avec détection du repo, install.sh, litecode upgrade, et installation
+init assisté avec détection du repo, `bunx litecodeagent setup`, install.sh, litecode upgrade, et installation
 native Claude Code via le marketplace embarqué (`litecode-agent@litecode`). Le runner
 direct supporte OpenAI Responses, Anthropic Messages et DeepSeek Chat Completions, avec
-une couche d'outils locale et un outil `Agent` récursif/synchrone.
+une couche d'outils locale et un outil `Agent` récursif/synchrone. Les rapports structurés
+agrègent tokens et coûts par agent/modèle; un budget configurable arrête les runs trop chers.
+Le runner borne les requêtes et le run complet, réessaie uniquement les réponses HTTP
+transitoires, propage l'annulation jusqu'à Bash et conserve un rapport partiel en cas d'échec.
 
 INVARIANTS À NE PAS CASSER
 1. Aucun littéral projet dans packs/ — tests/packs.test.ts le garde.
@@ -44,12 +48,13 @@ INVARIANTS À NE PAS CASSER
 CE QUI RESTE
 - Faire un smoke test réel par provider dès que les clés API correspondantes sont
   disponibles. Les adaptateurs sont testés avec transports déterministes, sans appel facturé.
-- Décider si la prochaine phase porte sur le streaming/compteurs de coût, un sandbox
-  explicite pour Bash, ou une API de checkpoints/reprise des longues exécutions.
+- Choisir entre le streaming des sorties, un sandbox explicite pour Bash, ou une API de
+  checkpoints/reprise des longues exécutions.
 
 Le chemin interactif de `litecode init` a été validé en PTY. Cette validation a
 révélé puis corrigé une perte de stdin après la première réponse. Le rendu d'un
-projet sans ADR a aussi été corrigé.
+projet sans ADR a aussi été corrigé. Le parcours `bunx litecodeagent setup --apply`
+a ensuite été validé de bout en bout en PTY, y compris les questions du pack web.
 
 Commandes : bun test | bun x tsc --noEmit | bun run src/cli.ts <cmd>
 

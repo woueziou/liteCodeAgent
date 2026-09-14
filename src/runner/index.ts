@@ -2,7 +2,7 @@ import type { Config } from "../config.ts";
 import { AgentCatalog } from "./catalog.ts";
 import { createProvider } from "./providers.ts";
 import { AgentRuntime } from "./runtime.ts";
-import type { TraceEvent } from "./types.ts";
+import type { RunReport, TraceEvent } from "./types.ts";
 
 const DEFAULT_KEY_ENV = {
   openai: "OPENAI_API_KEY",
@@ -17,11 +17,24 @@ export async function runConfiguredAgent(options: {
   agent: string;
   prompt: string;
   trace?: (event: TraceEvent) => void;
+  signal?: AbortSignal;
 }): Promise<string> {
+  return (await runConfiguredAgentDetailed(options)).output;
+}
+
+export async function runConfiguredAgentDetailed(options: {
+  projectRoot: string;
+  packsRoot: string;
+  config: Config;
+  agent: string;
+  prompt: string;
+  trace?: (event: TraceEvent) => void;
+  signal?: AbortSignal;
+}): Promise<RunReport> {
   const runner = options.config.runner;
   if (!runner) {
     throw new Error(
-      "litecode.config.json has no runner block. Configure runner.provider and runner.models before using `litecode run`.",
+      "litecode.config.json has no runner block. Configure runner.provider and runner.models before using `bunx litecodeagent run`.",
     );
   }
   const keyEnv = runner.apiKeyEnv ?? DEFAULT_KEY_ENV[runner.provider];
@@ -30,17 +43,34 @@ export async function runConfiguredAgent(options: {
 
   const config = { ...options.config, runner };
   const catalog = await AgentCatalog.load(options.projectRoot, options.packsRoot, config);
-  const provider = createProvider({ provider: runner.provider, apiKey, baseUrl: runner.baseUrl });
+  const provider = createProvider({
+    provider: runner.provider,
+    apiKey,
+    baseUrl: runner.baseUrl,
+    reliability: {
+      requestTimeoutMs: runner.requestTimeoutMs,
+      maxRetries: runner.maxRetries,
+      retryBaseDelayMs: runner.retryBaseDelayMs,
+      retryMaxDelayMs: runner.retryMaxDelayMs,
+    },
+  });
   return new AgentRuntime({
     projectRoot: options.projectRoot,
     config,
     provider,
     catalog,
     trace: options.trace,
-  }).run(options.agent, options.prompt);
+    signal: options.signal,
+  }).runDetailed(options.agent, options.prompt);
 }
 
 export { AgentCatalog } from "./catalog.ts";
-export { AgentRuntime } from "./runtime.ts";
-export { AnthropicProvider, DeepSeekProvider, OpenAIProvider, createProvider } from "./providers.ts";
+export {
+  AgentRuntime,
+  CostBudgetExceededError,
+  RunCancelledError,
+  RunnerExecutionError,
+  RunTimeoutError,
+} from "./runtime.ts";
+export { AnthropicProvider, DeepSeekProvider, OpenAIProvider, ProviderError, createProvider } from "./providers.ts";
 export type * from "./types.ts";
