@@ -15,7 +15,7 @@ export type Detected = {
   checkCommand?: string;
   typecheckCommands: string[];
   adrDir?: string;
-  /** Existing skills the project already owns under .claude/skills. */
+  /** Existing skills the project already owns under a supported harness's skill directory. */
   localSkills: string[];
   /** Rough stack signals, used to propose debate angles and expert packs. */
   stack: {
@@ -154,11 +154,14 @@ export async function detect(root: string): Promise<Detected> {
         ? "React"
         : undefined;
 
-  const localSkills: string[] = [];
-  const skillsDir = join(root, ".claude", "skills");
-  if (await dirExists(skillsDir)) {
-    for (const entry of await readdir(skillsDir)) {
-      if (await exists(join(skillsDir, entry, "SKILL.md"))) localSkills.push(entry);
+  const localSkills = new Set<string>();
+  const skillsDirs = [".claude/skills", ".agents/skills", ".pi/skills", ".opencode/skills", ".kilo/skills"];
+  for (const relativeDir of skillsDirs) {
+    const skillsDir = join(root, relativeDir);
+    if (await dirExists(skillsDir)) {
+      for (const entry of await readdir(skillsDir)) {
+        if (await exists(join(skillsDir, entry, "SKILL.md"))) localSkills.add(entry);
+      }
     }
   }
 
@@ -177,7 +180,7 @@ export async function detect(root: string): Promise<Detected> {
     checkCommand: pickCheckScript(scripts, runner),
     typecheckCommands: pickTypecheckScripts(scripts, runner),
     adrDir: (await dirExists(join(root, "docs/decisions"))) ? "docs/decisions" : undefined,
-    localSkills,
+    localSkills: [...localSkills],
     stack: {
       typescript: (await exists(join(root, "tsconfig.json"))) || deps.has("typescript"),
       react: deps.has("react"),
