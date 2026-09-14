@@ -34,7 +34,7 @@ export async function runConfiguredAgentDetailed(options: {
   const runner = options.config.runner;
   if (!runner) {
     throw new Error(
-      "litecode.config.json has no runner block. Configure runner.provider and runner.models before using `litecode run`.",
+      "litecode.config.json has no runner block. Configure runner.provider and runner.models before using `bunx litecodeagent run`.",
     );
   }
   const keyEnv = runner.apiKeyEnv ?? DEFAULT_KEY_ENV[runner.provider];

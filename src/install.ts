@@ -91,7 +91,7 @@ async function validateSkillReferences(
   if (problems.length > 0) {
     throw new Error(
       `litecode.config.json references skill(s) that do not exist:\n${problems.join("\n")}\n\n` +
-        `Either install the pack that provides them (see \`litecode packs\`), write them as a ` +
+        `Either install the pack that provides them (see \`bunx litecodeagent packs\`), write them as a ` +
         `local overlay under ${join(config.outDir, "skills")}/, or remove the reference.`,
     );
   }

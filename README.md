@@ -22,10 +22,10 @@ idea → classifier → panel-selector → debate-angle ×N → synthesizer → 
 | [Bun](https://bun.sh) ≥ 1.1 | runs the CLI |
 | [GitHub CLI](https://cli.github.com) (`gh`), authenticated | board provisioning and everything the agents do on GitHub |
 | Claude Code | optional: native plugin and rendered-agent harness |
-| Provider API key | required only for `litecode run` outside Claude Code |
+| Provider API key | required only for `bunx litecodeagent run` outside Claude Code |
 
 ```bash
-gh auth status   # must show you logged in before `litecode board ...`
+gh auth status   # must show you logged in before `bunx litecodeagent board ...`
 ```
 
 ---
@@ -52,33 +52,33 @@ from the committed lockfile. The setup skill still renders the parameterized pac
 same config validation and lockfile rules described below; it never loads pack templates directly.
 Update it later with `/plugin update litecode-agent@litecode`.
 
-## Install the CLI globally
+## Quick start with Bun
 
-One command. It clones into `~/.litecode`, installs dependencies, and puts `litecode` on
-your shell's PATH. Use this route when you also want to run `litecode` directly from a terminal.
-Run it again later to update.
-
-```bash
-gh repo clone woueziou/liteCodeAgent /tmp/lca -- --depth=1 && bash /tmp/lca/install.sh
-```
-
-`gh` carries your GitHub auth, so this works on the private repo. Override the location
-with `LITECODE_HOME=/somewhere`.
-
-Check it:
+Nothing is installed globally. From the target project's root, Bun downloads the CLI into its
+shared cache, runs the guided setup, and previews the files it would render:
 
 ```bash
-litecode packs
+cd /path/to/your/project
+bunx litecodeagent setup
 ```
 
-Later:
+Review `litecode.config.json`, then apply through the same command:
 
 ```bash
-litecode upgrade     # pull the latest packs into your install
+bunx litecodeagent setup --apply
 ```
 
-`upgrade` refuses to pull over uncommitted changes in `~/.litecode` — if you edited a pack
-there, that change belongs upstream, not in your local copy.
+If you want the shortest interactive path and are comfortable applying immediately after the
+questions, use one command:
+
+```bash
+bunx litecodeagent setup --apply
+```
+
+`setup` creates the config only when it is absent, so rerunning it previews or applies pack
+updates without replacing your answers. Use `bunx litecodeagent@latest <command>` to explicitly
+request the newest release. The shorter `litecode` executable remains available for global,
+plugin, and linked development installs.
 
 ## Set up a project
 
@@ -88,7 +88,7 @@ Run these from the root of the repo you want the pipeline in.
 
 ```bash
 cd /path/to/your/project
-litecode init
+bunx litecodeagent init
 ```
 
 `init` reads your repo first and proposes real answers rather than blank fields. It picks
@@ -112,7 +112,7 @@ mechanical and drift the moment a human maintains them by hand:
   A stack-specific skill you already own locally (say `orpc-expert`) gets wired in wherever
   it applies.
 
-Prefer no questions at all? `litecode init --yes` writes a config from detection alone and
+Prefer no questions at all? `bunx litecodeagent init --yes` writes a config from detection alone and
 marks anything it couldn't determine as `TODO`.
 
 ### 2. Skim the result
@@ -126,15 +126,15 @@ look:
 | `project.trustBoundaries` | what `security-expert` must assume; only you know these |
 | `project.lessons` | incidents this project already lived through, injected into `implementer` so the lesson travels with the agent |
 
-`litecode install` refuses to run while any `TODO` remains, because a `TODO` left in an
+`bunx litecodeagent install` refuses to run while any `TODO` remains, because a `TODO` left in an
 agent prompt reads to the model as an instruction rather than as something you forgot.
 `examples/ts-employee-service.litecode.config.json` is a complete, real, filled-in config.
 
 ### 3. Render the packs
 
 ```bash
-litecode install          # dry run: shows exactly what would be written
-litecode install --apply
+bunx litecodeagent install          # dry run: shows exactly what would be written
+bunx litecodeagent install --apply
 ```
 
 This writes `.claude/agents/*.md` and `.claude/skills/*/SKILL.md` into your repo, plus
@@ -148,17 +148,17 @@ rewritten, or deleted by the CLI.
 The pipeline is board-backed: state lives in a GitHub Project, not in issue comments.
 
 ```bash
-litecode board init          # dry run; uses the board you picked during init
-litecode board init --apply
+bunx litecodeagent board init          # dry run; uses the board you picked during init
+bunx litecodeagent board init --apply
 ```
 
 If you skipped the board question, pass it explicitly:
-`litecode board init --owner my-org --number 1`.
+`bunx litecodeagent board init --owner my-org --number 1`.
 
 This creates any missing fields (`Status`, `Priority`, `Size`, `Assigned Agent`,
 `Due Date`) and labels (`bug`, `feature`, `doc`, `chore`), then writes every resolved id
 into `.claude/data/board.json`. Put `owner` and `number` into your config afterwards so
-you can just run `litecode board init` next time.
+you can just run `bunx litecodeagent board init` next time.
 
 Don't have a board yet? Create an empty GitHub Project first (org → Projects → New
 project → Table), note its number from the URL, then run the command above — it will
@@ -224,8 +224,8 @@ with the subject in hand:
 ### Keeping it healthy
 
 ```bash
-litecode status          # installed packs, versions, files the kit owns
-litecode board doctor    # board.json vs. the live board, and Status integrity
+bunx litecodeagent status          # installed packs, versions, files the kit owns
+bunx litecodeagent board doctor    # board.json vs. the live board, and Status integrity
 ```
 
 Run `board doctor` after anyone edits the project's fields in the GitHub UI.
@@ -273,10 +273,10 @@ environment variable. `baseUrl` can point the matching adapter at a gateway or p
 Run any pack agent:
 
 ```bash
-litecode run orchestrator --prompt "users should be able to cancel a request after approval" --trace
-litecode run reviewer --prompt-file /tmp/review-request.md
-litecode run classifier --prompt "small copy fix" --usage
-litecode run orchestrator --prompt-file request.md --json --record .litecode/runs/latest.json
+bunx litecodeagent run orchestrator --prompt "users should be able to cancel a request after approval" --trace
+bunx litecodeagent run reviewer --prompt-file /tmp/review-request.md
+bunx litecodeagent run classifier --prompt "small copy fix" --usage
+bunx litecodeagent run orchestrator --prompt-file request.md --json --record .litecode/runs/latest.json
 ```
 
 The default stdout remains the agent's final text so shell pipelines keep working. `--usage` adds a
@@ -356,10 +356,13 @@ guide) belongs in that repo's `.claude/` as a local overlay — not in a pack.
 ## Upgrading and undoing
 
 ```bash
-litecode upgrade                                    # updates ~/.litecode
-cd /path/to/your/project && litecode install        # dry run shows the delta
-litecode install --apply
+bunx litecodeagent@latest install          # latest release, dry run shows the delta
+bunx litecodeagent@latest install --apply
 ```
+
+There is no separate CLI upgrade step in the Bun path: `bunx` resolves the npm package and stores
+it in Bun's shared cache. `litecode upgrade` remains available only for the legacy git-clone
+installation made by `install.sh`.
 
 If you edited a managed file by hand, `install` reports it as `DRIFT` and stops. Either
 move your change upstream into the pack (the right answer, so every project gets it), or
@@ -372,11 +375,12 @@ then the lockfile and `litecode.config.json`. Your own `.claude/` files are unto
 
 ## Status
 
-Phases 1–5 are implemented: packs/install/board, the native Claude Code plugin, the direct API
-runner with recursive `Agent`, usage/cost reporting, and runner reliability. Provider adapters,
-orchestration semantics, retries, cancellation, timeouts, budgets, partial failure reports, and
-structured CLI calls are covered with deterministic tests; a live smoke run requires the
-corresponding API key.
+Phases 1–5 and the npm/bunx distribution path are implemented: packs/install/board, the native
+Claude Code plugin, the direct API runner with recursive `Agent`, usage/cost reporting, runner
+reliability, and ephemeral CLI execution. Provider adapters, orchestration semantics, retries,
+cancellation, timeouts, budgets, partial failure reports, package contents, and structured CLI
+calls are covered with deterministic tests; a live provider smoke run requires the corresponding
+API key. The npm package is ready for publication as `litecodeagent`.
 
 ---
 
@@ -389,7 +393,8 @@ bun x tsc --noEmit
 ```
 
 Working on the kit itself? `git clone` it anywhere and `bun link` — that takes over the
-`litecode` command, and `litecode upgrade` will then refuse to touch your working tree.
+`litecode` and `litecodeagent` commands. The legacy `install.sh` path is also retained for private
+source-only distributions that cannot publish the npm package.
 
 Pack changes are content changes: edit the Markdown under `packs/`, bump the pack's
 `version` in `pack.json`, and run `bun test` — the suite checks that no project literal

@@ -71,3 +71,15 @@ First extraction of the pipeline out of a single repo into installable packs.
   across provider calls, retry waits, child agents, searches, and active Bash subprocesses.
 - Failed runs expose structured partial reports with status, completed usage, retry count, provider
   request ids, and typed error diagnostics. `--json` and `--record` preserve this report on exit 1.
+
+## 0.7.0 — unreleased
+
+- The npm package is now named `litecodeagent` and exposes matching `litecodeagent` plus compatible
+  `litecode` executables, enabling `bunx litecodeagent <command>` without a global installation.
+- `bunx litecodeagent setup` initializes a missing config and renders the packs in one flow. It
+  preserves the existing dry-run default; `--apply` is still explicit and all drift guards remain.
+- Interactive init now asks for the web-pack values that previously remained as `TODO`, so a fully
+  answered wizard can proceed directly to rendering.
+- The published file set is explicit and tested from the generated package archive; source tests and
+  development dependencies are excluded. Package-cache installs explain that `@latest` replaces the
+  legacy git-only `upgrade` operation.

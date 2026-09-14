@@ -195,7 +195,7 @@ export async function loadConfig(projectRoot: string): Promise<{ config: Config;
   const file = Bun.file(path);
   if (!(await file.exists())) {
     throw new Error(
-      `No ${CONFIG_FILENAME} at ${path}. Run \`litecode init\` in the target repo first.`,
+      `No ${CONFIG_FILENAME} at ${path}. Run \`bunx litecodeagent init\` in the target repo first.`,
     );
   }
   const raw = await file.text();
