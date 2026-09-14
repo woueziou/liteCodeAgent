@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { resolve, dirname, join } from "node:path";
+import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadConfig, CONFIG_FILENAME } from "./config.ts";
 import { buildPlan, applyPlan } from "./install.ts";
@@ -12,7 +13,7 @@ import { doctor } from "./board/doctor.ts";
 import { init, summarize } from "./init.ts";
 import { isInteractive } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
-import { runConfiguredAgent, type TraceEvent } from "./runner/index.ts";
+import { runConfiguredAgentDetailed, type RunReport, type TraceEvent } from "./runner/index.ts";
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKS_ROOT = join(KIT_ROOT, "packs");
@@ -39,7 +40,7 @@ function usage(): void {
   ${c.bold("litecode status")}                   show installed packs + drift
   ${c.bold("litecode run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
-                                     ${c.dim("--prompt-file <path>; --trace shows agent/tool activity")}
+                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
   ${c.bold("litecode board init")} [--apply]     provision/resolve the GitHub Project board
   ${c.bold("litecode board doctor")}             check board.json against the live board
   ${c.bold("litecode upgrade")}                   pull the latest packs into this install
@@ -122,7 +123,15 @@ function traceLine(event: TraceEvent): string {
   if (event.type === "agent-end") return `${"  ".repeat(event.depth)}← ${event.agent} (${event.turns} turn${event.turns === 1 ? "" : "s"})`;
   if (event.type === "tool-start") return `  ${"  ".repeat(1)}${event.agent}: ${event.tool}`;
   if (event.type === "tool-end") return "";
-  return `  ${event.agent}: ${event.usage.input} in / ${event.usage.output} out`;
+  const cost = event.totalCostUsd === null ? "cost unknown" : `$${event.totalCostUsd.toFixed(6)}`;
+  if (!event.usage) return `  ${event.agent}: usage unavailable · ${cost}`;
+  return `  ${event.agent}: ${event.usage.input} in / ${event.usage.output} out · ${cost}`;
+}
+
+function usageLine(report: RunReport): string {
+  const cost = report.usage.costUsd === null ? "cost unknown" : `$${report.usage.costUsd.toFixed(6)}`;
+  return `${report.usage.requests} request${report.usage.requests === 1 ? "" : "s"} · ` +
+    `${report.usage.input} input / ${report.usage.output} output tokens · ${cost}`;
 }
 
 async function cmdRun(root: string, argv: string[]): Promise<number> {
@@ -143,7 +152,7 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
         if (line) console.error(c.dim(line));
       }
     : undefined;
-  const result = await runConfiguredAgent({
+  const report = await runConfiguredAgentDetailed({
     projectRoot: root,
     packsRoot: PACKS_ROOT,
     config,
@@ -151,7 +160,17 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
     prompt,
     trace,
   });
-  console.log(result);
+  const recordPath = arg(argv, "--record");
+  if (recordPath) {
+    const destination = resolve(root, recordPath);
+    await mkdir(dirname(destination), { recursive: true });
+    await Bun.write(destination, `${JSON.stringify(report, null, 2)}\n`);
+  }
+  if (argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
+  else console.log(report.output);
+  if (!argv.includes("--json") && (argv.includes("--usage") || argv.includes("--trace"))) {
+    console.error(c.dim(usageLine(report)));
+  }
   return 0;
 }
 

@@ -246,6 +246,12 @@ declare only `fast`, `balanced`, or `reasoning` tiers.
       "balanced": "balanced-model-id",
       "reasoning": "reasoning-model-id"
     },
+    "pricing": {
+      "fast-model-id": { "inputPerMillion": 0.1, "outputPerMillion": 0.4 },
+      "balanced-model-id": { "inputPerMillion": 1, "outputPerMillion": 4 },
+      "reasoning-model-id": { "inputPerMillion": 2, "outputPerMillion": 8 }
+    },
+    "maxCostUsd": 2,
     "maxTurns": 30,
     "maxDepth": 4,
     "maxAgentCalls": 32
@@ -253,7 +259,9 @@ declare only `fast`, `balanced`, or `reasoning` tiers.
 }
 ```
 
-Replace the three example ids with models supported by the provider. API keys are read from
+Replace the model ids and example prices with current values from the provider. LiteCodeAgent does
+not ship a price table because provider prices change independently from the packs. `pricing` is
+optional, but every configured model must have an entry when `maxCostUsd` is set. API keys are read from
 `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `DEEPSEEK_API_KEY`; set `apiKeyEnv` to use another
 environment variable. `baseUrl` can point the matching adapter at a gateway or proxy.
 
@@ -262,7 +270,20 @@ Run any pack agent:
 ```bash
 litecode run orchestrator --prompt "users should be able to cancel a request after approval" --trace
 litecode run reviewer --prompt-file /tmp/review-request.md
+litecode run classifier --prompt "small copy fix" --usage
+litecode run orchestrator --prompt-file request.md --json --record .litecode/runs/latest.json
 ```
+
+The default stdout remains the agent's final text so shell pipelines keep working. `--usage` adds a
+token and cost summary on stderr. `--json` returns a structured run report with totals and a
+per-agent/model breakdown; `--record` writes that same report to a chosen file without storing the
+input prompt. Cost is `null` when pricing is absent or the provider omits usage.
+
+`maxCostUsd` stops the run after a provider response reports usage beyond the configured limit and
+prevents another request once the limit is reached. The response that crosses the limit is already
+billed, and sibling requests already in flight may also finish, so this is a circuit breaker rather
+than a prepaid spending guarantee. If a provider omits usage while a limit is configured, the run
+fails instead of pretending the limit was enforced.
 
 The runner renders pack templates directly from the same config used by `install`; unresolved
 placeholders remain hard errors. It enforces each agent's declared tool list and supplies local
@@ -334,10 +355,10 @@ then the lockfile and `litecode.config.json`. Your own `.claude/` files are unto
 
 ## Status
 
-Phase 1 (packs/install/board), phase 2 (native Claude Code plugin), and phase 3 (direct API
-runner with recursive `Agent`) are implemented. Provider adapters, orchestration semantics, and an
-end-to-end CLI call are covered with deterministic tests; a live smoke run requires the
-corresponding API key.
+Phases 1–4 are implemented: packs/install/board, the native Claude Code plugin, the direct API
+runner with recursive `Agent`, and runner usage/cost reporting. Provider adapters, orchestration
+semantics, budgets, and an end-to-end structured CLI call are covered with deterministic tests; a
+live smoke run requires the corresponding API key.
 
 ---
 

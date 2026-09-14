@@ -2,7 +2,7 @@ import type { Config } from "../config.ts";
 import { AgentCatalog } from "./catalog.ts";
 import { createProvider } from "./providers.ts";
 import { AgentRuntime } from "./runtime.ts";
-import type { TraceEvent } from "./types.ts";
+import type { RunReport, TraceEvent } from "./types.ts";
 
 const DEFAULT_KEY_ENV = {
   openai: "OPENAI_API_KEY",
@@ -18,6 +18,17 @@ export async function runConfiguredAgent(options: {
   prompt: string;
   trace?: (event: TraceEvent) => void;
 }): Promise<string> {
+  return (await runConfiguredAgentDetailed(options)).output;
+}
+
+export async function runConfiguredAgentDetailed(options: {
+  projectRoot: string;
+  packsRoot: string;
+  config: Config;
+  agent: string;
+  prompt: string;
+  trace?: (event: TraceEvent) => void;
+}): Promise<RunReport> {
   const runner = options.config.runner;
   if (!runner) {
     throw new Error(
@@ -37,10 +48,10 @@ export async function runConfiguredAgent(options: {
     provider,
     catalog,
     trace: options.trace,
-  }).run(options.agent, options.prompt);
+  }).runDetailed(options.agent, options.prompt);
 }
 
 export { AgentCatalog } from "./catalog.ts";
-export { AgentRuntime } from "./runtime.ts";
+export { AgentRuntime, CostBudgetExceededError } from "./runtime.ts";
 export { AnthropicProvider, DeepSeekProvider, OpenAIProvider, createProvider } from "./providers.ts";
 export type * from "./types.ts";
