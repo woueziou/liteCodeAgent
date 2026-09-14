@@ -1,7 +1,7 @@
 {
   "name": "litecodeagent",
   "version": "0.7.0",
-  "description": "Portable, versioned multi-agent pipeline packs with Claude Code and direct API runners.",
+  "description": "Portable multi-agent workflows for Claude Code, Codex, Pi, OpenCode, Kilo Code, and direct API runners.",
   "type": "module",
   "bin": {
     "litecodeagent": "./bin/litecodeagent",
@@ -28,6 +28,10 @@
     "agents",
     "multi-agent",
     "claude-code",
+    "codex",
+    "pi",
+    "opencode",
+    "kilo-code",
     "openai",
     "developer-tools"
   ],

@@ -47,7 +47,7 @@ test("install writes a lockfile that owns only what it rendered", async () => {
   const lock = await readLockfile(root);
   expect(lock).not.toBeNull();
   expect(Object.keys(lock!.files).length).toBe(plan.entries.length);
-  expect(lock!.packs).toEqual({ core: "0.1.0", web: "0.1.0" });
+  expect(lock!.packs).toEqual({ core: "0.2.0", web: "0.1.0" });
 
   // A file the project owns is invisible to the kit.
   const second = await buildPlan(root, PACKS, config);
@@ -80,6 +80,40 @@ test("a skill provided only as a local overlay is accepted", async () => {
   const config = await exampleConfig();
   // `orpc-expert` deliberately lives in the project, not in a pack.
   await expect(buildPlan(await targetRepo(), PACKS, config)).resolves.toBeDefined();
+});
+
+test("renders native agents and the discussion-to-plan command for every configured harness", async () => {
+  const config = await exampleConfig();
+  config.targets = ["claude-code", "codex", "pi", "opencode", "kilo-code"];
+  const root = await targetRepo();
+  const plan = await buildPlan(root, PACKS, config);
+  const content = (rel: string) => plan.entries.find((entry) => entry.rel === rel)?.content;
+
+  expect(content(".claude/commands/litecodeagent.md")).toContain("$ARGUMENTS");
+  expect(content(".codex/agents/orchestrator.toml")).toContain('sandbox_mode = "read-only"');
+  expect(content(".codex/agents/orchestrator.toml")).not.toContain('model = "opus"');
+  expect(content(".agents/skills/litecodeagent/SKILL.md")).toContain("/litecodeagent");
+  expect(content(".agents/skills/litecodeagent/SKILL.md")).toContain("$litecodeagent");
+  expect(content(".opencode/agents/orchestrator.md")).toContain("mode: primary");
+  expect(content(".opencode/agents/orchestrator.md")).toContain("task: true");
+  expect(content(".opencode/commands/litecodeagent.md")).toContain("agent: orchestrator");
+  expect(content(".kilo/agents/orchestrator.md")).toContain("mode: primary");
+  expect(content(".kilo/agents/orchestrator.md")).toContain("task: allow");
+  expect(content(".kilo/commands/litecodeagent.md")).toContain("$ARGUMENTS");
+  expect(content(".pi/prompts/litecodeagent.md")).toContain("litecode_run");
+  expect(content(".pi/extensions/litecodeagent.ts")).toContain('"orchestrator"');
+  expect(plan.entries.some((entry) => entry.rel === ".pi/agents/orchestrator.md")).toBe(false);
+
+  await applyPlan(root, plan, "0.0.0-test", { force: false });
+  const codexLock = await readLockfile(root, ".codex/.litecode-lock.json");
+  expect(codexLock).not.toBeNull();
+  const second = await buildPlan(root, PACKS, config);
+  expect(second.entries.every((entry) => entry.status === "unchanged")).toBe(true);
+
+  config.targets = ["codex"];
+  const reduced = await buildPlan(root, PACKS, config);
+  expect(reduced.orphans).toContain(".claude/agents/planner.md");
+  expect(reduced.orphans).toContain(".pi/extensions/litecodeagent.ts");
 });
 
 test("dropping the web pack surfaces the now-dangling skill references", async () => {

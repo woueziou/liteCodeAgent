@@ -134,7 +134,7 @@ export const RunnerSchema = z
     apiKeyEnv: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).optional(),
     /** Override for compatible gateways, proxies, or self-hosted endpoints. */
     baseUrl: z.string().url().optional(),
-    /** Project-owned skills for the runner. Keep these outside outDir (normally .claude). */
+    /** Project-owned skills for the runner. Keep these outside the configured native agent output directory. */
     skillDirs: z.array(z.string()).default([]),
     maxTurns: z.number().int().positive().max(100).default(30),
     maxDepth: z.number().int().nonnegative().max(10).default(4),
@@ -173,8 +173,12 @@ export const RunnerSchema = z
 
 export const ConfigSchema = z.object({
   $schema: z.string().optional(),
-  /** Render target for `litecode install`. Only claude-code is implemented in phase 1. */
-  target: z.enum(["claude-code"]).default("claude-code"),
+  /** Legacy single-target setting. `targets` takes precedence when present. */
+  target: z.enum(["claude-code", "codex", "pi", "opencode", "kilo-code"]).default("claude-code"),
+  /** Harnesses to install together. Omit to preserve the legacy `target` behavior. */
+  targets: z.array(z.enum(["claude-code", "codex", "pi", "opencode", "kilo-code"]))
+    .min(1)
+    .optional(),
   tiers: TierMapSchema.default({ fast: "haiku", balanced: "sonnet", reasoning: "opus" }),
   /** Pack names to install, in order. Later packs may not overwrite earlier ones. */
   packs: z.array(z.string()).min(1),
@@ -187,6 +191,13 @@ export const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
+
+export const TARGETS = ["claude-code", "codex", "pi", "opencode", "kilo-code"] as const;
+export type InstallTarget = (typeof TARGETS)[number];
+
+export function selectedTargets(config: Config): InstallTarget[] {
+  return [...new Set(config.targets ?? [config.target])];
+}
 
 export const CONFIG_FILENAME = "litecode.config.json";
 

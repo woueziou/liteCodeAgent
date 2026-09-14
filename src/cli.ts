@@ -2,7 +2,7 @@
 import { resolve, dirname, join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { loadConfig, CONFIG_FILENAME } from "./config.ts";
+import { loadConfig, CONFIG_FILENAME, TARGETS, selectedTargets, type InstallTarget } from "./config.ts";
 import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
@@ -39,12 +39,13 @@ function usage(): void {
 
   ${c.bold("bunx litecodeagent setup")} [--apply] [--yes]
                                      initialize the project if needed, then render its packs
+                                     ${c.dim("--targets claude-code,codex,pi,opencode,kilo-code (defaults to all)")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("bunx litecodeagent init")} [--yes]              interactive setup: detects your repo, asks, writes the config
+  ${c.bold("bunx litecodeagent init")} [--yes] [--targets …] interactive setup: detects your repo, asks, writes the config
                                      ${c.dim("--yes skips the questions and uses only what it detects")}
   ${c.bold("bunx litecodeagent packs")}                    list available packs
   ${c.bold("bunx litecodeagent install")} [--apply] [--force]
-                                     render packs into the target repo's .claude/
+                                     render packs into configured AI coding tools
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
@@ -65,6 +66,7 @@ async function cmdSetup(root: string, argv: string[]): Promise<number> {
     const yes = argv.includes("--yes") || argv.includes("-y");
     const path = await init(root, {
       packs: packsArg ? packsArg.split(",").map((s) => s.trim()) : undefined,
+      targets: parseTargets(arg(argv, "--targets")),
       yes,
       packsRoot: PACKS_ROOT,
     });
@@ -76,6 +78,14 @@ async function cmdSetup(root: string, argv: string[]): Promise<number> {
 function arg(argv: string[], name: string): string | undefined {
   const i = argv.indexOf(name);
   return i === -1 ? undefined : argv[i + 1];
+}
+
+function parseTargets(value: string | undefined): InstallTarget[] | undefined {
+  if (!value) return undefined;
+  const requested = value.split(",").map((part) => part.trim()).filter(Boolean);
+  const invalid = requested.filter((target) => !(TARGETS as readonly string[]).includes(target));
+  if (invalid.length) throw new Error(`Unknown target(s): ${invalid.join(", ")}. Choose from ${TARGETS.join(", ")}.`);
+  return [...new Set(requested)] as InstallTarget[];
 }
 
 async function cmdPacks(): Promise<number> {
@@ -100,7 +110,8 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
   const counts = { create: 0, update: 0, unchanged: 0, drift: 0 };
   for (const e of plan.entries) counts[e.status]++;
 
-  console.log(`${c.bold("Target")}   ${root}`);
+  console.log(`${c.bold("Project")}  ${root}`);
+  console.log(`${c.bold("Tools")}    ${selectedTargets(config).join(", ")}`);
   console.log(`${c.bold("Packs")}    ${Object.entries(plan.packVersions).map(([n, v]) => `${n}@${v}`).join(", ")}`);
   console.log("");
   for (const e of plan.entries) {
@@ -130,15 +141,25 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
 }
 
 async function cmdStatus(root: string): Promise<number> {
-  const lock = await readLockfile(root);
-  if (!lock) {
+  const lockPaths: [InstallTarget, string][] = [
+    ["claude-code", ".claude/.litecode-lock.json"],
+    ["codex", ".codex/.litecode-lock.json"],
+    ["pi", ".pi/.litecode-lock.json"],
+    ["opencode", ".opencode/.litecode-lock.json"],
+    ["kilo-code", ".kilo/.litecode-lock.json"],
+  ];
+  const locks = (await Promise.all(lockPaths.map(async ([target, path]) => [target, await readLockfile(root, path)] as const)))
+    .filter((entry): entry is readonly [InstallTarget, NonNullable<(typeof entry)[1]>] => entry[1] !== null);
+  if (locks.length === 0) {
     console.log("No LiteCodeAgent install found in this repo.");
     return 1;
   }
-  console.log(`${c.bold("litecode")} v${lock.litecodeVersion}  ${c.dim(lock.installedAt)}`);
-  for (const [name, version] of Object.entries(lock.packs)) console.log(`  ${name}@${version}`);
-  console.log(`  ${Object.keys(lock.files).length} managed files`);
-  console.log(c.dim("\nEverything else under .claude/ is this project's own and is never touched."));
+  for (const [target, lock] of locks) {
+    console.log(`${c.bold(target)} · litecode v${lock.litecodeVersion}  ${c.dim(lock.installedAt)}`);
+    for (const [name, version] of Object.entries(lock.packs)) console.log(`  ${name}@${version}`);
+    console.log(`  ${Object.keys(lock.files).length} managed files`);
+  }
+  console.log(c.dim("\nFiles not listed in LiteCodeAgent lockfiles remain project-owned and are never touched."));
   return 0;
 }
 
@@ -305,6 +326,7 @@ try {
         const yes = argv.includes("--yes") || argv.includes("-y");
         const path = await init(root, {
           packs: packsArg ? packsArg.split(",").map((s) => s.trim()) : undefined,
+          targets: parseTargets(arg(argv, "--targets")),
           yes,
           packsRoot: PACKS_ROOT,
         });
