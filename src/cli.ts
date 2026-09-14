@@ -35,24 +35,42 @@ const c = {
 };
 
 function usage(): void {
-  console.log(`${c.bold("litecode")} ${c.dim(`v${VERSION}`)}
+  console.log(`${c.bold("litecodeagent")} ${c.dim(`v${VERSION}`)}
 
-  ${c.bold("litecode init")} [--yes]              interactive setup: detects your repo, asks, writes the config
+  ${c.bold("bunx litecodeagent setup")} [--apply] [--yes]
+                                     initialize the project if needed, then render its packs
+                                     ${c.dim("(dry-run by default; --apply writes)")}
+  ${c.bold("bunx litecodeagent init")} [--yes]              interactive setup: detects your repo, asks, writes the config
                                      ${c.dim("--yes skips the questions and uses only what it detects")}
-  ${c.bold("litecode packs")}                    list available packs
-  ${c.bold("litecode install")} [--apply] [--force]
+  ${c.bold("bunx litecodeagent packs")}                    list available packs
+  ${c.bold("bunx litecodeagent install")} [--apply] [--force]
                                      render packs into the target repo's .claude/
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("litecode status")}                   show installed packs + drift
-  ${c.bold("litecode run")} <agent> --prompt <text>
+  ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
+  ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
-  ${c.bold("litecode board init")} [--apply]     provision/resolve the GitHub Project board
-  ${c.bold("litecode board doctor")}             check board.json against the live board
-  ${c.bold("litecode upgrade")}                   pull the latest packs into this install
+  ${c.bold("bunx litecodeagent board init")} [--apply]     provision/resolve the GitHub Project board
+  ${c.bold("bunx litecodeagent board doctor")}             check board.json against the live board
+  ${c.bold("litecode upgrade")}                   update a legacy git-clone install
 
 Global: --project <dir>   target repo (default: cwd)
 `);
+}
+
+async function cmdSetup(root: string, argv: string[]): Promise<number> {
+  const configPath = resolve(root, CONFIG_FILENAME);
+  if (!(await Bun.file(configPath).exists())) {
+    const packsArg = arg(argv, "--packs");
+    const yes = argv.includes("--yes") || argv.includes("-y");
+    const path = await init(root, {
+      packs: packsArg ? packsArg.split(",").map((s) => s.trim()) : undefined,
+      yes,
+      packsRoot: PACKS_ROOT,
+    });
+    console.log(`\n${c.green("Wrote")} ${path}\n`);
+  }
+  return cmdInstall(root, argv);
 }
 
 function arg(argv: string[], name: string): string | undefined {
@@ -146,7 +164,7 @@ function usageLine(report: RunOutcome): string {
 
 async function cmdRun(root: string, argv: string[]): Promise<number> {
   const agent = argv[1];
-  if (!agent) throw new Error("Usage: litecode run <agent> --prompt <text>");
+  if (!agent) throw new Error("Usage: bunx litecodeagent run <agent> --prompt <text>");
   const directPrompt = arg(argv, "--prompt");
   const promptFile = arg(argv, "--prompt-file");
   if (directPrompt && promptFile) throw new Error("Pass either --prompt or --prompt-file, not both");
@@ -273,6 +291,15 @@ const root = resolve(arg(argv, "--project") ?? process.cwd());
 try {
   const code = await (async () => {
     switch (argv[0]) {
+      case "--version":
+      case "-v":
+        console.log(VERSION);
+        return 0;
+      case "--help":
+      case "-h":
+        usage();
+        return 0;
+      case "setup": return cmdSetup(root, argv);
       case "init": {
         const packsArg = arg(argv, "--packs");
         const yes = argv.includes("--yes") || argv.includes("-y");

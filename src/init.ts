@@ -134,7 +134,7 @@ async function pickBoard(owner: string): Promise<number | undefined> {
     const projects = (JSON.parse(out).projects ?? []) as { number: number; title: string }[];
     if (projects.length === 0) {
       note(`  No GitHub Project found under '${owner}'.`);
-      note("  Create one (org → Projects → New project → Table), then run `litecode board init`.");
+      note("  Create one (org → Projects → New project → Table), then run `bunx litecodeagent board init`.");
       return undefined;
     }
     return await select(
@@ -143,7 +143,7 @@ async function pickBoard(owner: string): Promise<number | undefined> {
     );
   } catch {
     note(`  Could not list projects for '${owner}' (is \`gh\` authenticated?).`);
-    note("  Set it later with `litecode board init --owner <owner> --number <n>`.");
+    note("  Set it later with `bunx litecodeagent board init --owner <owner> --number <n>`.");
     return undefined;
   }
 }
@@ -273,6 +273,52 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
     boardNumber = await pickBoard(await ask("Board owner (org or user)", boardOwner, { required: true }));
   }
 
+  // --- web pack ----------------------------------------------------------------------
+  let web: {
+    appDir: string;
+    framework: string;
+    apiClient: string;
+    typeSourceOfTruth: string;
+    typecheck: string;
+    styling: string;
+  } | undefined;
+  if (packs.includes("web")) {
+    let appDir = d.stack.webAppDir ?? ".";
+    let framework = d.stack.framework ?? "React";
+    let apiClient = "TODO: how the API client is produced and how call sites use it";
+    let typeSourceOfTruth = d.stack.orm
+      ? `the ${d.stack.orm} schema`
+      : "TODO: where shared types/schemas are generated from";
+    let styling = d.stack.styling ?? "CSS";
+
+    if (interactive) {
+      heading("Web pack");
+      note("These values are injected into the web experts; setup cannot render vague TODO instructions.");
+      appDir = await ask("Web application directory", appDir, { required: true });
+      framework = await ask("Web framework", framework, { required: true });
+      apiClient = await ask(
+        "How is the API client produced and used?",
+        d.stack.api ? `the ${d.stack.api} client` : undefined,
+        { required: true },
+      );
+      typeSourceOfTruth = await ask(
+        "Source of truth for shared types and schemas",
+        d.stack.orm ? `the ${d.stack.orm} schema` : undefined,
+        { required: true },
+      );
+      styling = await ask("Styling system", styling, { required: true });
+    }
+
+    web = {
+      appDir,
+      framework,
+      apiClient,
+      typeSourceOfTruth,
+      typecheck: typecheckCommands[0] ?? checkCommand,
+      styling,
+    };
+  }
+
   // An undetectable field becomes an explicit TODO rather than an empty string: the config
   // guard then names it precisely, instead of a schema error surfacing three commands later.
   const config = {
@@ -301,20 +347,7 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
         dataFile: ".claude/data/board.json",
         itemIdCache: ".claude/data/github-project-item-ids.json",
       },
-      ...(packs.includes("web")
-        ? {
-            web: {
-              appDir: d.stack.webAppDir ?? ".",
-              framework: d.stack.framework ?? "React",
-              apiClient: "TODO: how the API client is produced and how call sites use it",
-              typeSourceOfTruth: d.stack.orm
-                ? `the ${d.stack.orm} schema`
-                : "TODO: where shared types/schemas are generated from",
-              typecheck: typecheckCommands[0] ?? checkCommand,
-              styling: d.stack.styling ?? "CSS",
-            },
-          }
-        : {}),
+      ...(web ? { web } : {}),
     },
   };
 
@@ -327,12 +360,12 @@ export function summarize(path: string, interactive: boolean): string {
   if (!interactive) {
     lines.push(
       color.dim("Non-interactive: fields that could not be detected were left as TODO."),
-      color.dim("Fill them in, then run `litecode install`."),
+      color.dim("Fill them in, then run `bunx litecodeagent setup`."),
     );
   } else {
     lines.push(
       "",
-      `Review it, then: ${color.bold("litecode install")} ${color.dim("(dry run)")}`,
+      `Review it, then: ${color.bold("bunx litecodeagent setup")} ${color.dim("(dry run)")}`,
     );
   }
   return lines.join("\n");
