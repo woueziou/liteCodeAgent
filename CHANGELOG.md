@@ -30,3 +30,25 @@ First extraction of the pipeline out of a single repo into installable packs.
   a local overlay, naming where each dangling reference came from.
 - Fixed: directory detection used `Bun.file().exists()`, which is false for directories,
   so ADR/skill/workspace discovery silently found nothing.
+
+## 0.3.0 — unreleased
+
+- Native Claude Code plugin and marketplace manifests. Add the repository as a marketplace,
+  install `litecode-agent@litecode`, then run `/litecode-agent:setup` in a target project.
+- The plugin exposes the existing CLI to Claude Code while keeping packs behind the config-aware
+  renderer; raw `{{ project.* }}` templates are never loaded as plugin components.
+- Fixed the interactive init wizard losing stdin after its first answer and looping forever on
+  the next required prompt.
+- Fixed core rendering for projects that explicitly opt out of ADRs.
+
+## 0.4.0 — unreleased
+
+- Provider-neutral agent runtime with adapters for OpenAI Responses, Anthropic Messages, and
+  DeepSeek Chat Completions. Provider model ids live only in `runner.models` in project config.
+- `litecode run <agent> --prompt <text>` executes pack agents outside Claude Code.
+- Local tool layer implements `Read`, `Write`, `Edit`, `Grep`, `Glob`, `Bash`, and `Skill`, with
+  frontmatter tool restrictions enforced by the runtime and file access constrained to the project
+  and configured worktree roots.
+- `Agent` runs child agents synchronously, executes sibling `Agent` calls in parallel, selects each
+  child's model from its capability tier, and enforces depth, turn, and total-agent budgets.
+- DeepSeek thinking continuations preserve `reasoning_content` across tool turns.

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "litecode-agent",
+  "displayName": "liteCodeAgent",
+  "version": "0.4.0",
+  "description": "Configure and install a portable, versioned multi-agent software pipeline in any project.",
+  "author": {
+    "name": "woueziou",
+    "url": "https://github.com/woueziou"
+  },
+  "homepage": "https://github.com/woueziou/liteCodeAgent",
+  "repository": "https://github.com/woueziou/liteCodeAgent",
+  "keywords": [
+    "agents",
+    "multi-agent",
+    "software-development",
+    "github-projects"
+  ]
+}

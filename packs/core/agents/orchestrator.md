@@ -25,7 +25,7 @@ SIZE: <trivial|small|medium|large>
 BLOCKING_TENSION: <verbatim tension text, or "none">
 PLAN:
 <the plan as returned by planner, or for trivial items a one-paragraph description of the single change>
-ADR: <path under {{ project.adrDir }}/, or "none (trivial, no ADR)">
+ADR: <path under {{#if project.adrDir}}{{ project.adrDir }}/{{/if}}{{^if project.adrDir}}n/a — this project does not use ADRs{{/if}}, or "none (trivial, no ADR)">
 RECOMMENDATION: <one sentence: what you'd track and why>
 ```
 

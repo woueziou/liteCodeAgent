@@ -113,6 +113,25 @@ export const TierMapSchema = z.object({
   reasoning: z.string(),
 });
 
+/** Direct-API runner settings. Optional so Claude Code-only projects stay unchanged. */
+export const RunnerSchema = z.object({
+  provider: z.enum(["openai", "anthropic", "deepseek"]),
+  /** Provider model id for each capability tier declared by pack agents. */
+  models: TierMapSchema,
+  /** Environment variable containing the API key. Defaults per provider at runtime. */
+  apiKeyEnv: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/).optional(),
+  /** Override for compatible gateways, proxies, or self-hosted endpoints. */
+  baseUrl: z.string().url().optional(),
+  /** Project-owned skills for the runner. Keep these outside outDir (normally .claude). */
+  skillDirs: z.array(z.string()).default([]),
+  maxTurns: z.number().int().positive().max(100).default(30),
+  maxDepth: z.number().int().nonnegative().max(10).default(4),
+  maxAgentCalls: z.number().int().positive().max(256).default(32),
+  maxOutputTokens: z.number().int().positive().default(16_384),
+  toolOutputLimit: z.number().int().positive().default(50_000),
+  bashTimeoutMs: z.number().int().positive().default(120_000),
+});
+
 export const ConfigSchema = z.object({
   $schema: z.string().optional(),
   /** Render target for `litecode install`. Only claude-code is implemented in phase 1. */
@@ -122,6 +141,8 @@ export const ConfigSchema = z.object({
   packs: z.array(z.string()).min(1),
   /** Where rendered agents/skills land in the target repo. */
   outDir: z.string().default(".claude"),
+  /** Optional provider-neutral runner. `litecode run` requires this block. */
+  runner: RunnerSchema.optional(),
   project: ProjectSchema,
 });
 
