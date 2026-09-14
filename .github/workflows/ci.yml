@@ -1,0 +1,65 @@
+name: CI and release
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun test
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install release tooling
+        run: >-
+          npm install --no-save --package-lock=false
+          semantic-release@25.0.9
+          @semantic-release/changelog@7.0.0
+          @semantic-release/git@11.0.1
+          @semantic-release/npm@13.1.5
+          @semantic-release/github@12.0.9
+
+      - name: Seed the existing package version as the first release baseline
+        env:
+          BASE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$(git tag --list 'v[0-9]*')" ]]; then
+            if [[ "$BASE_SHA" =~ ^0+$ ]]; then
+              echo "::error::Cannot determine the previous main commit for the initial release baseline."
+              exit 1
+            fi
+            version="$(node -p "require('./package.json').version")"
+            git tag "v${version}" "$BASE_SHA"
+          fi
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx --no-install semantic-release
