@@ -16,19 +16,32 @@ export class NotInteractiveError extends Error {}
 
 let buffered = "";
 const decoder = new TextDecoder();
+const stdinReader = Bun.stdin.stream().getReader();
+let stdinEnded = false;
 
 async function readLine(): Promise<string> {
   if (!process.stdin.isTTY) throw new NotInteractiveError("stdin is not a terminal");
-  for await (const chunk of Bun.stdin.stream()) {
-    buffered += decoder.decode(chunk);
+  for (;;) {
     const nl = buffered.indexOf("\n");
     if (nl !== -1) {
       const line = buffered.slice(0, nl);
       buffered = buffered.slice(nl + 1);
       return line.trim();
     }
+    if (stdinEnded) {
+      buffered += decoder.decode();
+      if (buffered) {
+        const line = buffered;
+        buffered = "";
+        return line.trim();
+      }
+      throw new NotInteractiveError("stdin is closed");
+    }
+
+    const { value, done } = await stdinReader.read();
+    if (done) stdinEnded = true;
+    else buffered += decoder.decode(value, { stream: true });
   }
-  return buffered.trim();
 }
 
 export function isInteractive(): boolean {

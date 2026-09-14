@@ -12,6 +12,7 @@ import { doctor } from "./board/doctor.ts";
 import { init, summarize } from "./init.ts";
 import { isInteractive } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
+import { runConfiguredAgent, type TraceEvent } from "./runner/index.ts";
 
 const KIT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PACKS_ROOT = join(KIT_ROOT, "packs");
@@ -36,6 +37,9 @@ function usage(): void {
                                      render packs into the target repo's .claude/
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("litecode status")}                   show installed packs + drift
+  ${c.bold("litecode run")} <agent> --prompt <text>
+                                     run a pack agent through the configured API provider
+                                     ${c.dim("--prompt-file <path>; --trace shows agent/tool activity")}
   ${c.bold("litecode board init")} [--apply]     provision/resolve the GitHub Project board
   ${c.bold("litecode board doctor")}             check board.json against the live board
   ${c.bold("litecode upgrade")}                   pull the latest packs into this install
@@ -110,6 +114,44 @@ async function cmdStatus(root: string): Promise<number> {
   for (const [name, version] of Object.entries(lock.packs)) console.log(`  ${name}@${version}`);
   console.log(`  ${Object.keys(lock.files).length} managed files`);
   console.log(c.dim("\nEverything else under .claude/ is this project's own and is never touched."));
+  return 0;
+}
+
+function traceLine(event: TraceEvent): string {
+  if (event.type === "agent-start") return `${"  ".repeat(event.depth)}→ ${event.agent} (${event.model})`;
+  if (event.type === "agent-end") return `${"  ".repeat(event.depth)}← ${event.agent} (${event.turns} turn${event.turns === 1 ? "" : "s"})`;
+  if (event.type === "tool-start") return `  ${"  ".repeat(1)}${event.agent}: ${event.tool}`;
+  if (event.type === "tool-end") return "";
+  return `  ${event.agent}: ${event.usage.input} in / ${event.usage.output} out`;
+}
+
+async function cmdRun(root: string, argv: string[]): Promise<number> {
+  const agent = argv[1];
+  if (!agent) throw new Error("Usage: litecode run <agent> --prompt <text>");
+  const directPrompt = arg(argv, "--prompt");
+  const promptFile = arg(argv, "--prompt-file");
+  if (directPrompt && promptFile) throw new Error("Pass either --prompt or --prompt-file, not both");
+  let prompt = directPrompt;
+  if (promptFile) prompt = await Bun.file(resolve(root, promptFile)).text();
+  if (!prompt && !process.stdin.isTTY) prompt = await Bun.stdin.text();
+  if (!prompt?.trim()) throw new Error("Provide a prompt with --prompt, --prompt-file, or stdin");
+
+  const { config } = await loadConfig(root);
+  const trace = argv.includes("--trace")
+    ? (event: TraceEvent) => {
+        const line = traceLine(event);
+        if (line) console.error(c.dim(line));
+      }
+    : undefined;
+  const result = await runConfiguredAgent({
+    projectRoot: root,
+    packsRoot: PACKS_ROOT,
+    config,
+    agent,
+    prompt,
+    trace,
+  });
+  console.log(result);
   return 0;
 }
 
@@ -203,6 +245,7 @@ try {
       case "packs": return cmdPacks();
       case "install": return cmdInstall(root, argv);
       case "status": return cmdStatus(root);
+      case "run": return cmdRun(root, argv);
       case "board": return cmdBoard(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
     }
