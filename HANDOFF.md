@@ -20,11 +20,13 @@ litecode.config.json qui fournit les valeurs. `litecode install` fait le rendu v
 .claude/, traqué par un lockfile qui distingue "tu es en retard" de "tu as édité à
 la main" — et refuse d'écraser le second sans --force.
 
-ÉTAT : phase 1 terminée, v0.2.0, 30 tests verts, tsc propre, poussé sur
-github.com/woueziou/liteCodeAgent (privé).
+ÉTAT : phases 1 à 3 terminées, v0.4.0, 40 tests verts, tsc propre.
 Fait : les 11 agents + 13 skills en packs, le moteur de template, install avec
 lockfile et validation des références de skills, board init/doctor (GitHub Projects),
-init assisté avec détection du repo, install.sh, litecode upgrade.
+init assisté avec détection du repo, install.sh, litecode upgrade, et installation
+native Claude Code via le marketplace embarqué (`litecode-agent@litecode`). Le runner
+direct supporte OpenAI Responses, Anthropic Messages et DeepSeek Chat Completions, avec
+une couche d'outils locale et un outil `Agent` récursif/synchrone.
 
 INVARIANTS À NE PAS CASSER
 1. Aucun littéral projet dans packs/ — tests/packs.test.ts le garde.
@@ -40,13 +42,14 @@ INVARIANTS À NE PAS CASSER
    jamais lu, réécrit ni supprimé.
 
 CE QUI RESTE
-- Phase 2 : manifeste plugin (.claude-plugin/) pour /plugin install natif.
-- Phase 3 : le runner agnostique — boucle d'agent, couche d'outils, et surtout
-  l'outil `Agent` pour que orchestrator puisse spawner ses sous-agents hors
-  Claude Code. C'est le point dur.
-- Le chemin INTERACTIF de `litecode init` n'a jamais été exécuté (pas de TTY là
-  où il a été écrit). La détection et l'écriture du fichier sont testées, pas
-  l'enchaînement réel des prompts. À valider en premier.
+- Faire un smoke test réel par provider dès que les clés API correspondantes sont
+  disponibles. Les adaptateurs sont testés avec transports déterministes, sans appel facturé.
+- Décider si la prochaine phase porte sur le streaming/compteurs de coût, un sandbox
+  explicite pour Bash, ou une API de checkpoints/reprise des longues exécutions.
+
+Le chemin interactif de `litecode init` a été validé en PTY. Cette validation a
+révélé puis corrigé une perte de stdin après la première réponse. Le rendu d'un
+projet sans ADR a aussi été corrigé.
 
 Commandes : bun test | bun x tsc --noEmit | bun run src/cli.ts <cmd>
 
@@ -60,9 +63,8 @@ Commence par me dire ce sur quoi tu veux que je te lance — ne modifie rien ava
 - The `orchestrator` pipeline is **not** installed in this repo — it lives in
   `ts-employee-service`. There is no hook reminder here and no reason to route work
   through it; work directly.
-- Validate the **interactive** `litecode init` first, on a throwaway directory. It is the
-  one path never executed (no TTY where it was written), and the first thing you'll use on
-  a real project.
+- Direct-provider calls have not been smoke-tested against paid APIs in this repo because no API
+  key is assumed. The wire formats have deterministic adapter tests.
 
 ## Where things live
 
@@ -75,3 +77,5 @@ Commence par me dire ce sur quoi tu veux que je te lance — ne modifie rien ava
 | `src/detect.ts`, `src/init.ts` | repo detection and the setup wizard |
 | `src/board/` | GitHub Project provisioning (`init`) and drift checking (`doctor`) |
 | `examples/` | a complete, real, filled-in config to copy from |
+| `.claude-plugin/`, `skills/setup`, `bin/litecode` | native Claude Code marketplace/plugin entrypoint |
+| `src/runner/` | provider adapters, tool layer, agent catalog, recursive runtime |

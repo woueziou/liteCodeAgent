@@ -79,6 +79,7 @@ test("non-interactive init produces a config that validates and renders", async 
 
   // Every derived skill reference resolves — that is what buildPlan enforces.
   config.project.repo = "demo/demo";
+  config.project.adrDir = null;
   config.project.web!.apiClient = "generated client";
   config.project.web!.typeSourceOfTruth = "the Drizzle schema";
   await expect(buildPlan(root, PACKS, config)).resolves.toBeDefined();
