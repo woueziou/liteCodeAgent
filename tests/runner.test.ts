@@ -65,11 +65,15 @@ test("Agent calls block for child results and sibling calls run in parallel", as
               { id: "a", name: "Agent", input: { subagent_type: "classifier", prompt: "classify" } },
               { id: "b", name: "Agent", input: { subagent_type: "panel-selector", prompt: "select" } },
             ]),
+            usage: { input: 10, output: 5, total: 15 },
           };
         }
         const results = request.messages.filter((message) => message.role === "tool");
         expect(results.map((message) => message.content).sort()).toEqual(["ANGLES: correctness", "SIZE: small"]);
-        return { message: assistant("parent received both completed children") };
+        return {
+          message: assistant("parent received both completed children"),
+          usage: { input: 6, output: 2, total: 8 },
+        };
       }
 
       activeChildren++;
@@ -78,16 +82,55 @@ test("Agent calls block for child results and sibling calls run in parallel", as
       activeChildren--;
       return {
         message: assistant(request.system.includes("'classifier'") ? "SIZE: small" : "ANGLES: correctness"),
+        usage: { input: 4, output: 1, total: 5 },
       };
     },
   };
 
-  const result = await new AgentRuntime({ projectRoot: root, config: cfg, provider, catalog }).run(
+  const result = await new AgentRuntime({ projectRoot: root, config: cfg, provider, catalog }).runDetailed(
     "orchestrator",
     "plan a change",
   );
-  expect(result).toBe("parent received both completed children");
+  expect(result.output).toBe("parent received both completed children");
+  expect(result.agentCalls).toBe(3);
+  expect(result.usage).toMatchObject({ requests: 4, input: 24, output: 9, total: 33, costUsd: null });
+  expect(result.usage.byAgent).toEqual([
+    { agent: "classifier", model: "fast-model", requests: 1, input: 4, output: 1, total: 5, costUsd: null },
+    { agent: "orchestrator", model: "reasoning-model", requests: 2, input: 16, output: 7, total: 23, costUsd: null },
+    { agent: "panel-selector", model: "fast-model", requests: 1, input: 4, output: 1, total: 5, costUsd: null },
+  ]);
   expect(maxActiveChildren).toBe(2);
+});
+
+test("maxCostUsd requires complete pricing and stops a run after reported usage crosses the limit", async () => {
+  expect(() => config({ maxCostUsd: 1 })).toThrow(/pricing is required/);
+
+  const root = await mkdtemp(join(tmpdir(), "litecode-budget-"));
+  const pricing = {
+    "fast-model": { inputPerMillion: 2, outputPerMillion: 4 },
+    "balanced-model": { inputPerMillion: 2, outputPerMillion: 4 },
+    "reasoning-model": { inputPerMillion: 2, outputPerMillion: 4 },
+  };
+  const provider: Provider = {
+    name: "fake",
+    async complete() {
+      return { message: assistant("done"), usage: { input: 500_000, output: 250_000, total: 750_000 } };
+    },
+  };
+
+  const priced = config({ pricing, maxCostUsd: 3 });
+  const catalog = await AgentCatalog.load(root, PACKS, priced);
+  const report = await new AgentRuntime({ projectRoot: root, config: priced, provider, catalog }).runDetailed("classifier", "x");
+  expect(report.usage.costUsd).toBe(2);
+  expect(report.usage.byAgent[0]?.costUsd).toBe(2);
+
+  const limited = config({ pricing, maxCostUsd: 1 });
+  await expect(new AgentRuntime({ projectRoot: root, config: limited, provider, catalog }).run("classifier", "x"))
+    .rejects.toThrow("Run cost $2.000000 exceeded maxCostUsd $1.000000");
+
+  const noUsage: Provider = { name: "fake", async complete() { return { message: assistant("done") }; } };
+  await expect(new AgentRuntime({ projectRoot: root, config: priced, provider: noUsage, catalog }).run("classifier", "x"))
+    .rejects.toThrow("omitted usage; cannot enforce maxCostUsd");
 });
 
 test("frontmatter tool restrictions are enforced even if a provider hallucinates a call", async () => {
@@ -154,6 +197,7 @@ test("runner skill directories cannot enter the Claude-owned output tree, includ
 test("litecode run crosses the CLI and OpenAI adapter end to end", async () => {
   const root = await mkdtemp(join(tmpdir(), "litecode-cli-run-"));
   const receivedPath = join(root, "received.json");
+  const reportPath = join(root, "run-report.json");
   const preload = join(root, "mock-fetch.ts");
   await Bun.write(
     preload,
@@ -166,7 +210,21 @@ test("litecode run crosses the CLI and OpenAI adapter end to end", async () => {
   await Bun.write(join(root, "litecode.config.json"), `${JSON.stringify(cfg)}\n`);
   const cli = join(import.meta.dir, "..", "src", "cli.ts");
   const proc = Bun.spawn(
-    [process.execPath, "--preload", preload, cli, "run", "classifier", "--prompt", "classify this", "--project", root],
+    [
+      process.execPath,
+      "--preload",
+      preload,
+      cli,
+      "run",
+      "classifier",
+      "--prompt",
+      "classify this",
+      "--json",
+      "--record",
+      "run-report.json",
+      "--project",
+      root,
+    ],
     {
       cwd: root,
       env: { ...process.env, LITECODE_TEST_API_KEY: "secret" },
@@ -180,6 +238,14 @@ test("litecode run crosses the CLI and OpenAI adapter end to end", async () => {
     proc.exited,
   ]);
   expect(exit, stderr).toBe(0);
-  expect(stdout.trim()).toBe("SIZE: trivial");
+  const report = JSON.parse(stdout);
+  expect(report).toMatchObject({
+    output: "SIZE: trivial",
+    provider: "openai",
+    agent: "classifier",
+    agentCalls: 1,
+    usage: { requests: 1, input: 3, output: 2, total: 5, costUsd: null },
+  });
+  expect(await Bun.file(reportPath).json()).toEqual(report);
   expect(await Bun.file(receivedPath).json()).toMatchObject({ model: "fast-model", store: false });
 });

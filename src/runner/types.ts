@@ -47,6 +47,31 @@ export type TokenUsage = {
   total: number;
 };
 
+export type UsageBreakdown = TokenUsage & {
+  agent: string;
+  model: string;
+  requests: number;
+  /** Null when no price was configured or a provider omitted usage. */
+  costUsd: number | null;
+};
+
+export type RunUsage = TokenUsage & {
+  requests: number;
+  /** Null when the total cannot be calculated from configured prices and provider usage. */
+  costUsd: number | null;
+  byAgent: UsageBreakdown[];
+};
+
+export type RunReport = {
+  output: string;
+  provider: string;
+  agent: string;
+  agentCalls: number;
+  startedAt: string;
+  durationMs: number;
+  usage: RunUsage;
+};
+
 export type Completion = {
   message: AssistantMessage;
   usage?: TokenUsage;
@@ -73,4 +98,11 @@ export type TraceEvent =
   | { type: "agent-end"; agent: string; depth: number; turns: number }
   | { type: "tool-start"; agent: string; tool: string; callId: string }
   | { type: "tool-end"; agent: string; tool: string; callId: string; isError: boolean }
-  | { type: "usage"; agent: string; usage: TokenUsage };
+  | {
+      type: "usage";
+      agent: string;
+      model: string;
+      usage: TokenUsage | null;
+      costUsd: number | null;
+      totalCostUsd: number | null;
+    };

@@ -52,3 +52,12 @@ First extraction of the pipeline out of a single repo into installable packs.
 - `Agent` runs child agents synchronously, executes sibling `Agent` calls in parallel, selects each
   child's model from its capability tier, and enforces depth, turn, and total-agent budgets.
 - DeepSeek thinking continuations preserve `reasoning_content` across tool turns.
+
+## 0.5.0 — unreleased
+
+- Every run can return a structured report containing request and token totals, elapsed time,
+  agent-call count, and a per-agent/model usage breakdown.
+- Optional model pricing in project config calculates cost without baking volatile provider prices
+  into LiteCodeAgent. `maxCostUsd` acts as a circuit breaker and fails closed when usage is missing.
+- `litecode run --usage` prints a concise stderr summary, `--json` emits the full report, and
+  `--record <path>` persists the same report without storing the input prompt.
