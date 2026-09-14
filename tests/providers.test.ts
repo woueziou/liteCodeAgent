@@ -1,6 +1,12 @@
 import { expect, test } from "bun:test";
-import { AnthropicProvider, DeepSeekProvider, OpenAIProvider, type HttpTransport } from "../src/runner/providers.ts";
-import type { CompletionRequest } from "../src/runner/types.ts";
+import {
+  AnthropicProvider,
+  DeepSeekProvider,
+  OpenAIProvider,
+  ProviderError,
+  type HttpTransport,
+} from "../src/runner/providers.ts";
+import type { CompletionRequest, RetryEvent } from "../src/runner/types.ts";
 
 const baseRequest = (): CompletionRequest => ({
   system: "system prompt",
@@ -112,4 +118,106 @@ test("DeepSeek adapter preserves reasoning content across tool turns", async () 
   const continued = bodies[1]!.messages.find((message: Record<string, any>) => message.role === "assistant");
   expect(continued.reasoning_content).toBe("private continuation");
   expect(continued.tool_calls[0].function.arguments).toBe('{"path":"x"}');
+});
+
+test("provider transport retries transient responses and preserves request ids", async () => {
+  let attempts = 0;
+  const retries: RetryEvent[] = [];
+  const transport: HttpTransport = async () => {
+    attempts++;
+    if (attempts === 1) {
+      return new Response("busy", {
+        status: 429,
+        headers: { "retry-after": "0", "x-request-id": "req-retry" },
+      });
+    }
+    return Response.json(
+      { output: [{ type: "message", content: [{ type: "output_text", text: "done" }] }] },
+      { headers: { "x-request-id": "req-success" } },
+    );
+  };
+  const request = baseRequest();
+  request.onRetry = (event) => retries.push(event);
+  const result = await new OpenAIProvider("secret", "https://openai.test/v1", transport, {
+    requestTimeoutMs: 1_000,
+    maxRetries: 2,
+    retryBaseDelayMs: 1,
+    retryMaxDelayMs: 10,
+  }).complete(request);
+
+  expect(attempts).toBe(2);
+  expect(result).toMatchObject({ requestId: "req-success", attempts: 2 });
+  expect(retries).toEqual([
+    { retry: 1, maxRetries: 2, delayMs: 0, status: 429, requestId: "req-retry" },
+  ]);
+});
+
+test("provider transport does not retry permanent errors and exposes diagnostics", async () => {
+  let attempts = 0;
+  const transport: HttpTransport = async () => {
+    attempts++;
+    return new Response("invalid", { status: 400, headers: { "request-id": "req-invalid" } });
+  };
+  const provider = new AnthropicProvider("secret", "https://anthropic.test/v1", transport, {
+    requestTimeoutMs: 1_000,
+    maxRetries: 2,
+    retryBaseDelayMs: 1,
+    retryMaxDelayMs: 10,
+  });
+
+  try {
+    await provider.complete(baseRequest());
+    throw new Error("expected provider request to fail");
+  } catch (error) {
+    expect(error).toBeInstanceOf(ProviderError);
+    expect(error).toMatchObject({ status: 400, requestId: "req-invalid", attempts: 1, code: "http_error" });
+  }
+  expect(attempts).toBe(1);
+});
+
+test("provider request timeout aborts the transport without replaying the POST", async () => {
+  let attempts = 0;
+  const transport: HttpTransport = async (_url, init) => {
+    attempts++;
+    return new Promise((_resolve, reject) => {
+      const signal = init.signal as AbortSignal;
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  };
+  const provider = new DeepSeekProvider("secret", "https://deepseek.test", transport, {
+    requestTimeoutMs: 5,
+    maxRetries: 2,
+    retryBaseDelayMs: 1,
+    retryMaxDelayMs: 10,
+  });
+
+  try {
+    await provider.complete(baseRequest());
+    throw new Error("expected provider request to time out");
+  } catch (error) {
+    expect(error).toBeInstanceOf(ProviderError);
+    expect(error).toMatchObject({ code: "request_timeout", attempts: 1 });
+  }
+  expect(attempts).toBe(1);
+});
+
+test("cancellation interrupts retry backoff before another HTTP attempt", async () => {
+  let attempts = 0;
+  const controller = new AbortController();
+  const transport: HttpTransport = async () => {
+    attempts++;
+    return new Response("busy", { status: 503, headers: { "retry-after": "60" } });
+  };
+  const request = baseRequest();
+  request.signal = controller.signal;
+  request.onRetry = () => controller.abort(new Error("stop retrying"));
+  const provider = new OpenAIProvider("secret", "https://openai.test/v1", transport, {
+    requestTimeoutMs: 1_000,
+    maxRetries: 2,
+    retryBaseDelayMs: 1,
+    retryMaxDelayMs: 1_000,
+  });
+
+  await expect(provider.complete(request)).rejects.toThrow("stop retrying");
+  expect(attempts).toBe(1);
 });

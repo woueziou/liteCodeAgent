@@ -39,6 +39,16 @@ export type CompletionRequest = {
   messages: RunnerMessage[];
   tools: ToolDefinition[];
   maxOutputTokens: number;
+  signal?: AbortSignal;
+  onRetry?: (event: RetryEvent) => void;
+};
+
+export type RetryEvent = {
+  retry: number;
+  maxRetries: number;
+  delayMs: number;
+  status: number;
+  requestId?: string;
 };
 
 export type TokenUsage = {
@@ -62,19 +72,45 @@ export type RunUsage = TokenUsage & {
   byAgent: UsageBreakdown[];
 };
 
-export type RunReport = {
-  output: string;
+export type RunErrorInfo = {
+  name: string;
+  message: string;
+  code?: string;
+  statusCode?: number;
+  requestId?: string;
+  attempts?: number;
+};
+
+export type RunReportBase = {
   provider: string;
   agent: string;
   agentCalls: number;
   startedAt: string;
   durationMs: number;
+  retries: number;
+  requestIds: string[];
   usage: RunUsage;
 };
+
+export type RunReport = RunReportBase & {
+  status: "completed";
+  output: string;
+  error: null;
+};
+
+export type RunFailureReport = RunReportBase & {
+  status: "failed" | "cancelled" | "timed_out";
+  output: null;
+  error: RunErrorInfo;
+};
+
+export type RunOutcome = RunReport | RunFailureReport;
 
 export type Completion = {
   message: AssistantMessage;
   usage?: TokenUsage;
+  requestId?: string;
+  attempts?: number;
 };
 
 export interface Provider {
@@ -98,6 +134,7 @@ export type TraceEvent =
   | { type: "agent-end"; agent: string; depth: number; turns: number }
   | { type: "tool-start"; agent: string; tool: string; callId: string }
   | { type: "tool-end"; agent: string; tool: string; callId: string; isError: boolean }
+  | ({ type: "retry"; agent: string; model: string } & RetryEvent)
   | {
       type: "usage";
       agent: string;

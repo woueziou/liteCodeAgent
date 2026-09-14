@@ -142,8 +142,23 @@ export const RunnerSchema = z
     maxOutputTokens: z.number().int().positive().default(16_384),
     toolOutputLimit: z.number().int().positive().default(50_000),
     bashTimeoutMs: z.number().int().positive().default(120_000),
+    /** Wall-clock limit for the complete agent tree. */
+    runTimeoutMs: z.number().int().positive().max(86_400_000).default(1_800_000),
+    /** Limit for one provider HTTP attempt. */
+    requestTimeoutMs: z.number().int().positive().max(3_600_000).default(300_000),
+    /** Retries after a retryable HTTP response; the first request is not counted. */
+    maxRetries: z.number().int().nonnegative().max(10).default(2),
+    retryBaseDelayMs: z.number().int().positive().max(60_000).default(500),
+    retryMaxDelayMs: z.number().int().positive().max(300_000).default(10_000),
   })
   .superRefine((runner, ctx) => {
+    if (runner.retryMaxDelayMs < runner.retryBaseDelayMs) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["retryMaxDelayMs"],
+        message: "retryMaxDelayMs must be greater than or equal to retryBaseDelayMs",
+      });
+    }
     if (runner.maxCostUsd === undefined) return;
     for (const model of new Set(Object.values(runner.models))) {
       if (!runner.pricing?.[model]) {

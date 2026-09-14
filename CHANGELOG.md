@@ -61,3 +61,13 @@ First extraction of the pipeline out of a single repo into installable packs.
   into LiteCodeAgent. `maxCostUsd` acts as a circuit breaker and fails closed when usage is missing.
 - `litecode run --usage` prints a concise stderr summary, `--json` emits the full report, and
   `--record <path>` persists the same report without storing the input prompt.
+
+## 0.6.0 — unreleased
+
+- Provider requests retry bounded transient HTTP responses with exponential backoff and honor
+  `Retry-After`; permanent client errors, transport failures, and ambiguous timed-out POSTs are not
+  replayed.
+- Global run and per-request timeouts are configurable. `SIGINT`/`SIGTERM` cancellation propagates
+  across provider calls, retry waits, child agents, searches, and active Bash subprocesses.
+- Failed runs expose structured partial reports with status, completed usage, retry count, provider
+  request ids, and typed error diagnostics. `--json` and `--record` preserve this report on exit 1.
