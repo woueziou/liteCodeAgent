@@ -392,6 +392,12 @@ bun test
 bun x tsc --noEmit
 ```
 
+Merging Conventional Commits into `main` runs CI and publishes releases to npm. `feat:` commits
+create a minor release, `fix:` and `perf:` commits create a patch release, and a `BREAKING CHANGE:`
+footer creates a major release. Commits such as `docs:` and `chore:` do not publish. Each release
+updates `package.json` and `CHANGELOG.md`, publishes `litecodeagent`, and creates a GitHub release.
+Configure an npm publish token as the repository Actions secret `NPM_TOKEN`.
+
 Working on the kit itself? `git clone` it anywhere and `bun link` — that takes over the
 `litecode` and `litecodeagent` commands. The legacy `install.sh` path is also retained for private
 source-only distributions that cannot publish the npm package.
