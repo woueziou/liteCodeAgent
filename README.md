@@ -417,7 +417,13 @@ Merging Conventional Commits into `main` runs CI and publishes releases to npm. 
 create a minor release, `fix:` and `perf:` commits create a patch release, and a `BREAKING CHANGE:`
 footer creates a major release. Commits such as `docs:` and `chore:` do not publish. Each release
 updates `package.json` and `CHANGELOG.md`, publishes `litecodeagent`, and creates a GitHub release.
-Configure an npm publish token as the repository Actions secret `NPM_TOKEN`.
+Configure an npm publish token as the repository Actions secret `NPM_TOKEN`. Tests always run;
+release is skipped with a warning when the token is absent.
+
+When bootstrapping semantic-release on a repo that already has a version on npm, tag the commit
+that matches the published release (`git tag vX.Y.Z <sha> && git push origin vX.Y.Z`) before the
+first automated release. Do not auto-seed a baseline tag from the push parent — that hides prior
+commits from the release analyzer.
 
 Working on the kit itself? `git clone` it anywhere and `bun link` — that takes over the
 `litecode` and `litecodeagent` commands. The legacy `install.sh` path is also retained for private
