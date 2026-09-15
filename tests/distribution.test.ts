@@ -57,7 +57,8 @@ test("the packed npm artifact contains the complete runtime and executes", async
       { ...process.env, NODE_PATH: join(ROOT, "node_modules") },
     );
     expect(invoked.exitCode, invoked.stderr).toBe(0);
-    expect(invoked.stdout.trim()).toBe("0.7.0");
+    const version = (await Bun.file(join(ROOT, "package.json")).json()).version;
+    expect(invoked.stdout.trim()).toBe(version);
   } finally {
     await rm(output, { recursive: true, force: true });
   }
