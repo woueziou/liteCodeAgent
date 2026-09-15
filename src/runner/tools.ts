@@ -228,7 +228,11 @@ export class LocalTools {
           const base = await this.path(typeof input.cwd === "string" ? input.cwd : ".", cwd);
           const requested = typeof input.timeout_ms === "number" ? Math.trunc(input.timeout_ms) : this.bashTimeoutMs;
           const timeoutMs = Math.min(600_000, Math.max(1, requested));
-          const proc = Bun.spawn(["/bin/zsh", "-lc", command], {
+          // macOS ships zsh by default; GitHub's Ubuntu runners do not. Use the
+          // current user's shell when available and fall back to POSIX sh so the
+          // same cancellation semantics work on every supported runner.
+          const shell = process.env.SHELL || (process.platform === "win32" ? "sh" : "/bin/sh");
+          const proc = Bun.spawn([shell, "-lc", command], {
             cwd: base,
             stdout: "pipe",
             stderr: "pipe",
