@@ -1,3 +1,11 @@
+## [0.7.1](https://github.com/woueziou/liteCodeAgent/compare/v0.7.0...v0.7.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* gate CI on npm token preflight ([86283bc](https://github.com/woueziou/liteCodeAgent/commit/86283bce8c968a982fd4023b660c24d5ec600555))
+* skip release when npm publishing is not configured ([66e20de](https://github.com/woueziou/liteCodeAgent/commit/66e20de99f3b6c01b109918d83980f29f60df852))
+
 # Changelog
 
 ## 0.1.0 — unreleased
