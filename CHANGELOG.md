@@ -1,3 +1,10 @@
+## [0.7.2](https://github.com/woueziou/liteCodeAgent/compare/v0.7.1...v0.7.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* repair semantic-release pipeline and decouple CI from npm token ([6757fe5](https://github.com/woueziou/liteCodeAgent/commit/6757fe5d1966caf3ada22435e7182b428e42c281))
+
 ## [0.7.1](https://github.com/woueziou/liteCodeAgent/compare/v0.7.0...v0.7.1) (2026-09-15)
 
 
