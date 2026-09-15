@@ -100,7 +100,7 @@ up, across a monorepo (not just the root manifest):
 | check and type-check commands | your `package.json` scripts and lockfile |
 | framework, styling, ORM, API layer, auth | dependencies across `apps/*` and `packages/*` |
 | ADR directory | whether `docs/decisions/` exists |
-| skills you already own | `.claude/skills/*/SKILL.md` |
+| skills you already own | `.claude/skills`, `.agents/skills`, `.pi/skills`, `.opencode/skills`, `.kilo/skills` |
 | house rules | the bullet list under a "Conventions" heading in your `CLAUDE.md`/`AGENTS.md` |
 | board | `gh project list` for your org — pick from the real list |
 
@@ -114,6 +114,10 @@ mechanical and drift the moment a human maintains them by hand:
 
 Prefer no questions at all? `bunx litecodeagent init --yes` writes a config from detection alone and
 marks anything it couldn't determine as `TODO`.
+
+Setup selects Claude Code, Codex, Pi, OpenCode, and Kilo Code by default. To choose a subset,
+pass a comma-separated list, for example `bunx litecodeagent init --yes --targets codex,opencode`.
+Existing configs without `targets` keep their legacy `target` setting.
 
 ### 2. Skim the result
 
@@ -137,11 +141,13 @@ bunx litecodeagent install          # dry run: shows exactly what would be writt
 bunx litecodeagent install --apply
 ```
 
-This writes `.claude/agents/*.md` and `.claude/skills/*/SKILL.md` into your repo, plus
-`.claude/.litecode-lock.json` recording what the kit owns.
+This writes each tool's native agent and skill files and a lockfile under its configuration
+directory. For example: `.codex/agents/*.toml`, `.agents/skills/*/SKILL.md`,
+`.opencode/agents/*.md`, `.kilo/agents/*.md`, and the Pi prompt/extension under `.pi/`.
+Claude Code keeps `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`.
 
-**Everything else under `.claude/` is yours.** A skill you wrote by hand is never read,
-rewritten, or deleted by the CLI.
+Only files recorded in LiteCodeAgent's per-tool lockfiles are managed. Existing local skills
+and other project files are never rewritten or deleted by the CLI.
 
 ### 4. Provision the board
 
@@ -167,23 +173,30 @@ provision every field into it.
 ### 5. Commit
 
 ```bash
-git add litecode.config.json .claude/
+git add litecode.config.json
 git commit -m "chore: add liteCodeAgent pipeline"
 ```
 
-Commit `board.json` and `.litecode-lock.json` too — they're shared state, not local
-scratch. `board.json` is generated; never hand-edit it.
+Also add the generated harness directories you enabled, including their `.litecode-lock.json`
+files. Commit `board.json` too — these files are shared state, not local scratch. `board.json`
+is generated; never hand-edit it.
 
 ---
 
 ## Using the pipeline
 
-Once installed, you talk to the agents through Claude Code. The flow is deliberately
+Once installed, you can use the agents through the selected coding tool. The flow is deliberately
 gated: **nothing creates tracked work or writes code without you saying so.**
 
 ### Turn an idea into a recommendation
 
 > "Run the orchestrator on: users should be able to cancel a request after approval"
+
+Or, in Claude Code, Pi, OpenCode, or Kilo Code, invoke `/litecodeagent users should be able to
+cancel a request after approval`. Codex exposes custom skills as `$skill-name`, so use
+`$litecodeagent users should be able to cancel a request after approval` there (a literal
+`/litecodeagent ...` mention also describes the skill's activation intent, but Codex does not
+register arbitrary slash commands).
 
 `orchestrator` classifies the change, picks the relevant debate angles, argues each one in
 parallel, synthesizes them, and returns a plan — touching nothing. If the angles reach a
@@ -232,7 +245,7 @@ Run `board doctor` after anyone edits the project's fields in the GitHub UI.
 
 ---
 
-## Run outside Claude Code
+## Direct API runner (also used by Pi)
 
 Add a `runner` block to `litecode.config.json`. Model ids stay in project config; packs continue to
 declare only `fast`, `balanced`, or `reasoning` tiers.
@@ -312,10 +325,16 @@ local shell with the current user's permissions, so only agents declaring `Bash`
 When a model emits several `Agent` calls in one turn, their children run in parallel. All children
 share `maxDepth` and `maxAgentCalls` limits, and every individual loop is capped by `maxTurns`.
 
-Project-local Claude overlays under `.claude/` remain outside the runner. To make a local expert
+The Pi `/litecodeagent` prompt uses a small trusted-project extension to call the direct API runner,
+because Pi has prompt templates and extensions but no built-in subagent runtime. Add a `runner`
+configuration and provider API key before using it; Pi's currently selected model is not used for
+that nested run. Claude Code, OpenCode, and Kilo Code use their native agent delegation. Codex's
+custom agent definitions use its native subagent support, and its workflow is exposed as the
+`$litecodeagent` skill.
+
+Project-local skills remain outside the runner unless explicitly configured. To make a local expert
 available to direct API agents, place it under a separate `<skill-dir>/<name>/SKILL.md` tree and add
-that parent directory to `runner.skillDirs`. Runner skill directories are rejected if they point
-inside `.claude/`, preserving project ownership of files outside the LiteCodeAgent lockfile.
+that parent directory to `runner.skillDirs`. The configured runner output directory is excluded.
 
 ---
 
@@ -330,7 +349,7 @@ inside `.claude/`, preserving project ownership of files outside the LiteCodeAge
   Requires `core`, and requires `project.web` in your config.
 
 A skill that only makes sense on one repo (a framework-specific expert, a house style
-guide) belongs in that repo's `.claude/` as a local overlay — not in a pack.
+guide) belongs in that repo's native skill directory as a local overlay — not in a pack.
 
 ---
 
@@ -341,8 +360,9 @@ guide) belongs in that repo's `.claude/` as a local overlay — not in a pack.
 - **An unresolved placeholder is a hard error.** A prompt with a hole in it is worse than
   a build that fails.
 - **Capability tiers, not model ids.** Packs declare `tier: fast | balanced | reasoning`;
-  the tier→model mapping lives in your config. The same packs now drive OpenAI, Anthropic,
-  and DeepSeek adapters without changing an agent file.
+  Claude resolves those through `tiers`; other native harnesses inherit the model selected
+  in that tool. The direct API runner maps tiers through the configured OpenAI, Anthropic,
+  or DeepSeek adapter.
 - **Dangling skill references fail the install.** If your config names a skill that is in
   no installed pack and has no local overlay, `install` stops and tells you where each
   reference came from — rather than rendering an agent that asks the harness for something
@@ -368,15 +388,16 @@ If you edited a managed file by hand, `install` reports it as `DRIFT` and stops.
 move your change upstream into the pack (the right answer, so every project gets it), or
 re-run with `--force` to discard it.
 
-To remove the kit from a project: delete the files listed in `.claude/.litecode-lock.json`,
-then the lockfile and `litecode.config.json`. Your own `.claude/` files are untouched.
+To remove the kit from a project: delete the files listed in each enabled harness's
+`.litecode-lock.json`, then those lockfiles and `litecode.config.json`. Other project files are
+untouched.
 
 ---
 
 ## Status
 
-Phases 1–5 and the npm/bunx distribution path are implemented: packs/install/board, the native
-Claude Code plugin, the direct API runner with recursive `Agent`, usage/cost reporting, runner
+Phases 1–5 and the npm/bunx distribution path are implemented: packs/install/board, native
+Claude Code/Codex/Pi/OpenCode/Kilo Code integrations, the direct API runner with recursive `Agent`, usage/cost reporting, runner
 reliability, and ephemeral CLI execution. Provider adapters, orchestration semantics, retries,
 cancellation, timeouts, budgets, partial failure reports, package contents, and structured CLI
 calls are covered with deterministic tests; a live provider smoke run requires the corresponding
@@ -391,6 +412,12 @@ bun install
 bun test
 bun x tsc --noEmit
 ```
+
+Merging Conventional Commits into `main` runs CI and publishes releases to npm. `feat:` commits
+create a minor release, `fix:` and `perf:` commits create a patch release, and a `BREAKING CHANGE:`
+footer creates a major release. Commits such as `docs:` and `chore:` do not publish. Each release
+updates `package.json` and `CHANGELOG.md`, publishes `litecodeagent`, and creates a GitHub release.
+Configure an npm publish token as the repository Actions secret `NPM_TOKEN`.
 
 Working on the kit itself? `git clone` it anywhere and `bun link` — that takes over the
 `litecode` and `litecodeagent` commands. The legacy `install.sh` path is also retained for private

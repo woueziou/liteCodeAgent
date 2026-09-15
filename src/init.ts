@@ -1,5 +1,5 @@
 import { resolve, join } from "node:path";
-import { CONFIG_FILENAME } from "./config.ts";
+import { CONFIG_FILENAME, TARGETS, type InstallTarget } from "./config.ts";
 import { detect, extractConventions, type Detected } from "./detect.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { gh } from "./board/gh.ts";
@@ -148,7 +148,7 @@ async function pickBoard(owner: string): Promise<number | undefined> {
   }
 }
 
-export type InitOptions = { packs?: string[]; yes: boolean; packsRoot: string };
+export type InitOptions = { packs?: string[]; targets?: InstallTarget[]; yes: boolean; packsRoot: string };
 
 export async function init(projectRoot: string, opts: InitOptions): Promise<string> {
   const path = resolve(projectRoot, CONFIG_FILENAME);
@@ -156,6 +156,17 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
 
   const d = await detect(projectRoot);
   const interactive = opts.yes ? false : isInteractive();
+
+  let targets = opts.targets ?? [...TARGETS];
+  if (interactive && !opts.targets) {
+    heading("AI coding tools");
+    note("LiteCodeAgent can install native agents and its planning workflow into several tools at once.");
+    targets = await multiSelect(
+      "Which tools should receive LiteCodeAgent?",
+      TARGETS.map((target) => ({ label: target, value: target, selected: targets.includes(target) })),
+    );
+    if (targets.length === 0) throw new Error("Choose at least one AI coding tool.");
+  }
 
   // --- packs -------------------------------------------------------------------------
   const allPacks = await listPacks(opts.packsRoot);
@@ -323,6 +334,7 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
   // guard then names it precisely, instead of a schema error surfacing three commands later.
   const config = {
     packs,
+    targets,
     outDir: ".claude",
     target: "claude-code",
     tiers: { fast: "haiku", balanced: "sonnet", reasoning: "opus" },
