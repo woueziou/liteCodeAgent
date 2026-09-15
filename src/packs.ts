@@ -13,7 +13,7 @@ export const PackManifestSchema = z.object({
 export type PackManifest = z.infer<typeof PackManifestSchema>;
 
 export type PackFile = {
-  /** Path relative to the outDir, e.g. "agents/planner.md". */
+  /** Path relative to this pack, e.g. "agents/planner.md". */
   rel: string;
   source: string;
   /** Model tier declared in frontmatter, normalized away from provider-specific names. */

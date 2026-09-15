@@ -68,6 +68,7 @@ test("non-interactive init produces a config that validates and renders", async 
   const config = ConfigSchema.parse(raw);
 
   expect(config.packs).toEqual(["core", "web"]);
+  expect(config.targets).toEqual(["claude-code", "codex", "pi", "opencode", "kilo-code"]);
   expect(config.project.repo).toBe("TODO-owner/TODO-repo");
   expect(config.project.angles.map((a) => a.name)).toEqual([
     "correctness", "schema", "contract", "auth", "operability",

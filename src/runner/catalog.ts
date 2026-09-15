@@ -48,7 +48,7 @@ export class AgentCatalog {
     const canonicalOutRoot = await canonicalIfPresent(outRoot);
     for (const root of runnerSkillRoots) {
       if (within(outRoot, root) || within(canonicalOutRoot, await canonicalIfPresent(root))) {
-        throw new Error(`runner.skillDirs cannot point inside ${config.outDir}; those files belong to the Claude target`);
+        throw new Error(`runner.skillDirs cannot point inside ${config.outDir}; those files belong to the configured install target`);
       }
     }
     const catalog = new AgentCatalog(projectRoot, config.outDir, runnerSkillRoots);
@@ -81,7 +81,7 @@ export class AgentCatalog {
     catalog.agents.set(GENERAL_PURPOSE.name, GENERAL_PURPOSE);
 
     // Fail at startup if a preloaded skill cannot resolve. Runner overlays use explicit roots
-    // outside .claude, so the runner never reads project-owned files below the Claude target.
+    // outside the configured native-agent output tree.
     for (const agent of catalog.agents.values()) {
       for (const skill of agent.skills) await catalog.skill(skill);
     }
