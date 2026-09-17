@@ -1,6 +1,6 @@
 {
   "name": "litecodeagent",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Portable multi-agent workflows for Claude Code, Codex, Pi, OpenCode, Kilo Code, and direct API runners.",
   "type": "module",
   "bin": {

@@ -1,3 +1,11 @@
+## [0.8.1](https://github.com/woueziou/liteCodeAgent/compare/v0.8.0...v0.8.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **ci:** keep the plugin manifest in lockstep with the released version ([fa4e20a](https://github.com/woueziou/liteCodeAgent/commit/fa4e20a0a01d865d8b564afa4b45b1270a58b298))
+* **ci:** publish to npm via OIDC trusted publishing ([8a3aa48](https://github.com/woueziou/liteCodeAgent/commit/8a3aa48e75bf878290cd052acd45179546916a3b))
+
 # [0.8.0](https://github.com/woueziou/liteCodeAgent/compare/v0.7.2...v0.8.0) (2026-09-17)
 
 
