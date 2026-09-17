@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Rejects agent co-authorship trailers so generated commits stay attributed to the
+# repository owner alone. Enable with: git config core.hooksPath .githooks
+set -euo pipefail
+
+if grep -qiE '^[[:space:]]*co-authored-by[[:space:]]*:' "$1"; then
+  echo "commit-msg: Co-Authored-By trailers are not allowed in this repository." >&2
+  echo "  Remove the trailer; commits must be attributed to the repository owner only." >&2
+  exit 1
+fi

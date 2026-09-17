@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Refuses commits whose author or committer is not the repository owner.
+# Enabled automatically by the `prepare` script (git config core.hooksPath .githooks).
+set -euo pipefail
+
+ALLOWED_EMAILS=("dikysmarty@gmail.com" "taas@trida.lu")
+
+is_allowed() {
+  local email="$1"
+  for allowed in "${ALLOWED_EMAILS[@]}"; do
+    [[ "$email" == "$allowed" ]] && return 0
+  done
+  return 1
+}
+
+for role in AUTHOR COMMITTER; do
+  ident="$(git var "GIT_${role}_IDENT")"
+  email="${ident##*<}"
+  email="${email%%>*}"
+  if ! is_allowed "$email"; then
+    echo "pre-commit: refusing to commit with ${role,,} <$email>." >&2
+    echo "  Allowed: ${ALLOWED_EMAILS[*]}" >&2
+    exit 1
+  fi
+done
