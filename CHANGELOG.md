@@ -1,3 +1,10 @@
+# [0.9.0](https://github.com/woueziou/liteCodeAgent/compare/v0.8.1...v0.9.0) (2026-09-17)
+
+
+### Features
+
+* **cli:** list the supported coding tools and pick them from a menu ([82c2b18](https://github.com/woueziou/liteCodeAgent/commit/82c2b183c6646db1550fd5cac01dcb6a08e90e46))
+
 ## [0.8.1](https://github.com/woueziou/liteCodeAgent/compare/v0.8.0...v0.8.1) (2026-09-17)
 
 
