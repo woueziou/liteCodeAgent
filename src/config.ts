@@ -195,6 +195,35 @@ export type Project = z.infer<typeof ProjectSchema>;
 export const TARGETS = ["claude-code", "codex", "pi", "opencode", "kilo-code"] as const;
 export type InstallTarget = (typeof TARGETS)[number];
 
+/** What each tool is called by the people who use it, and where its files land. */
+export const TARGET_INFO: Record<InstallTarget, { label: string; description: string; directory: string }> = {
+  "claude-code": {
+    label: "Claude Code",
+    description: "Anthropic's coding agent, in the terminal or your IDE",
+    directory: ".claude/",
+  },
+  codex: {
+    label: "Codex",
+    description: "OpenAI's coding agent",
+    directory: ".codex/ and .agents/skills/",
+  },
+  pi: {
+    label: "Pi",
+    description: "The Pi coding agent",
+    directory: ".pi/",
+  },
+  opencode: {
+    label: "OpenCode",
+    description: "The open-source terminal coding agent",
+    directory: ".opencode/",
+  },
+  "kilo-code": {
+    label: "Kilo Code",
+    description: "The Kilo Code VS Code extension",
+    directory: ".kilo/",
+  },
+};
+
 export function selectedTargets(config: Config): InstallTarget[] {
   return [...new Set(config.targets ?? [config.target])];
 }

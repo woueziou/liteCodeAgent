@@ -2,7 +2,7 @@
 import { resolve, dirname, join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { loadConfig, CONFIG_FILENAME, TARGETS, selectedTargets, type InstallTarget } from "./config.ts";
+import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, type InstallTarget } from "./config.ts";
 import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
@@ -12,7 +12,7 @@ import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
-import { isInteractive } from "./prompt.ts";
+import { isInteractive, multiSelect } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
 import {
   RunCancelledError,
@@ -44,6 +44,7 @@ function usage(): void {
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent init")} [--yes] [--targets …] interactive setup: detects your repo, asks, writes the config
                                      ${c.dim("--yes skips the questions and uses only what it detects")}
+  ${c.bold("bunx litecodeagent targets")}                  list the coding tools you can install into
   ${c.bold("bunx litecodeagent packs")}                    list available packs
   ${c.bold("bunx litecodeagent install")} [--apply] [--force]
                                      render packs into configured AI coding tools
@@ -51,7 +52,8 @@ function usage(): void {
   ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
   ${c.bold("bunx litecodeagent config")} [show|edit|get|set|targets|packs]
                                      view or change litecode.config.json from the CLI
-                                     ${c.dim("targets/packs: set|add|remove <list>  ·  --apply runs install")}
+                                     ${c.dim("targets/packs: run with no argument to pick from a list")}
+                                     ${c.dim("or set|add|remove <list>  ·  --apply runs install")}
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
@@ -90,6 +92,45 @@ function parseTargets(value: string | undefined): InstallTarget[] | undefined {
   const invalid = requested.filter((target) => !(TARGETS as readonly string[]).includes(target));
   if (invalid.length) throw new Error(`Unknown target(s): ${invalid.join(", ")}. Choose from ${TARGETS.join(", ")}.`);
   return [...new Set(requested)] as InstallTarget[];
+}
+
+/**
+ * Reads the configured tools for display. Returns null only when the project has no
+ * config at all: a config that exists but still has `TODO` placeholders makes
+ * `loadConfig` throw, and reporting that as "not configured" would be a lie.
+ */
+async function currentTargets(root: string): Promise<InstallTarget[] | null> {
+  const file = Bun.file(resolve(root, CONFIG_FILENAME));
+  if (!(await file.exists())) return null;
+  try {
+    const { config } = await loadConfig(root);
+    return selectedTargets(config);
+  } catch {
+    const raw = (await file.json().catch(() => null)) as { target?: string; targets?: string[] } | null;
+    const listed = raw?.targets ?? (raw?.target ? [raw.target] : []);
+    return listed.filter((t): t is InstallTarget => (TARGETS as readonly string[]).includes(t));
+  }
+}
+
+async function cmdTargets(root: string): Promise<number> {
+  const enabled = await currentTargets(root);
+  console.log(`${c.bold("Coding tools LiteCodeAgent can install into")}\n`);
+  for (const target of TARGETS) {
+    const info = TARGET_INFO[target];
+    const on = enabled?.includes(target) ?? false;
+    const mark = enabled === null ? c.dim("·") : on ? c.green("\u25cf") : c.dim("\u25cb");
+    const state = enabled === null ? "" : on ? c.green("  on") : c.dim("  off");
+    console.log(`  ${mark} ${c.bold(info.label.padEnd(12))} ${c.dim(target.padEnd(12))}${state}`);
+    console.log(`      ${info.description}`);
+    console.log(`      ${c.dim(`installs into ${info.directory}`)}\n`);
+  }
+  if (enabled === null) {
+    console.log(c.dim(`No ${CONFIG_FILENAME} here yet. Run \`litecode init\` to choose.`));
+  } else {
+    console.log(c.dim("Change them with `litecode config targets` (interactive)"));
+    console.log(c.dim("or `litecode config targets set claude-code,pi`."));
+  }
+  return 0;
 }
 
 async function cmdPacks(): Promise<number> {
@@ -244,9 +285,66 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
   return report.status === "completed" ? 0 : 1;
 }
 
+/** Turns `config targets` / `config packs` with no action into a pick-from-a-list prompt. */
+async function chooseInteractively(
+  root: string,
+  kind: "targets" | "packs",
+): Promise<string | null> {
+  if (!isInteractive()) {
+    console.error(
+      `Usage: bunx litecodeagent config ${kind} <set|add|remove> <list>\n` +
+        `Run it in a terminal to pick from a list instead, or see \`litecode ${kind}\`.`,
+    );
+    return null;
+  }
+
+  const { config } = await loadConfig(root);
+  if (kind === "targets") {
+    const enabled = selectedTargets(config);
+    const picked = await multiSelect(
+      "Which coding tools should LiteCodeAgent install into?",
+      TARGETS.map((target) => ({
+        label: TARGET_INFO[target].label,
+        hint: `${TARGET_INFO[target].description} \u2192 ${TARGET_INFO[target].directory}`,
+        value: target as string,
+        selected: enabled.includes(target),
+      })),
+    );
+    return picked.join(",");
+  }
+
+  const available = await listPacks(PACKS_ROOT);
+  const picked = await multiSelect(
+    "Which packs should be installed?",
+    await Promise.all(
+      available.map(async (name) => {
+        const pack = await loadPack(PACKS_ROOT, name);
+        return {
+          label: name,
+          hint: pack.manifest.description,
+          value: name as string,
+          selected: config.packs.includes(name),
+        };
+      }),
+    ),
+  );
+  return picked.join(",");
+}
+
 async function cmdConfig(root: string, argv: string[]): Promise<number> {
   const sub = argv[1];
   const apply = argv.includes("--apply");
+
+  // An empty `config targets` used to be an error; now it opens the picker.
+  if ((sub === "targets" || sub === "packs") && !argv[2]) {
+    const chosen = await chooseInteractively(root, sub);
+    if (chosen === null) return 1;
+    if (!chosen) {
+      console.log(c.dim("Nothing selected; leaving the config unchanged."));
+      return 0;
+    }
+    argv = [argv[0] ?? "config", sub, "set", chosen, ...(apply ? ["--apply"] : [])];
+  }
 
   const mutation = (() => {
     if (!sub || sub === "show") return { kind: "show" as const };
@@ -392,6 +490,7 @@ try {
         for (const line of await upgrade(KIT_ROOT)) console.log(line ? `  ${line}` : "");
         return 0;
       }
+      case "targets": return cmdTargets(root);
       case "packs": return cmdPacks();
       case "install": return cmdInstall(root, argv);
       case "status": return cmdStatus(root);

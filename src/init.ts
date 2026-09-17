@@ -1,5 +1,5 @@
 import { resolve, join } from "node:path";
-import { CONFIG_FILENAME, TARGETS, type InstallTarget } from "./config.ts";
+import { CONFIG_FILENAME, TARGETS, TARGET_INFO, type InstallTarget } from "./config.ts";
 import { detect, extractConventions, type Detected } from "./detect.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { gh } from "./board/gh.ts";
@@ -163,7 +163,12 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
     note("LiteCodeAgent can install native agents and its planning workflow into several tools at once.");
     targets = await multiSelect(
       "Which tools should receive LiteCodeAgent?",
-      TARGETS.map((target) => ({ label: target, value: target, selected: targets.includes(target) })),
+      TARGETS.map((target) => ({
+        label: TARGET_INFO[target].label,
+        hint: `${TARGET_INFO[target].description} \u2192 ${TARGET_INFO[target].directory}`,
+        value: target,
+        selected: targets.includes(target),
+      })),
     );
     if (targets.length === 0) throw new Error("Choose at least one AI coding tool.");
   }
