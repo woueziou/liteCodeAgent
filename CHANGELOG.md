@@ -1,3 +1,10 @@
+# [0.10.0](https://github.com/woueziou/liteCodeAgent/compare/v0.9.0...v0.10.0) (2026-09-17)
+
+
+### Features
+
+* add new skills for critique, security, and project management ([0622681](https://github.com/woueziou/liteCodeAgent/commit/06226812205c55430b07638bbfac68e6daa5f2ee))
+
 # [0.9.0](https://github.com/woueziou/liteCodeAgent/compare/v0.8.1...v0.9.0) (2026-09-17)
 
 
