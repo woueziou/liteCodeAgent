@@ -146,6 +146,23 @@ directory. For example: `.codex/agents/*.toml`, `.agents/skills/*/SKILL.md`,
 `.opencode/agents/*.md`, `.kilo/agents/*.md`, and the Pi prompt/extension under `.pi/`.
 Claude Code keeps `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`.
 
+### Updating preferences later
+
+You do not need to edit `litecode.config.json` by hand for common changes:
+
+```bash
+bunx litecodeagent config show
+bunx litecodeagent config targets add pi,opencode          # extend an existing install
+bunx litecodeagent config targets set claude-code,pi,codex # replace the harness list
+bunx litecodeagent config packs add web
+bunx litecodeagent config set project.defaultBranch develop
+bunx litecodeagent config edit                             # interactive targets + packs
+bunx litecodeagent config targets add pi --apply           # save, then render packs
+```
+
+`--apply` chains `install --apply` after a change so new harness directories are written
+immediately. Without it, the command updates the config only and reminds you to install.
+
 Only files recorded in LiteCodeAgent's per-tool lockfiles are managed. Existing local skills
 and other project files are never rewritten or deleted by the CLI.
 
