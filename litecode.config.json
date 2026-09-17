@@ -1,0 +1,98 @@
+{
+  "packs": [
+    "core"
+  ],
+  "targets": [
+    "claude-code",
+    "pi"
+  ],
+  "outDir": ".claude",
+  "target": "claude-code",
+  "tiers": {
+    "fast": "haiku",
+    "balanced": "sonnet",
+    "reasoning": "opus"
+  },
+  "project": {
+    "name": "litecodeagent",
+    "repo": "woueziou/liteCodeAgent",
+    "defaultBranch": "main",
+    "checkCommand": "bun run check",
+    "typecheckCommands": [],
+    "worktreeRoot": "../worktrees",
+    "adrDir": "docs/decisions",
+    "conventions": [
+      "Use\u001b",
+      "Use functional programming if possible\u001b",
+      "Write tests, follow TDD pattern\u001b",
+      "No single large file"
+    ],
+    "trustBoundaries": [],
+    "lessons": [],
+    "angles": [
+      {
+        "name": "correctness",
+        "covers": "Does the change actually solve the stated problem, and what edge cases does it miss.",
+        "triggeredBy": "always — every non-trivial change gets this angle",
+        "skills": [
+          "critique-expert"
+        ],
+        "always": true
+      },
+      {
+        "name": "contract",
+        "covers": "Breaking changes for consumers of a public endpoint or an exported type.",
+        "triggeredBy": "the change touches an endpoint signature, a response shape, or an exported type",
+        "skills": []
+      },
+      {
+        "name": "operability",
+        "covers": "Logging, error handling and observability — how failures get diagnosed in production.",
+        "triggeredBy": "the change affects error paths, logging, or external-call failure handling",
+        "skills": []
+      }
+    ],
+    "domains": [
+      {
+        "match": "auth, user input validation, or an external integration",
+        "skills": [
+          "security-expert"
+        ]
+      }
+    ],
+    "agentSkills": {
+      "debate-angle": [
+        "critique-expert"
+      ],
+      "planner": [],
+      "implementer": [
+        "agent-attribution",
+        "github-project-sync",
+        "security-expert"
+      ],
+      "reviewer": [
+        "agent-attribution",
+        "github-project-sync",
+        "security-expert",
+        "critique-expert"
+      ],
+      "triage": [
+        "github-project-sync"
+      ],
+      "dispatcher": [
+        "github-project-sync"
+      ],
+      "tracker": [
+        "github-project-sync",
+        "agent-attribution"
+      ]
+    },
+    "board": {
+      "enabled": true,
+      "owner": "woueziou",
+      "number": 17,
+      "dataFile": ".claude/data/board.json",
+      "itemIdCache": ".claude/data/github-project-item-ids.json"
+    }
+  }
+}
