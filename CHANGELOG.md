@@ -1,3 +1,10 @@
+# [0.8.0](https://github.com/woueziou/liteCodeAgent/compare/v0.7.2...v0.8.0) (2026-09-17)
+
+
+### Features
+
+* add config CLI for targets, packs, and project settings ([eb1e422](https://github.com/woueziou/liteCodeAgent/commit/eb1e4227409bd7fbe8417d91acd469da7ac4fbb9))
+
 ## [0.7.2](https://github.com/woueziou/liteCodeAgent/compare/v0.7.1...v0.7.2) (2026-09-15)
 
 
