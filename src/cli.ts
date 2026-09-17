@@ -11,6 +11,7 @@ import { fetchProject } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
 import { init, summarize } from "./init.ts";
+import { applyConfigMutation } from "./config-edit.ts";
 import { isInteractive } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
 import {
@@ -48,6 +49,9 @@ function usage(): void {
                                      render packs into configured AI coding tools
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
+  ${c.bold("bunx litecodeagent config")} [show|edit|get|set|targets|packs]
+                                     view or change litecode.config.json from the CLI
+                                     ${c.dim("targets/packs: set|add|remove <list>  ·  --apply runs install")}
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
@@ -240,6 +244,57 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
   return report.status === "completed" ? 0 : 1;
 }
 
+async function cmdConfig(root: string, argv: string[]): Promise<number> {
+  const sub = argv[1];
+  const apply = argv.includes("--apply");
+
+  const mutation = (() => {
+    if (!sub || sub === "show") return { kind: "show" as const };
+    if (sub === "edit") return { kind: "edit" as const };
+    if (sub === "get") {
+      const path = argv[2];
+      if (!path) throw new Error("Usage: bunx litecodeagent config get <path>");
+      return { kind: "get" as const, path };
+    }
+    if (sub === "set") {
+      const path = argv[2];
+      const value = argv[3];
+      if (!path || value === undefined) throw new Error("Usage: bunx litecodeagent config set <path> <value>");
+      return { kind: "set" as const, path, value };
+    }
+    if (sub === "targets" || sub === "packs") {
+      const action = argv[2];
+      const value = argv[3];
+      if (!action || !value || !["set", "add", "remove"].includes(action)) {
+        throw new Error(`Usage: bunx litecodeagent config ${sub} <set|add|remove> <list>`);
+      }
+      const verb = action as "set" | "add" | "remove";
+      return sub === "targets"
+        ? { kind: "targets" as const, action: verb, value }
+        : { kind: "packs" as const, action: verb, value };
+    }
+    throw new Error(`Unknown config command: ${sub}`);
+  })();
+
+  const { config, path, changed } = await applyConfigMutation(root, PACKS_ROOT, mutation);
+  if (changed) {
+    console.log(`${c.green("Updated")} ${path}`);
+    if (mutation.kind === "targets" || mutation.kind === "packs" || mutation.kind === "set") {
+      console.log(`${c.bold("Tools")}    ${selectedTargets(config).join(", ")}`);
+      console.log(`${c.bold("Packs")}    ${config.packs.join(", ")}`);
+    }
+  } else if (mutation.kind === "edit" && !changed) {
+    console.log(c.dim("No changes."));
+  }
+
+  if (apply && changed) return cmdInstall(root, ["install", "--apply"]);
+  if (apply && !changed) console.log(c.dim("Nothing to install."));
+  if (changed && !apply) {
+    console.log(c.dim("\nRe-run with --apply to render packs for the new settings."));
+  }
+  return 0;
+}
+
 async function cmdBoard(root: string, argv: string[]): Promise<number> {
   const sub = argv[1];
   const { config } = await loadConfig(root);
@@ -340,6 +395,7 @@ try {
       case "packs": return cmdPacks();
       case "install": return cmdInstall(root, argv);
       case "status": return cmdStatus(root);
+      case "config": return cmdConfig(root, argv);
       case "run": return cmdRun(root, argv);
       case "board": return cmdBoard(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
