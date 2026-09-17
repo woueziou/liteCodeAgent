@@ -1,9 +1,43 @@
 # liteCodeAgent
 
-A portable, versioned multi-agent software pipeline. The agents that take an idea from
-"someone said it in chat" to "a reviewed PR on a tracked board" live here as **packs**,
-so a new project gets the whole pipeline with one command instead of a copy-paste that
-starts drifting the same afternoon.
+**A team of AI agents that takes an idea from "someone mentioned it in chat" all the way
+to "a reviewed pull request on a tracked board" — and that you can drop into any project
+with one command.**
+
+New here? Start with the two sections below; they assume no prior knowledge of the tool.
+Already know your way around? Jump to [Quick start](#quick-start).
+
+---
+
+## What this actually is
+
+AI coding assistants like Claude Code, Codex or Pi let you define **agents**: specialised
+assistants with their own instructions and their own narrow job. One reviews code. One
+writes it. One decides what to work on next.
+
+Writing those agents well takes time, and once you have a set you like, you usually end up
+copy-pasting them from project to project — where they slowly drift apart until no two
+repos behave the same way.
+
+liteCodeAgent is that set of agents, written once and kept in one place. You answer a few
+questions about your project, and it generates the agent files in the format your coding
+tool expects. When the agents improve, you pull the update instead of re-copying.
+
+**Three things you'll see mentioned throughout:**
+
+| Term | What it means |
+| --- | --- |
+| **agent** | One AI assistant with one job, defined in a Markdown file your coding tool reads |
+| **pack** | A bundle of agents you install together — `core` is the pipeline, `web` adds front-end experts |
+| **board** | A GitHub Project where the agents track work, so progress lives somewhere you can see |
+
+The agents are written as templates with blanks in them — your repo name, your test
+command, your coding conventions. Setup fills the blanks from your answers. That's what
+makes the same agents work in any project.
+
+## How the agents work together
+
+Each arrow is one agent handing off to the next:
 
 ```
 idea → classifier → panel-selector → debate-angle ×N → synthesizer → planner
@@ -13,26 +47,100 @@ idea → classifier → panel-selector → debate-angle ×N → synthesizer → 
                                                                       triage ←──────┘
 ```
 
+Read it as a story. You describe something you want. `classifier` works out what kind of
+change it is. `panel-selector` decides which angles are worth arguing — security?
+performance? — and `debate-angle` argues each one separately, in parallel. `synthesizer`
+reconciles them and `planner` turns the result into a plan.
+
+Nothing has been created or written yet. **You approve first.** Then `tracker` files the
+issue, `dispatcher` decides what to do next, `implementer` writes the code and opens a
+pull request, and `reviewer` gives a real verdict on it. If something goes wrong,
+`triage` picks it up rather than letting an agent guess.
+
+That gating is deliberate: **no agent creates tracked work or writes code until you ask.**
+
 ---
 
-## Requirements
+## What you need before starting
 
-| Tool | Why |
-| --- | --- |
-| [Bun](https://bun.sh) ≥ 1.1 | runs the CLI |
-| [GitHub CLI](https://cli.github.com) (`gh`), authenticated | board provisioning and everything the agents do on GitHub |
-| Claude Code | optional: native plugin and rendered-agent harness |
-| Provider API key | required only for `bunx litecodeagent run` outside Claude Code |
+| You need | Why | Check it |
+| --- | --- | --- |
+| [Bun](https://bun.sh) ≥ 1.1 | Runs the setup command. It's a JavaScript runtime, like Node. | `bun --version` |
+| A git repository | The tool reads your remote to learn your project's name | `git remote -v` |
+| [GitHub CLI](https://cli.github.com), signed in | Only for the board features and the agents' GitHub work | `gh auth status` |
+| A coding tool | Claude Code, Codex, Pi, OpenCode or Kilo Code — whichever you already use | — |
+| A provider API key | **Only** if you want to run agents outside a coding tool | — |
+
+If `gh auth status` says you're not logged in, run `gh auth login` before any
+`board` command. Everything else works without it.
+
+---
+
+## Quick start
+
+Nothing gets installed globally, and nothing is written until you say so.
+
+**1. Go to the project you want the agents in.**
 
 ```bash
-gh auth status   # must show you logged in before `bunx litecodeagent board ...`
+cd /path/to/your/project
 ```
 
----
+**2. Run setup.** It asks a handful of questions, having already guessed most of the
+answers from your repo.
 
-## Install through Claude Code
+```bash
+bunx litecodeagent setup
+```
 
-Add this repository as a marketplace, then install the plugin:
+This is a **preview**: it shows you the files it would create, and writes nothing.
+
+**3. Look at what it proposes,** then run it for real:
+
+```bash
+bunx litecodeagent setup --apply
+```
+
+That's it. Your coding tool now has the agents.
+
+<details>
+<summary>What's <code>bunx</code>, and where does the code go?</summary>
+
+`bunx` downloads a command, runs it, and keeps it in a shared cache — nothing is added to
+your project's dependencies and nothing is installed system-wide. Use
+`bunx litecodeagent@latest <command>` to force the newest release.
+
+The generated agent files go into your coding tool's own directory (`.claude/`, `.codex/`,
+`.pi/`, and so on), alongside a small lockfile so the tool knows what it owns.
+
+</details>
+
+Re-running `setup` later previews or applies updates to the agents without touching the
+answers you gave. The shorter `litecode` command does the same thing and is available once
+you install globally or through a plugin.
+
+## Which coding tools are supported?
+
+Five, and you can install into as many as you like at once:
+
+```bash
+bunx litecodeagent targets
+```
+
+That lists every tool, what it is, where its files land, and which ones you currently have
+switched on. To change the selection, let it ask you:
+
+```bash
+bunx litecodeagent config targets
+```
+
+Prefer to say it in one line? `bunx litecodeagent config targets set claude-code,pi` works
+too. Add `--apply` to write the files immediately after choosing.
+
+## If you use Claude Code
+
+You can skip the command line entirely. Add this repository as a marketplace, install the
+plugin, then run the guided setup from inside Claude Code:
 
 ```text
 /plugin marketplace add woueziou/liteCodeAgent
@@ -40,49 +148,25 @@ Add this repository as a marketplace, then install the plugin:
 /reload-plugins
 ```
 
-This works with the private repository when your existing git credentials can access it. In the
-target project, start the guided setup with:
+Then, in the project you want set up:
 
 ```text
 /litecode-agent:setup
 ```
 
-The plugin makes `litecode` available to Claude Code's Bash tool and installs its Bun dependencies
-from the committed lockfile. The setup skill still renders the parameterized packs through the
-same config validation and lockfile rules described below; it never loads pack templates directly.
-Update it later with `/plugin update litecode-agent@litecode`.
+This works with the private repository as long as your git credentials can already reach
+it. The plugin makes `litecode` available to Claude Code's Bash tool and installs its Bun
+dependencies from the committed lockfile. Behind the scenes it follows exactly the same
+config validation and lockfile rules described below — it never loads the agent templates
+directly. Update it later with `/plugin update litecode-agent@litecode`.
 
-## Quick start with Bun
+---
 
-Nothing is installed globally. From the target project's root, Bun downloads the CLI into its
-shared cache, runs the guided setup, and previews the files it would render:
+## Setting up, step by step
 
-```bash
-cd /path/to/your/project
-bunx litecodeagent setup
-```
-
-Review `litecode.config.json`, then apply through the same command:
-
-```bash
-bunx litecodeagent setup --apply
-```
-
-If you want the shortest interactive path and are comfortable applying immediately after the
-questions, use one command:
-
-```bash
-bunx litecodeagent setup --apply
-```
-
-`setup` creates the config only when it is absent, so rerunning it previews or applies pack
-updates without replacing your answers. Use `bunx litecodeagent@latest <command>` to explicitly
-request the newest release. The shorter `litecode` executable remains available for global,
-plugin, and linked development installs.
-
-## Set up a project
-
-Run these from the root of the repo you want the pipeline in.
+The quick start above runs these steps for you. Here they are individually, in case you
+want more control — or want to understand what just happened. Run them from the root of
+the repo you want the agents in.
 
 ### 1. Answer a few questions
 
@@ -115,9 +199,16 @@ mechanical and drift the moment a human maintains them by hand:
 Prefer no questions at all? `bunx litecodeagent init --yes` writes a config from detection alone and
 marks anything it couldn't determine as `TODO`.
 
-Setup selects Claude Code, Codex, Pi, OpenCode, and Kilo Code by default. To choose a subset,
-pass a comma-separated list, for example `bunx litecodeagent init --yes --targets codex,opencode`.
-Existing configs without `targets` keep their legacy `target` setting.
+Setup installs into all five supported coding tools by default. To see what they are, and
+which ones you have on:
+
+```bash
+bunx litecodeagent targets
+```
+
+To pick a subset during setup, the questions let you choose from that same list. Skipping
+the questions? Name them directly: `bunx litecodeagent init --yes --targets codex,opencode`.
+Configs written before this option existed keep their older single `target` setting.
 
 ### 2. Skim the result
 
@@ -148,16 +239,25 @@ Claude Code keeps `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`.
 
 ### Updating preferences later
 
-You do not need to edit `litecode.config.json` by hand for common changes:
+You never have to edit `litecode.config.json` by hand for common changes.
+
+**To choose from a list** — run these with no arguments and they'll ask:
 
 ```bash
-bunx litecodeagent config show
+bunx litecodeagent config targets   # which coding tools to install into
+bunx litecodeagent config packs     # which bundles of agents to install
+bunx litecodeagent config edit      # both, in sequence
+```
+
+**To say it in one line** — when you already know what you want:
+
+```bash
+bunx litecodeagent config show                             # what is set right now
 bunx litecodeagent config targets add pi,opencode          # extend an existing install
-bunx litecodeagent config targets set claude-code,pi,codex # replace the harness list
+bunx litecodeagent config targets set claude-code,pi,codex # replace the tool list
 bunx litecodeagent config packs add web
 bunx litecodeagent config set project.defaultBranch develop
-bunx litecodeagent config edit                             # interactive targets + packs
-bunx litecodeagent config targets add pi --apply           # save, then render packs
+bunx litecodeagent config targets add pi --apply           # save, then write the files
 ```
 
 `--apply` chains `install --apply` after a change so new harness directories are written
@@ -262,7 +362,14 @@ Run `board doctor` after anyone edits the project's fields in the GitHub UI.
 
 ---
 
-## Direct API runner (also used by Pi)
+## Running agents without a coding tool
+
+Everything above runs the agents *inside* Claude Code, Codex, Pi and friends. You can also
+run them directly against a provider's API — useful for scripts, CI, or when you just want
+one agent's answer in your terminal. This is also how Pi runs them, since Pi has no
+built-in sub-agent runtime of its own.
+
+This section is the most technical part of the README; skip it unless you need it.
 
 Add a `runner` block to `litecode.config.json`. Model ids stay in project config; packs continue to
 declare only `fast`, `balanced`, or `reasoning` tiers.
@@ -357,6 +464,8 @@ that parent directory to `runner.skillDirs`. The configured runner output direct
 
 ## Packs
 
+A pack is a bundle of agents and skills installed together. There are two:
+
 - **`core`** — the 11 pipeline agents (`classifier`, `panel-selector`, `debate-angle`,
   `synthesizer`, `planner`, `orchestrator`, `tracker`, `dispatcher`, `implementer`,
   `reviewer`, `triage`) plus `github-project-sync`, `agent-attribution`,
@@ -370,7 +479,10 @@ guide) belongs in that repo's native skill directory as a local overlay — not 
 
 ---
 
-## How it stays portable
+## Design decisions worth knowing
+
+A few rules the tool holds itself to. They explain why it sometimes refuses to do
+something rather than guessing.
 
 - **No project literals in packs.** Agents and skills are Markdown with `{{ }}`
   placeholders; a test fails the build if a repo name, path, or board id leaks into one.
