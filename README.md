@@ -430,12 +430,16 @@ bun test
 bun x tsc --noEmit
 ```
 
+`bun install` points `core.hooksPath` at `.githooks`, which rejects commits from an unexpected
+author and any `Co-Authored-By` trailer.
+
 Merging Conventional Commits into `main` runs CI and publishes releases to npm. `feat:` commits
 create a minor release, `fix:` and `perf:` commits create a patch release, and a `BREAKING CHANGE:`
 footer creates a major release. Commits such as `docs:` and `chore:` do not publish. Each release
 updates `package.json` and `CHANGELOG.md`, publishes `litecodeagent`, and creates a GitHub release.
-Configure an npm publish token as the repository Actions secret `NPM_TOKEN`. Tests always run;
-release is skipped with a warning when the token is absent.
+Publishing uses npm trusted publishing (OIDC): the `release` job exchanges the workflow's
+`id-token` for a short-lived credential, so no npm token is stored in the repository. The package
+must list this repository and `ci.yml` as a trusted publisher on npmjs.com.
 
 When bootstrapping semantic-release on a repo that already has a version on npm, tag the commit
 that matches the published release (`git tag vX.Y.Z <sha> && git push origin vX.Y.Z`) before the
