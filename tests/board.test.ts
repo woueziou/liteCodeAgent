@@ -165,3 +165,75 @@ test("a field of the wrong type is a blocker", () => {
   );
   expect(plan.blockers.find((b) => b.field === "Due Date")!.problem).toContain("TEXT");
 });
+
+test("a name collision with a GitHub-derived field is a blocker, not a mutation attempt", () => {
+  const p = project();
+  const plan = planBoard(
+    { ...p, fields: p.fields.map((f) => (f.name === "Priority" ? { ...f, dataType: "ASSIGNEES" } : f)) },
+    config,
+  );
+  const blocker = plan.blockers.find((b) => b.field === "Priority")!;
+  expect(blocker).toBeDefined();
+  expect(blocker.problem).toContain("ASSIGNEES");
+  expect(blocker.fix).toContain("cannot be edited via the API");
+  // No action of any kind is emitted for a derived-field collision.
+  expect(plan.actions.some((a) => a.field === "Priority")).toBe(false);
+});
+
+test("a derived TITLE field collision is also blocked", () => {
+  const p = project();
+  const plan = planBoard(
+    { ...p, fields: p.fields.map((f) => (f.name === "Status" ? { ...f, dataType: "TITLE" } : f)) },
+    config,
+  );
+  const blocker = plan.blockers.find((b) => b.field === "Status")!;
+  expect(blocker).toBeDefined();
+  expect(blocker.problem).toContain("TITLE");
+});
+
+test("an issue-derived SINGLE_SELECT field (Priority, isIssueField: true, no options) is a blocker, not a mutation attempt", () => {
+  // Reproduces the actual reported bug: GitHub's `Priority` field is SINGLE_SELECT-shaped
+  // and has zero options, identical by dataType to a genuine custom field. Only
+  // `isIssueField` distinguishes it.
+  const p = project();
+  const plan = planBoard(
+    {
+      ...p,
+      fields: p.fields.map((f) =>
+        f.name === "Priority" ? { ...f, dataType: "SINGLE_SELECT", isIssueField: true, options: [] } : f,
+      ),
+    },
+    config,
+  );
+  const blocker = plan.blockers.find((b) => b.field === "Priority")!;
+  expect(blocker).toBeDefined();
+  expect(blocker.fix).toContain("issue/PR");
+  expect(plan.actions.some((a) => a.field === "Priority")).toBe(false);
+});
+
+test("a genuinely editable single-select field (isIssueField: false) with stale options is still planned normally", () => {
+  // Companion to the Priority case above: confirms the isIssueField guard does not
+  // over-block a field that is actually editable, even when its dataType and staleness
+  // otherwise look identical to the Priority scenario.
+  const p = project();
+  const plan = planBoard(
+    {
+      ...p,
+      fields: p.fields.map((f) =>
+        f.name === "Size"
+          ? {
+              ...f,
+              isIssueField: false,
+              options: ["XS", "S", "M", "L", "XL"].map((name, i) => ({ id: `SZ${i}`, name })),
+            }
+          : f,
+      ),
+    },
+    config,
+    new Map(), // no items hold the stale options, so they're safe to remove automatically
+  );
+  expect(plan.blockers.some((b) => b.field === "Size")).toBe(false);
+  const sizeActions = plan.actions.filter((a) => a.field === "Size");
+  expect(sizeActions.length).toBeGreaterThan(0);
+  expect(sizeActions.some((a) => a.kind === "add-options" || a.kind === "remove-options")).toBe(true);
+});

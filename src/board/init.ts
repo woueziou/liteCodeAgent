@@ -12,6 +12,7 @@ import {
   type RemoteField,
   type OptionUsage,
   type ItemFieldValues,
+  DERIVED_DATATYPES,
 } from "./query.ts";
 import {
   FIELD_SPECS,
@@ -84,6 +85,33 @@ export function planBoard(
           spec.kind === "single-select"
             ? `create SINGLE_SELECT with options: ${spec.options.join(", ")}`
             : `create ${DATATYPE[spec.kind]} field`,
+      });
+      continue;
+    }
+
+    if (DERIVED_DATATYPES.has(remote.dataType)) {
+      blockers.push({
+        field: spec.name,
+        problem: `exists as a GitHub-derived field (${remote.dataType}), which cannot be edited via the API`,
+        fix: `Field '${spec.name}' cannot be edited via the API — recreate it as a plain custom single-select in the Project UI`,
+      });
+      continue;
+    }
+
+    // A field can be SINGLE_SELECT-shaped (indistinguishable from a genuine custom field by
+    // `dataType` alone) while still being derived from the issue itself — e.g. `Priority`
+    // seeded from a repo's issue-forms template, with zero options. GitHub's own
+    // `updateProjectV2Field` rejects mutating these the same way it rejects DERIVED_DATATYPES,
+    // but the remedy differs: an issue-derived field's options live on the issue, not the
+    // project, so they can't be fixed by editing the project field at all.
+    if (remote.isIssueField === true) {
+      blockers.push({
+        field: spec.name,
+        problem: `exists as an issue-derived field (${remote.dataType}), whose options live on the issue itself, not the project`,
+        fix:
+          `Field '${spec.name}' is derived from the issue/PR — its options can't be managed ` +
+          `through the project API at all. Rename or remove this project-level field (or rename ` +
+          `the spec field instead), then re-run.`,
       });
       continue;
     }
@@ -237,6 +265,12 @@ export async function applyBoardPlan(
   }
   const log: string[] = [];
 
+  // No derived-field guard is needed here: this loop only ever fires for a field with no
+  // name collision on the remote project (`!remote` in planBoard). A collision with a
+  // GitHub-derived field is caught earlier, in planBoard, as a Blocker — which `applyBoardPlan`
+  // already refuses to proceed past (see the check above). Every mutation this function
+  // issues is driven off `plan.actions`, so as long as no caller builds actions by hand
+  // instead of going through `planBoard`, this path can't reach a derived field.
   for (const action of plan.actions.filter((a) => a.kind === "create-field")) {
     const spec = FIELD_SPECS.find((f) => f.name === action.field);
     if (!spec) continue;
@@ -302,10 +336,20 @@ export async function applyBoardPlan(
       if (!spec || spec.kind !== "single-select") continue;
       const remote = current.fields.find((f) => f.name === field);
       if (!remote) continue;
-      await graphql(UPDATE_SELECT_FIELD, {
-        fieldId: remote.id,
-        options: mergedOptions(remote, spec.options),
-      });
+      try {
+        await graphql(UPDATE_SELECT_FIELD, {
+          fieldId: remote.id,
+          options: mergedOptions(remote, spec.options),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Field '${field}': ${message}\n` +
+            (log.length > 0
+              ? `Fields already updated before failure: ${log.join("; ")}`
+              : "No fields were updated before this failure."),
+        );
+      }
       for (const action of actions.filter((a) => a.field === field)) {
         const verb = action.kind === "add-options" ? "added" : "removed";
         log.push(`${verb} option(s) on '${field}': ${action.options.join(", ")}`);

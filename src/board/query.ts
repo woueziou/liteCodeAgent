@@ -5,11 +5,52 @@ export type RemoteField = {
   name: string;
   dataType: string;
   /**
+   * `true` when this field's value is derived from the issue/PR itself (e.g. `Priority`,
+   * `Start date`, `Target date` on a board seeded from an issue-forms template) rather than
+   * being a plain project-level custom field. Confirmed via live schema introspection:
+   * present on `ProjectV2Field` and `ProjectV2SingleSelectField`, and `null` on
+   * `ProjectV2IterationField`. This is the one case `DERIVED_DATATYPES` cannot catch —
+   * a field like `Priority` reports `dataType: "SINGLE_SELECT"` with zero options,
+   * indistinguishable from a genuine custom single-select by dataType alone.
+   */
+  isIssueField?: boolean | null;
+  /**
    * color and description are carried because updating a single-select means resending
    * the whole option list: anything not echoed back would be silently reset.
    */
   options?: { id: string; name: string; color?: string; description?: string }[];
 };
+
+/**
+ * `dataType` values GitHub derives from the issue/PR itself rather than storing as a plain
+ * custom field value. `updateProjectV2Field`/`createProjectV2Field` reject these outright
+ * ("Only custom fields can be updated. Fields derived from issues or pull requests must be
+ * updated through their respective APIs.") — so a name collision with one of these must be
+ * treated as unfixable by this pipeline, not attempted and left to fail mid-apply.
+ *
+ * This set alone is NOT sufficient: an issue-derived field that happens to be
+ * SINGLE_SELECT-shaped (e.g. `Priority`) reports a `dataType` identical to a genuine custom
+ * field and has zero entries here to catch it. That case is caught separately via
+ * `RemoteField.isIssueField` (see `planBoard`) — the two checks are complementary, not
+ * redundant: every field caught here reports `isIssueField: false`, so this set still earns
+ * its keep for the fields it does catch.
+ */
+export const DERIVED_DATATYPES = new Set([
+  "ASSIGNEES",
+  "LABELS",
+  "LINKED_PULL_REQUESTS",
+  "MILESTONE",
+  "REPOSITORY",
+  "REVIEWERS",
+  "TITLE",
+  "TRACKED_BY",
+  "TRACKS",
+  "PARENT_ISSUE",
+  "SUB_ISSUES_PROGRESS",
+  "CREATED",
+  "UPDATED",
+  "CLOSED",
+]);
 
 export type RemoteProject = {
   id: string;
@@ -24,8 +65,8 @@ fragment P on ProjectV2 {
   id number title url
   fields(first: 50) {
     nodes {
-      ... on ProjectV2Field { id name dataType }
-      ... on ProjectV2SingleSelectField { id name dataType options { id name color description } }
+      ... on ProjectV2Field { id name dataType isIssueField }
+      ... on ProjectV2SingleSelectField { id name dataType isIssueField options { id name color description } }
       ... on ProjectV2IterationField { id name dataType }
     }
   }
