@@ -287,6 +287,26 @@ Don't have a board yet? Create an empty GitHub Project first (org → Projects �
 project → Table), note its number from the URL, then run the command above — it will
 provision every field into it.
 
+#### If `board init` reports the Status field as BLOCKED
+
+A brand-new project is provisioned end to end with no manual step. But a project you
+already started carries GitHub's default `Status` field (`Todo` / `In Progress` / `Done`),
+and the pipeline needs seven statuses. `board init` then stops with two blockers: options
+missing, and `Todo` unrecognised.
+
+Fix it once in the project's web UI (Settings → Fields → `Status`):
+
+1. Add the missing options, with these exact labels — `Backlog`, `Planned`, `Blocked`,
+   `Review`, `Ready to Merge`. (`In Progress` and `Done` already exist; leave them alone.)
+2. Move any item sitting in `Todo` to `Backlog`, then delete the `Todo` option.
+
+Then re-run `bunx litecodeagent board init --apply`.
+
+This is deliberately not automated. `updateProjectV2Field` replaces a single-select's
+whole option list, so a careless call reassigns every option id and silently nulls the
+Status of every existing item — a failure this project has already lived through once.
+Adding options in the web UI preserves the existing ids.
+
 ### 5. Commit
 
 ```bash
