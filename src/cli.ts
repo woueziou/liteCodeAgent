@@ -6,7 +6,7 @@ import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, typ
 import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
-import { ensureAuth } from "./board/gh.ts";
+import { ensureAuth, onGhRetry, RateLimitError } from "./board/gh.ts";
 import { fetchProject } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
@@ -396,6 +396,9 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
 async function cmdBoard(root: string, argv: string[]): Promise<number> {
   const sub = argv[1];
   const { config } = await loadConfig(root);
+  onGhRetry((attempt, waitMs, reason) => {
+    console.log(c.dim(`  ${reason} — retrying in ${Math.round(waitMs / 1000)}s (attempt ${attempt})`));
+  });
   await ensureAuth();
 
   if (sub === "doctor") {
@@ -502,6 +505,10 @@ try {
   })();
   process.exit(code);
 } catch (err) {
+  if (err instanceof RateLimitError) {
+    console.error(c.yellow(`\n${err.message}`));
+    process.exit(2);
+  }
   console.error(c.red(`\n${(err as Error).message}`));
   process.exit(1);
 }

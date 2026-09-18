@@ -27,8 +27,13 @@ fragment P on ProjectV2 {
   }
 }`;
 
-const ORG_QUERY = `query($owner: String!, $number: Int!) { organization(login: $owner) { projectV2(number: $number) { ...P } } }${PROJECT_FRAGMENT}`;
-const USER_QUERY = `query($owner: String!, $number: Int!) { user(login: $owner) { projectV2(number: $number) { ...P } } }${PROJECT_FRAGMENT}`;
+const OWNER_QUERY = `query($owner: String!, $number: Int!) {
+  repositoryOwner(login: $owner) {
+    __typename
+    ... on Organization { projectV2(number: $number) { ...P } }
+    ... on User { projectV2(number: $number) { ...P } }
+  }
+}${PROJECT_FRAGMENT}`;
 
 type ProjectPayload = {
   id: string;
@@ -39,26 +44,21 @@ type ProjectPayload = {
 };
 
 /**
- * An owner is either an org or a user, and GitHub's GraphQL API errors rather than
- * returning null for the wrong one — so the two are queried separately instead of in
- * one document, where the losing branch's error would fail the whole request.
+ * An owner is either an org or a user. Querying `organization` and `user` as two separate
+ * documents — the previous approach — costs two requests for every user-owned board, one
+ * of which is guaranteed to fail, which is a fast way to trip GitHub's secondary rate
+ * limit. `repositoryOwner` resolves either kind in a single request, and the inline
+ * fragments pick the right branch without the losing one erroring.
  */
 export async function fetchProject(owner: string, number: number): Promise<RemoteProject> {
-  let payload: ProjectPayload | null | undefined;
-  try {
-    payload = (await graphql<{ organization?: { projectV2?: ProjectPayload | null } | null }>(
-      ORG_QUERY,
-      { owner, number },
-    )).organization?.projectV2;
-  } catch {
-    payload = undefined;
-  }
-  if (!payload) {
-    payload = (await graphql<{ user?: { projectV2?: ProjectPayload | null } | null }>(
-      USER_QUERY,
-      { owner, number },
-    )).user?.projectV2;
-  }
+  const data = await graphql<{
+    repositoryOwner?: { __typename: string; projectV2?: ProjectPayload | null } | null;
+  }>(OWNER_QUERY, { owner, number });
+
+  const ownerNode = data.repositoryOwner;
+  if (!ownerNode) throw new Error(`No GitHub owner '${owner}' found`);
+
+  const payload = ownerNode.projectV2;
   if (!payload) throw new Error(`No GitHub Project #${number} found for owner '${owner}'`);
 
   return {
