@@ -1,3 +1,12 @@
+## [0.13.1](https://github.com/woueziou/liteCodeAgent/compare/v0.13.0...v0.13.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* **board:** detect non-editable derived project fields at plan time ([e4a8e00](https://github.com/woueziou/liteCodeAgent/commit/e4a8e00d106277b04b567f825b23aa1a697bcb7e)), closes [#13](https://github.com/woueziou/liteCodeAgent/issues/13)
+* detect isIssueField as the real Priority-field blocker ([f476005](https://github.com/woueziou/liteCodeAgent/commit/f47600594b23350bd6c22100ad3d536e9dd41921)), closes [#13](https://github.com/woueziou/liteCodeAgent/issues/13)
+* **implementer:** make the ADR draft readable before it is approved ([d9c0e7e](https://github.com/woueziou/liteCodeAgent/commit/d9c0e7eaa0951e6a18c0f70932de261b52da8fe6))
+
 # [0.13.0](https://github.com/woueziou/liteCodeAgent/compare/v0.12.0...v0.13.0) (2026-09-18)
 
 
