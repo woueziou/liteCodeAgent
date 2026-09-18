@@ -148,12 +148,75 @@ export function render(tpl: string, ctx: Ctx, where = "template"): string {
   return renderScope(stripStandaloneTags(tpl), [ctx], where);
 }
 
+const LEAF = /\{\{([^#^/][^}]*)\}\}/g;
+
+/**
+ * Walks the same block structure `renderScope` does, but only to collect paths, never to
+ * render. A path found strictly inside an `{{#each}}` body that isn't root-qualified
+ * (doesn't start with `project.`) is item-scoped — `renderLeaf`/`lookup` would resolve it
+ * against the loop item first, so it is not a required root config path and must not be
+ * reported as one. The `{{#each ...}}`/`{{#if ...}}` condition path itself is always a
+ * real reference and is collected regardless of nesting.
+ */
+function collectPaths(tpl: string, insideEach: boolean, out: Set<string>): void {
+  const m = BLOCK.exec(tpl);
+  if (!m) {
+    for (const leaf of tpl.matchAll(LEAF)) {
+      const rawExpr = leaf[1] ?? "";
+      const [rawPath] = rawExpr.split("|").map((s) => s.trim());
+      const path = (rawPath ?? "").trim();
+      if (!path || path === "." || path.startsWith("/")) continue;
+      if (insideEach && !path.startsWith("project.")) continue;
+      out.add(path);
+    }
+    return;
+  }
+
+  const [openTag, , kind, rawPath] = m as unknown as [string, string, "if" | "each", string];
+  const start = m.index;
+  const closeTag = `{{/${kind}}}`;
+
+  let depth = 1;
+  let cursor = start + openTag.length;
+  let end = -1;
+  while (cursor < tpl.length) {
+    const nextOpen = tpl.slice(cursor).search(new RegExp(`\\{\\{[#^]${kind}\\s`));
+    const nextClose = tpl.indexOf(closeTag, cursor);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && cursor + nextOpen < nextClose) {
+      depth++;
+      cursor = cursor + nextOpen + 2;
+      continue;
+    }
+    depth--;
+    if (depth === 0) {
+      end = nextClose;
+      break;
+    }
+    cursor = nextClose + closeTag.length;
+  }
+  if (end === -1) {
+    // Unclosed block: mirror render()'s eventual TemplateError by not guessing past it.
+    collectPaths(tpl.slice(0, start), insideEach, out);
+    return;
+  }
+
+  const before = tpl.slice(0, start);
+  const body = tpl.slice(start + openTag.length, end);
+  const after = tpl.slice(end + closeTag.length);
+
+  collectPaths(before, insideEach, out);
+  const condPath = rawPath.trim();
+  if (condPath && condPath !== "." && (!insideEach || condPath.startsWith("project."))) {
+    out.add(condPath);
+  }
+  collectPaths(body, insideEach || kind === "each", out);
+  collectPaths(after, insideEach, out);
+}
+
 /** Every {{ ... }} path a template references, for pre-flight config validation. */
 export function referencedPaths(tpl: string): string[] {
   const out = new Set<string>();
-  for (const m of tpl.matchAll(/\{\{[#^]?(?:if|each)?\s*([^}/][^}]*)\}\}/g)) {
-    const p = (m[1] ?? "").trim();
-    if (p && p !== "." && !p.startsWith("/")) out.add(p.replace(/^(?:if|each)\s+/, ""));
-  }
+  collectPaths(tpl, false, out);
   return [...out];
 }

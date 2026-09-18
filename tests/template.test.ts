@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { render, TemplateError } from "../src/template.ts";
+import { render, referencedPaths, TemplateError } from "../src/template.ts";
 
 test("interpolates nested paths", () => {
   expect(render("repo: {{ project.repo }}", { project: { repo: "a/b" } })).toBe("repo: a/b");
@@ -42,4 +42,22 @@ test("nested if inside each", () => {
     project: { xs: [{ name: "a", on: true }, { name: "b", on: false }] },
   });
   expect(out).toBe("[a]");
+});
+
+test("referencedPaths strips filter suffixes", () => {
+  expect(referencedPaths("skills: {{ project.agentSkills.sync | join }}")).toEqual([
+    "project.agentSkills.sync",
+  ]);
+  expect(referencedPaths("{{ project.xs | codelist }}")).toEqual(["project.xs"]);
+});
+
+test("referencedPaths reports the {{#each}} root path but not item-scoped fields inside it", () => {
+  const paths = referencedPaths(
+    "{{#each project.xs}}{{ name }}@{{ project.repo }}{{#if on}}[{{ label }}]{{/if}}{{/each}}",
+  );
+  expect(paths).toEqual(["project.xs", "project.repo"]);
+});
+
+test("referencedPaths ignores {{ . }} and standalone-slash close tags", () => {
+  expect(referencedPaths("{{#each project.xs}}{{ . }}{{/each}}")).toEqual(["project.xs"]);
 });

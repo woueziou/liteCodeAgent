@@ -205,7 +205,8 @@ export type ConfigMutation =
   | { kind: "set"; path: string; value: string }
   | { kind: "targets"; action: "set" | "add" | "remove"; value: string }
   | { kind: "packs"; action: "set" | "add" | "remove"; value: string }
-  | { kind: "edit" };
+  | { kind: "edit" }
+  | { kind: "fix-agent-skills"; fill: Record<string, string[]> };
 
 export async function applyConfigMutation(
   projectRoot: string,
@@ -247,6 +248,18 @@ export async function applyConfigMutation(
         : mutation.action === "add" ? addPacks(config, packs)
         : removePacks(config, packs);
       changed = JSON.stringify(config.packs) !== JSON.stringify(next.packs);
+      break;
+    }
+    case "fix-agent-skills": {
+      if (Object.keys(mutation.fill).length === 0) break;
+      next = ConfigSchema.parse({
+        ...config,
+        project: {
+          ...config.project,
+          agentSkills: { ...config.project.agentSkills, ...mutation.fill },
+        },
+      });
+      changed = true;
       break;
     }
   }

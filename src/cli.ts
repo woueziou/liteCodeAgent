@@ -10,6 +10,7 @@ import { ensureAuth, onGhRetry, RateLimitError } from "./board/gh.ts";
 import { fetchProject, fetchOptionUsage } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
+import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import type { BoardData } from "./board/spec.ts";
 import { createTicket, listTicketsDetailed } from "./tickets/store.ts";
 import { planTicketSync, applyTicketSync, planTicketPull, applyTicketPull, fetchTicketItems } from "./tickets/sync.ts";
@@ -54,10 +55,12 @@ function usage(): void {
                                      render packs into configured AI coding tools
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
-  ${c.bold("bunx litecodeagent config")} [show|edit|get|set|targets|packs]
+  ${c.bold("bunx litecodeagent config")} [show|edit|get|set|targets|packs|doctor]
                                      view or change litecode.config.json from the CLI
                                      ${c.dim("targets/packs: run with no argument to pick from a list")}
                                      ${c.dim("or set|add|remove <list>  ·  --apply runs install")}
+  ${c.bold("bunx litecodeagent config doctor")} [--fix]     report config paths the installed packs require but are missing
+                                     ${c.dim("--fix fills in missing agentSkills keys and writes the config")}
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
@@ -343,6 +346,24 @@ async function chooseInteractively(
 async function cmdConfig(root: string, argv: string[]): Promise<number> {
   const sub = argv[1];
   const apply = argv.includes("--apply");
+
+  if (sub === "doctor") {
+    const { config } = await loadConfig(root);
+    const findings = await configDoctor(PACKS_ROOT, config);
+    if (findings.length === 0) {
+      console.log(c.green(`${CONFIG_FILENAME} has every config path the installed packs require.`));
+      return 0;
+    }
+    for (const f of findings) console.log(`  ${c.red("error")} ${f.message}`);
+    if (!argv.includes("--fix")) {
+      console.log(c.dim("\nRun `bunx litecodeagent config doctor --fix` to fill in missing agentSkills keys."));
+      return 1;
+    }
+    const fill = await computeAgentSkillsFix(PACKS_ROOT, config);
+    const { path, changed } = await applyConfigMutation(root, PACKS_ROOT, { kind: "fix-agent-skills", fill });
+    if (changed) console.log(`\n${c.green("Fixed")} ${path}`);
+    return 0;
+  }
 
   // An empty `config targets` used to be an error; now it opens the picker.
   if ((sub === "targets" || sub === "packs") && !argv[2]) {
