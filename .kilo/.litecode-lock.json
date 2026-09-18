@@ -1,0 +1,104 @@
+{
+  "litecodeVersion": "0.13.1",
+  "installedAt": "2026-09-18T16:23:14.672Z",
+  "packs": {
+    "core": "0.3.0"
+  },
+  "files": {
+    ".kilo/commands/litecodeagent.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "12bd46423c96e8fa"
+    },
+    ".kilo/agents/synthesizer.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "63b5d8082ca5b2d1"
+    },
+    ".kilo/agents/orchestrator.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "82ab0369a8a67710"
+    },
+    ".kilo/agents/reviewer.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "5dac908e6da0c615"
+    },
+    ".kilo/agents/tracker.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "3f114f8b5f8713d6"
+    },
+    ".kilo/agents/triage.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "704a53a0c5cf0eaa"
+    },
+    ".kilo/agents/debate-angle.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "ff9f7d4dc0f97adf"
+    },
+    ".kilo/agents/classifier.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "b0288604107af770"
+    },
+    ".kilo/agents/dispatcher.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "fae21b8a483b1048"
+    },
+    ".kilo/agents/sync.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "cf3fa4d92b31697b"
+    },
+    ".kilo/agents/planner.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "f5a4d0c0dac42ed4"
+    },
+    ".kilo/agents/panel-selector.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "13c7152015fbaf59"
+    },
+    ".kilo/agents/implementer.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "2c6a55b418f3ccb8"
+    },
+    ".kilo/skills/skills/agent-attribution/SKILL.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "2154c21560914394"
+    },
+    ".kilo/skills/skills/chained-implementation/SKILL.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "e03f3ba132da3e3d"
+    },
+    ".kilo/skills/skills/security-expert/SKILL.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "961cf2b092f1573b"
+    },
+    ".kilo/skills/skills/idea-to-planned/SKILL.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "0e1e75de653a3539"
+    },
+    ".kilo/skills/skills/critique-expert/SKILL.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "d4618c89c46a46bb"
+    },
+    ".kilo/skills/skills/github-project-sync/SKILL.md": {
+      "pack": "core",
+      "version": "0.3.0",
+      "hash": "2e64a4a3720926ab"
+    }
+  }
+}

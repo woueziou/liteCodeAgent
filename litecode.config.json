@@ -1,18 +1,19 @@
 {
-  "packs": [
-    "core"
-  ],
+  "target": "kilo-code",
   "targets": [
+    "kilo-code",
     "claude-code",
     "pi"
   ],
-  "outDir": ".claude",
-  "target": "claude-code",
   "tiers": {
     "fast": "haiku",
     "balanced": "sonnet",
     "reasoning": "opus"
   },
+  "packs": [
+    "core"
+  ],
+  "outDir": ".claude",
   "project": {
     "name": "litecodeagent",
     "repo": "woueziou/liteCodeAgent",
@@ -32,37 +33,6 @@
       "`updateProjectV2Field` replaces a single-select's WHOLE option list, so every option must be resent with its own id, colour and description. Omitting the id once regenerated every option id and silently nulled the Status of every board item. The ids are now echoed back (GitHub added `id` to the option input type), and `board init` aborts if any item lost its Status during a run — never weaken that check.",
       "Deleting a single-select option is destructive in proportion to its use, not in principle: an option no item holds can go, one that items hold cannot. Decide it by counting actual usage (`fetchOptionUsage`), and treat unknown usage as in-use. Never delete on an assumption.",
       "`gh api graphql -f name=value` sends every variable as a STRING, so list variables are rejected outright. That shipped a `board init --apply` that could never create a single-select field, through every release up to 0.9.0, because no test looked at the request body. Post variables as a JSON body on stdin, and assert on what goes over the wire — pure-function tests cannot catch an encoding bug."
-    ],
-    "angles": [
-      {
-        "name": "correctness",
-        "covers": "Does the change actually solve the stated problem, and what edge cases does it miss.",
-        "triggeredBy": "always — every non-trivial change gets this angle",
-        "skills": [
-          "critique-expert"
-        ],
-        "always": true
-      },
-      {
-        "name": "contract",
-        "covers": "Breaking changes for consumers of a public endpoint or an exported type.",
-        "triggeredBy": "the change touches an endpoint signature, a response shape, or an exported type",
-        "skills": []
-      },
-      {
-        "name": "operability",
-        "covers": "Logging, error handling and observability — how failures get diagnosed in production.",
-        "triggeredBy": "the change affects error paths, logging, or external-call failure handling",
-        "skills": []
-      }
-    ],
-    "domains": [
-      {
-        "match": "auth, user input validation, or an external integration",
-        "skills": [
-          "security-expert"
-        ]
-      }
     ],
     "agentSkills": {
       "debate-angle": [
@@ -95,12 +65,50 @@
         "agent-attribution"
       ]
     },
+    "angles": [
+      {
+        "name": "correctness",
+        "covers": "Does the change actually solve the stated problem, and what edge cases does it miss.",
+        "triggeredBy": "always — every non-trivial change gets this angle",
+        "skills": [
+          "critique-expert"
+        ],
+        "always": true
+      },
+      {
+        "name": "contract",
+        "covers": "Breaking changes for consumers of a public endpoint or an exported type.",
+        "triggeredBy": "the change touches an endpoint signature, a response shape, or an exported type",
+        "skills": [],
+        "always": false
+      },
+      {
+        "name": "operability",
+        "covers": "Logging, error handling and observability — how failures get diagnosed in production.",
+        "triggeredBy": "the change affects error paths, logging, or external-call failure handling",
+        "skills": [],
+        "always": false
+      }
+    ],
+    "domains": [
+      {
+        "match": "auth, user input validation, or an external integration",
+        "skills": [
+          "security-expert"
+        ]
+      }
+    ],
+    "sizeRules": [],
     "board": {
       "enabled": true,
       "owner": "woueziou",
       "number": 17,
       "dataFile": ".claude/data/board.json",
       "itemIdCache": ".claude/data/github-project-item-ids.json"
+    },
+    "tickets": {
+      "enabled": true,
+      "dir": "docs/tickets"
     }
   }
 }
