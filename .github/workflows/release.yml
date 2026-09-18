@@ -1,0 +1,62 @@
+name: Release
+
+# Releases are a train, not a consequence of merging. `main` stays always-releasable and
+# every merge lands there immediately, but a version is only cut on a schedule — or on
+# demand, which is the escape hatch for a fix that cannot wait for the next departure.
+# semantic-release batches everything accumulated since the last tag into one version.
+on:
+  schedule:
+    # Mondays, 08:00 UTC.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun test
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Use npm with trusted publishing support
+        run: npm install -g npm@latest
+
+      - name: Install release tooling
+        run: >-
+          npm install --no-save --package-lock=false
+          semantic-release@25.0.9
+          @semantic-release/changelog@7.0.0
+          @semantic-release/git@11.0.1
+          @semantic-release/npm@13.1.5
+          @semantic-release/exec@7.1.0
+          @semantic-release/github@12.0.9
+
+      - name: Sync to latest main
+        run: git pull --ff-only origin main
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx --no-install semantic-release
