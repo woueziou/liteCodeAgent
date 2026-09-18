@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
 import { ConfigSchema } from "../src/config.ts";
-import { planBoard, buildBoardData } from "../src/board/init.ts";
+import { planBoard, buildBoardData, mergedOptions } from "../src/board/init.ts";
 import { FIELD_SPECS, STATUS_ROLES } from "../src/board/spec.ts";
 import type { RemoteProject } from "../src/board/query.ts";
 
@@ -45,8 +45,7 @@ test("a missing field is planned for creation", () => {
   expect(plan.data).toBeNull();
 });
 
-test("a missing option on an existing select is a blocker, never an automated fix", () => {
-  // Adding it via GraphQL would regenerate every option id and null out every item's Status.
+test("a missing option on an existing select is added, not blocked", () => {
   const p = project();
   const plan = planBoard(
     {
@@ -57,24 +56,105 @@ test("a missing option on an existing select is a blocker, never an automated fi
     },
     config,
   );
-  expect(plan.actions.some((a) => a.kind === "create-field")).toBe(false);
-  const blocker = plan.blockers.find((b) => b.field === "Status")!;
-  expect(blocker.problem).toContain("Ready to Merge");
-  expect(blocker.fix).toContain("web UI");
+  expect(plan.blockers).toEqual([]);
+  const action = plan.actions.find((a) => a.kind === "add-options")!;
+  expect(action.field).toBe("Status");
+  expect(action.options).toEqual(["Ready to Merge"]);
 });
 
-test("an unexpected extra option is reported rather than removed", () => {
+test("merging options echoes every existing id back, and sends new ones without one", () => {
+  // This is the whole safety property: an option that keeps its id keeps the items
+  // pointing at it. Regenerating ids is what nulled a real board's Status once.
+  const remote = {
+    id: "F0",
+    name: "Status",
+    dataType: "SINGLE_SELECT",
+    options: [
+      { id: "opt-todo", name: "Backlog", color: "BLUE", description: "hand-written" },
+      { id: "opt-prog", name: "In Progress", color: "YELLOW", description: "" },
+    ],
+  };
+  const merged = mergedOptions(remote, ["Backlog", "In Progress", "Ready to Merge"]);
+
+  expect(merged.map((o) => o.name)).toEqual(["Backlog", "In Progress", "Ready to Merge"]);
+  expect(merged[0]!.id).toBe("opt-todo");
+  expect(merged[1]!.id).toBe("opt-prog");
+  expect(merged[2]!.id).toBeUndefined();
+
+  // Colour and description are resent as-is: the same call would otherwise reset them.
+  expect(merged[0]!.color).toBe("BLUE");
+  expect(merged[0]!.description).toBe("hand-written");
+  // An existing option with no description falls back to the spec's, not to empty.
+  expect(merged[1]!.description).toBe("Implementer is actively working it");
+});
+
+test("an extra option still held by items is reported rather than removed", () => {
   const p = project();
-  const plan = planBoard(
+  const withExtra = {
+    ...p,
+    fields: p.fields.map((f) =>
+      f.name === "Status"
+        ? { ...f, options: [...f.options!, { id: "X", name: "Icebox" }] }
+        : f,
+    ),
+  };
+  const usage = new Map([["Status", new Map([["Icebox", 3]])]]);
+
+  const plan = planBoard(withExtra, config, usage);
+  expect(plan.actions.some((a) => a.kind === "remove-options")).toBe(false);
+  const blocker = plan.blockers.find((b) => b.field === "Status")!;
+  expect(blocker.problem).toContain("Icebox (3 item(s))");
+});
+
+test("an extra option no item holds is removed automatically", () => {
+  const p = project();
+  const withExtra = {
+    ...p,
+    fields: p.fields.map((f) =>
+      f.name === "Status"
+        ? { ...f, options: [...f.options!, { id: "X", name: "Todo" }] }
+        : f,
+    ),
+  };
+
+  const plan = planBoard(withExtra, config, new Map());
+  expect(plan.blockers).toEqual([]);
+  const action = plan.actions.find((a) => a.kind === "remove-options")!;
+  expect(action.options).toEqual(["Todo"]);
+});
+
+test("unknown usage is treated as in-use, never as licence to delete", () => {
+  const p = project();
+  const withExtra = {
+    ...p,
+    fields: p.fields.map((f) =>
+      f.name === "Status"
+        ? { ...f, options: [...f.options!, { id: "X", name: "Todo" }] }
+        : f,
+    ),
+  };
+
+  const plan = planBoard(withExtra, config); // no usage passed
+  expect(plan.actions.some((a) => a.kind === "remove-options")).toBe(false);
+  expect(plan.blockers.some((b) => b.field === "Status")).toBe(true);
+});
+
+test("rebuilding from the spec drops an extra option while keeping known ids", () => {
+  const merged = mergedOptions(
     {
-      ...p,
-      fields: p.fields.map((f) =>
-        f.name === "Priority" ? { ...f, options: [...f.options!, { id: "X", name: "Urgent" }] } : f,
-      ),
+      id: "F0",
+      name: "Status",
+      dataType: "SINGLE_SELECT",
+      options: [
+        { id: "keep", name: "Backlog", color: "BLUE", description: "" },
+        { id: "drop", name: "Todo", color: "GREEN", description: "" },
+      ],
     },
-    config,
+    ["Backlog", "Planned"],
   );
-  expect(plan.blockers.find((b) => b.field === "Priority")!.problem).toContain("Urgent");
+  expect(merged.map((o) => o.name)).toEqual(["Backlog", "Planned"]);
+  expect(merged[0]!.id).toBe("keep");
+  expect(merged[1]!.id).toBeUndefined();
 });
 
 test("a field of the wrong type is a blocker", () => {

@@ -4,7 +4,11 @@ export type RemoteField = {
   id: string;
   name: string;
   dataType: string;
-  options?: { id: string; name: string }[];
+  /**
+   * color and description are carried because updating a single-select means resending
+   * the whole option list: anything not echoed back would be silently reset.
+   */
+  options?: { id: string; name: string; color?: string; description?: string }[];
 };
 
 export type RemoteProject = {
@@ -21,14 +25,19 @@ fragment P on ProjectV2 {
   fields(first: 50) {
     nodes {
       ... on ProjectV2Field { id name dataType }
-      ... on ProjectV2SingleSelectField { id name dataType options { id name } }
+      ... on ProjectV2SingleSelectField { id name dataType options { id name color description } }
       ... on ProjectV2IterationField { id name dataType }
     }
   }
 }`;
 
-const ORG_QUERY = `query($owner: String!, $number: Int!) { organization(login: $owner) { projectV2(number: $number) { ...P } } }${PROJECT_FRAGMENT}`;
-const USER_QUERY = `query($owner: String!, $number: Int!) { user(login: $owner) { projectV2(number: $number) { ...P } } }${PROJECT_FRAGMENT}`;
+const OWNER_QUERY = `query($owner: String!, $number: Int!) {
+  repositoryOwner(login: $owner) {
+    __typename
+    ... on Organization { projectV2(number: $number) { ...P } }
+    ... on User { projectV2(number: $number) { ...P } }
+  }
+}${PROJECT_FRAGMENT}`;
 
 type ProjectPayload = {
   id: string;
@@ -39,26 +48,21 @@ type ProjectPayload = {
 };
 
 /**
- * An owner is either an org or a user, and GitHub's GraphQL API errors rather than
- * returning null for the wrong one — so the two are queried separately instead of in
- * one document, where the losing branch's error would fail the whole request.
+ * An owner is either an org or a user. Querying `organization` and `user` as two separate
+ * documents — the previous approach — costs two requests for every user-owned board, one
+ * of which is guaranteed to fail, which is a fast way to trip GitHub's secondary rate
+ * limit. `repositoryOwner` resolves either kind in a single request, and the inline
+ * fragments pick the right branch without the losing one erroring.
  */
 export async function fetchProject(owner: string, number: number): Promise<RemoteProject> {
-  let payload: ProjectPayload | null | undefined;
-  try {
-    payload = (await graphql<{ organization?: { projectV2?: ProjectPayload | null } | null }>(
-      ORG_QUERY,
-      { owner, number },
-    )).organization?.projectV2;
-  } catch {
-    payload = undefined;
-  }
-  if (!payload) {
-    payload = (await graphql<{ user?: { projectV2?: ProjectPayload | null } | null }>(
-      USER_QUERY,
-      { owner, number },
-    )).user?.projectV2;
-  }
+  const data = await graphql<{
+    repositoryOwner?: { __typename: string; projectV2?: ProjectPayload | null } | null;
+  }>(OWNER_QUERY, { owner, number });
+
+  const ownerNode = data.repositoryOwner;
+  if (!ownerNode) throw new Error(`No GitHub owner '${owner}' found`);
+
+  const payload = ownerNode.projectV2;
   if (!payload) throw new Error(`No GitHub Project #${number} found for owner '${owner}'`);
 
   return {
@@ -113,4 +117,93 @@ export async function fetchItems(projectId: string): Promise<BoardItem[]> {
     cursor = data.node.items.pageInfo.hasNextPage ? data.node.items.pageInfo.endCursor : undefined;
   } while (cursor);
   return items;
+}
+
+const OPTION_USAGE_QUERY = `
+query($projectId: ID!, $cursor: String) {
+  node(id: $projectId) {
+    ... on ProjectV2 {
+      items(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          content { ... on Issue { number } ... on PullRequest { number } }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2SingleSelectField { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+/** field name -> option name -> how many items currently hold it. */
+export type OptionUsage = Map<string, Map<string, number>>;
+
+/** item id -> the single-select value it holds for each field, plus its issue number. */
+export type ItemFieldValues = Map<string, { issue: number | null; values: Map<string, string> }>;
+
+/**
+ * Every single-select value of every item, in one paginated pass, keyed by item id.
+ *
+ * Keyed by *item*, not aggregated into counts, because the two things that need this ask
+ * different questions of the same data: "may this option be deleted" only needs totals,
+ * but "did this run destroy anything" needs identities — a count is blind to one item
+ * losing its value while another gains one.
+ */
+export async function fetchSingleSelectValues(projectId: string): Promise<ItemFieldValues> {
+  const byItem: ItemFieldValues = new Map();
+  let cursor: string | undefined;
+  do {
+    const data = await graphql<{
+      node: {
+        items: {
+          pageInfo: { hasNextPage: boolean; endCursor: string };
+          nodes: {
+            id: string;
+            content: { number?: number } | null;
+            fieldValues: { nodes: ({ name?: string; field?: { name?: string } } | null)[] };
+          }[];
+        };
+      };
+    }>(OPTION_USAGE_QUERY, cursor ? { projectId, cursor } : { projectId });
+
+    for (const item of data.node.items.nodes) {
+      const values = new Map<string, string>();
+      for (const value of item.fieldValues.nodes) {
+        const field = value?.field?.name;
+        const option = value?.name;
+        if (field && option) values.set(field, option);
+      }
+      byItem.set(item.id, { issue: item.content?.number ?? null, values });
+    }
+    cursor = data.node.items.pageInfo.hasNextPage ? data.node.items.pageInfo.endCursor : undefined;
+  } while (cursor);
+  return byItem;
+}
+
+export function optionUsage(byItem: ItemFieldValues): OptionUsage {
+  const usage: OptionUsage = new Map();
+  for (const { values } of byItem.values()) {
+    for (const [field, option] of values) {
+      const perField = usage.get(field) ?? new Map<string, number>();
+      perField.set(option, (perField.get(option) ?? 0) + 1);
+      usage.set(field, perField);
+    }
+  }
+  return usage;
+}
+
+/**
+ * Counts, for every single-select field at once, how many items hold each option. This is
+ * what makes deleting an option a decidable question rather than a guess: an option no
+ * item holds can go without asking, one that is in use cannot.
+ */
+export async function fetchOptionUsage(projectId: string): Promise<OptionUsage> {
+  return optionUsage(await fetchSingleSelectValues(projectId));
 }
