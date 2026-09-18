@@ -6,15 +6,29 @@
 
 export type Frontmatter = Record<string, string>;
 
+/**
+ * The terminator must be a line that *is* `---`, not merely a line that starts with it —
+ * otherwise a ticket/pack body containing a markdown horizontal rule (`---`) inside a
+ * larger line, or a body that legitimately opens with `---` prose, silently truncates or
+ * misparses. We scan line by line rather than regex-searching the raw string for `\n---`.
+ */
+function findTerminator(lines: string[]): number {
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i] === "---") return i;
+  }
+  return -1;
+}
+
 export function parseFrontmatter(source: string, where: string): { data: Frontmatter; body: string } {
   if (!source.startsWith("---\n")) {
     throw new Error(`${where}: missing frontmatter (file must start with '---')`);
   }
-  const end = source.indexOf("\n---", 3);
+  const lines = source.split("\n");
+  const end = findTerminator(lines);
   if (end === -1) throw new Error(`${where}: unterminated frontmatter`);
 
-  const raw = source.slice(4, end);
-  const body = source.slice(source.indexOf("\n", end + 1) + 1);
+  const raw = lines.slice(1, end).join("\n");
+  const body = lines.slice(end + 1).join("\n");
 
   const data: Frontmatter = {};
   for (const line of raw.split("\n")) {

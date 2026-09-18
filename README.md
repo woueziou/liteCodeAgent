@@ -343,8 +343,29 @@ genuine conflict, it hands you the tension instead of picking a winner.
 
 > "Ok, track it"
 
-`tracker` creates the issue and puts it on the board in `Backlog`. It only ever runs after
-you've explicitly approved.
+`tracker` drafts the ticket **locally**, as a markdown file under `docs/tickets/`
+(configurable via `project.tickets.dir`) — no GitHub call happens yet. It only ever runs
+after you've explicitly approved.
+
+### Sync tickets to GitHub
+
+> "Sync the tickets"
+
+`sync` runs `litecode ticket sync`, which pulls whatever the board already knows (Status,
+Priority, Size, Assigned Agent) into any ticket file that's clean, then pushes every dirty
+ticket in one bounded, retryable batch: new tickets become real issues on the board, and
+already-created tickets push title/body/comment edits only. Status/Priority/Size are set
+**once, at creation** — after that, GitHub stays the only place that can change them; a
+ticket file never re-asserts pipeline state onto the board. See
+`docs/decisions/0001-local-ticket-buffer-and-github-sync.md` for the reasoning.
+
+```bash
+bunx litecodeagent ticket new --title "Fix the flaky board test" --label bug \
+  --priority medium --size small --body "Body goes here."
+bunx litecodeagent ticket list
+bunx litecodeagent ticket sync            # dry run: shows what would create/update/skip
+bunx litecodeagent ticket sync --apply    # pulls, then pushes the batch
+```
 
 ### Plan the queue
 

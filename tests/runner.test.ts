@@ -37,6 +37,7 @@ function config(overrides: Record<string, unknown> = {}): Config & { runner: Non
         planner: [],
         reviewer: [],
         tracker: [],
+        sync: [],
         triage: [],
       },
       angles: [{ name: "correctness", covers: "correctness", triggeredBy: "always", always: true }],

@@ -47,7 +47,7 @@ test("install writes a lockfile that owns only what it rendered", async () => {
   const lock = await readLockfile(root);
   expect(lock).not.toBeNull();
   expect(Object.keys(lock!.files).length).toBe(plan.entries.length);
-  expect(lock!.packs).toEqual({ core: "0.2.0", web: "0.1.0" });
+  expect(lock!.packs).toEqual({ core: "0.3.0", web: "0.1.0" });
 
   // A file the project owns is invisible to the kit.
   const second = await buildPlan(root, PACKS, config);

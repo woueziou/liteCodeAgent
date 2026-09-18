@@ -29,6 +29,21 @@ async function readyConfig(): Promise<{ root: string; path: string }> {
   return { root, path };
 }
 
+test("a config predating the ticket buffer, with no `tickets` key at all, still parses", () => {
+  const config = ConfigSchema.parse({
+    target: "claude-code",
+    packs: ["core"],
+    project: {
+      name: "demo",
+      repo: "demo/demo",
+      checkCommand: "bun test",
+      angles: [{ name: "correctness", covers: "x", triggeredBy: "y", skills: [] }],
+      board: { owner: "demo" },
+    },
+  });
+  expect(config.project.tickets).toEqual({ enabled: true, dir: "docs/tickets" });
+});
+
 test("addTargets extends a legacy single-target config", () => {
   const config = ConfigSchema.parse({
     target: "claude-code",

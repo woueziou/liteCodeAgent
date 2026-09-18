@@ -185,6 +185,10 @@
       "tracker": [
         "github-project-sync",
         "agent-attribution"
+      ],
+      "sync": [
+        "github-project-sync",
+        "agent-attribution"
       ]
     },
     "board": {
