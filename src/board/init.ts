@@ -6,9 +6,12 @@ import {
   fetchProject,
   fetchItems,
   fetchOptionUsage,
+  fetchSingleSelectValues,
+  optionUsage,
   type RemoteProject,
   type RemoteField,
   type OptionUsage,
+  type ItemFieldValues,
 } from "./query.ts";
 import {
   FIELD_SPECS,
@@ -258,31 +261,55 @@ export async function applyBoardPlan(
     log.push(`created field '${spec.name}'`);
   }
 
-  // Add and remove are the same mutation — mergedOptions rebuilds the list from the spec,
-  // which appends what is missing and drops what is not in it — so a field touched by both
-  // is updated once, not twice.
-  const optionActions = plan.actions.filter(
+  const planned = plan.actions.filter(
     (a) => a.kind === "add-options" || a.kind === "remove-options",
   );
-  const touchedFields = [...new Set(optionActions.map((a) => a.field))];
 
-  // Baseline taken BEFORE mutating, so a pre-existing null Status is not blamed on this
-  // run — and so a null introduced by this run cannot hide behind one that predates it.
-  const before = optionActions.length > 0 ? await fetchItems(plan.project.id) : [];
-  const nullBefore = before.filter((i) => i.status === null).length;
+  let before: ItemFieldValues = new Map();
 
-  for (const field of touchedFields) {
-    const spec = FIELD_SPECS.find((f) => f.name === field);
-    if (!spec || spec.kind !== "single-select") continue;
-    const remote = plan.project.fields.find((f) => f.name === field);
-    if (!remote) continue;
-    await graphql(UPDATE_SELECT_FIELD, {
-      fieldId: remote.id,
-      options: mergedOptions(remote, spec.options),
-    });
-    for (const action of optionActions.filter((a) => a.field === field)) {
-      const verb = action.kind === "add-options" ? "added" : "removed";
-      log.push(`${verb} option(s) on '${field}': ${action.options.join(", ")}`);
+  if (planned.length > 0) {
+    /**
+     * The option list is rebuilt from what the board holds RIGHT NOW, never from the
+     * snapshot the plan was made against.
+     *
+     * The mutation sends the whole list, so any option absent from the list sent is
+     * deleted — and an option added in the web UI between the plan and this moment is
+     * absent from the stale snapshot. Rebuilding from it would delete that option and null
+     * every item holding it, which is the exact destruction this code exists to avoid.
+     * Re-planning against the fresh state also re-runs every blocker check, so an option
+     * that became unknown, or newly in use, stops the run instead of being deleted.
+     */
+    const current = await fetchProject(config.project.board.owner, plan.project.number);
+    before = await fetchSingleSelectValues(current.id);
+    const currentPlan = planBoard(current, config, optionUsage(before));
+
+    if (currentPlan.blockers.length > 0) {
+      throw new Error(
+        `The board changed since the plan was made, and the new state is blocked:\n` +
+          currentPlan.blockers.map((b) => `  - ${b.field}: ${b.problem}`).join("\n") +
+          `\nNothing was changed. Re-run to see the current plan.`,
+      );
+    }
+
+    const actions = currentPlan.actions.filter(
+      (a) => a.kind === "add-options" || a.kind === "remove-options",
+    );
+    // Add and remove are the same mutation — mergedOptions rebuilds the list from the
+    // spec, appending what is missing and dropping what is not in it — so a field touched
+    // by both is updated once, not twice.
+    for (const field of [...new Set(actions.map((a) => a.field))]) {
+      const spec = FIELD_SPECS.find((f) => f.name === field);
+      if (!spec || spec.kind !== "single-select") continue;
+      const remote = current.fields.find((f) => f.name === field);
+      if (!remote) continue;
+      await graphql(UPDATE_SELECT_FIELD, {
+        fieldId: remote.id,
+        options: mergedOptions(remote, spec.options),
+      });
+      for (const action of actions.filter((a) => a.field === field)) {
+        const verb = action.kind === "add-options" ? "added" : "removed";
+        log.push(`${verb} option(s) on '${field}': ${action.options.join(", ")}`);
+      }
     }
   }
 
@@ -304,19 +331,36 @@ export async function applyBoardPlan(
 
   // The failure mode this guards against: a field mutation silently nulling every item's
   // Status. Cheap to check, catastrophic to miss.
-  const items = await fetchItems(refreshed.id);
-  const nulled = items.filter((i) => i.status === null);
-
-  // The catastrophic failure mode: an option-list update that regenerates every id and
-  // nulls every item's Status. If this run made it worse, say so loudly rather than
-  // writing a board.json that enshrines the damage.
-  if (optionActions.length > 0 && nulled.length > nullBefore) {
-    throw new Error(
-      `Status integrity check failed: ${nulled.length - nullBefore} item(s) lost their Status ` +
-        `during this run (issues: ${nulled.map((i) => i.issue ?? "?").join(", ")}).\n` +
-        `Restore them in the project UI before re-running.`,
-    );
+  /**
+   * The catastrophic failure mode: an option-list update that regenerates every id and
+   * strips the field from every item that pointed at an old one. Checked per item and per
+   * field rather than by counting: a count cannot tell one item losing a value from
+   * another gaining one, and it would only ever have watched Status, while the mutation
+   * applies to every single-select the spec knows.
+   */
+  if (planned.length > 0) {
+    const after = await fetchSingleSelectValues(refreshed.id);
+    const lost: string[] = [];
+    for (const [itemId, { issue, values }] of before) {
+      const now = after.get(itemId);
+      if (!now) continue; // item deleted meanwhile — not this run's doing
+      for (const [field, option] of values) {
+        if (now.values.get(field) === undefined) lost.push(`${field} on #${issue ?? itemId}`);
+        else if (now.values.get(field) !== option) {
+          lost.push(`${field} on #${issue ?? itemId} (${option} -> ${now.values.get(field)})`);
+        }
+      }
+    }
+    if (lost.length > 0) {
+      throw new Error(
+        `Field integrity check failed: ${lost.length} value(s) changed during this run:\n` +
+          lost.map((l) => `  - ${l}`).join("\n") +
+          `\nRestore them in the project UI before re-running. board.json was not written.`,
+      );
+    }
   }
+
+  const nulled = (await fetchItems(refreshed.id)).filter((i) => i.status === null);
   if (nulled.length > 0) {
     log.push(
       `WARNING: ${nulled.length} board item(s) have a null Status ` +

@@ -41,10 +41,14 @@ type Recorded = { query: string; variables: Record<string, unknown> };
  * variable as a string, which no pure-function test could have caught — only something
  * that looks at what actually goes over the wire.
  */
-async function stubGh(): Promise<{ root: string; requests: () => Promise<Recorded[]> }> {
+async function stubGh(
+  opts: { initial?: RemoteProject; items?: unknown[] } = {},
+): Promise<{ root: string; requests: () => Promise<Recorded[]> }> {
   const dir = await mkdtemp(join(tmpdir(), "litecode-apply-"));
   const log = join(dir, "requests.jsonl");
   const payload = JSON.stringify(complete());
+  const initial = JSON.stringify(opts.initial ?? complete());
+  const items = JSON.stringify(opts.items ?? []);
   const bin = join(dir, "gh");
 
   await writeFile(
@@ -53,6 +57,8 @@ async function stubGh(): Promise<{ root: string; requests: () => Promise<Recorde
 const fs = require("node:fs");
 const args = process.argv.slice(2);
 const project = ${payload};
+const initial = ${initial};
+const items = ${items};
 
 if (args[0] !== "api" || args[1] !== "graphql") { process.exit(0); } // label create etc.
 
@@ -62,9 +68,13 @@ fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(body) + "\\n");
 const q = body.query;
 let data;
 if (q.includes("repositoryOwner")) {
-  data = { repositoryOwner: { __typename: "User", projectV2: { ...project, fields: { nodes: project.fields } } } };
+  // Before any mutation the board is still in its initial state; after one, provisioned.
+  const prior = fs.readFileSync(${JSON.stringify(log)}, "utf8").split("\\n").filter(Boolean);
+  const mutated = prior.some((l) => l.includes("createProjectV2Field") || l.includes("updateProjectV2Field"));
+  const p = mutated ? project : initial;
+  data = { repositoryOwner: { __typename: "User", projectV2: { ...p, fields: { nodes: p.fields } } } };
 } else if (q.includes("fieldValues")) {
-  data = { node: { items: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } };
+  data = { node: { items: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: items } } };
 } else if (q.includes("items(")) {
   data = { node: { items: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } };
 } else {
@@ -107,14 +117,13 @@ test("mutation variables go over the wire as real JSON types, not strings", asyn
 });
 
 test("adding options resends the whole list with existing ids intact", async () => {
-  const { root, requests } = await stubGh();
-
   const missingOne = {
     ...complete(),
     fields: complete().fields.map((f) =>
       f.name === "Status" ? { ...f, options: f.options!.filter((o) => o.name !== "Review") } : f,
     ),
   };
+  const { root, requests } = await stubGh({ initial: missingOne });
   const plan = planBoard(missingOne, config, new Map());
 
   await applyBoardPlan(root, plan, config);
@@ -142,4 +151,50 @@ test("apply writes board.json with the ids the server reported", async () => {
   const written = JSON.parse(await readFile(join(root, config.project.board.dataFile), "utf8"));
   expect(written.statusRoles.inProgress.optionId).toBe("O02");
   expect((await requests()).length).toBeGreaterThan(0);
+});
+
+test("a board that changed since the plan aborts instead of deleting", async () => {
+  // The destructive race: the plan was made against a snapshot, and someone has since
+  // added an option in the web UI and put an item on it. Rebuilding the option list from
+  // the stale snapshot would delete that option and strip it from the item.
+  const planned = {
+    ...complete(),
+    fields: complete().fields.map((f) =>
+      f.name === "Status" ? { ...f, options: f.options!.filter((o) => o.name !== "Review") } : f,
+    ),
+  };
+  const drifted = {
+    ...complete(),
+    fields: complete().fields.map((f) =>
+      f.name === "Status"
+        ? {
+            ...f,
+            options: [
+              ...f.options!.filter((o) => o.name !== "Review"),
+              { id: "SURPRISE", name: "Icebox", color: "GRAY", description: "" },
+            ],
+          }
+        : f,
+    ),
+  };
+  const heldByAnItem = [
+    {
+      id: "ITEM1",
+      content: { number: 42 },
+      fieldValues: { nodes: [{ name: "Icebox", field: { name: "Status" } }] },
+    },
+  ];
+
+  const { root, requests } = await stubGh({ initial: drifted, items: heldByAnItem });
+  const plan = planBoard(planned, config, new Map());
+
+  const err = (await applyBoardPlan(root, plan, config).catch((e) => e)) as Error;
+  expect(err).toBeInstanceOf(Error);
+  expect(err.message).toContain("changed since the plan was made");
+  expect(err.message).toContain("Icebox");
+  expect(err.message).toContain("Nothing was changed");
+
+  // The point of aborting is that nothing was destroyed — no mutation may have been sent.
+  const sent = await requests();
+  expect(sent.some((r) => r.query.includes("updateProjectV2Field"))).toBe(false);
 });

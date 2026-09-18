@@ -126,6 +126,8 @@ query($projectId: ID!, $cursor: String) {
       items(first: 100, after: $cursor) {
         pageInfo { hasNextPage endCursor }
         nodes {
+          id
+          content { ... on Issue { number } ... on PullRequest { number } }
           fieldValues(first: 20) {
             nodes {
               ... on ProjectV2ItemFieldSingleSelectValue {
@@ -143,35 +145,65 @@ query($projectId: ID!, $cursor: String) {
 /** field name -> option name -> how many items currently hold it. */
 export type OptionUsage = Map<string, Map<string, number>>;
 
+/** item id -> the single-select value it holds for each field, plus its issue number. */
+export type ItemFieldValues = Map<string, { issue: number | null; values: Map<string, string> }>;
+
 /**
- * Counts, for every single-select field at once, how many items hold each option. This is
- * what makes deleting an option a decidable question rather than a guess: an option no
- * item holds can go without asking, one that is in use cannot.
+ * Every single-select value of every item, in one paginated pass, keyed by item id.
+ *
+ * Keyed by *item*, not aggregated into counts, because the two things that need this ask
+ * different questions of the same data: "may this option be deleted" only needs totals,
+ * but "did this run destroy anything" needs identities — a count is blind to one item
+ * losing its value while another gains one.
  */
-export async function fetchOptionUsage(projectId: string): Promise<OptionUsage> {
-  const usage: OptionUsage = new Map();
+export async function fetchSingleSelectValues(projectId: string): Promise<ItemFieldValues> {
+  const byItem: ItemFieldValues = new Map();
   let cursor: string | undefined;
   do {
     const data = await graphql<{
       node: {
         items: {
           pageInfo: { hasNextPage: boolean; endCursor: string };
-          nodes: { fieldValues: { nodes: ({ name?: string; field?: { name?: string } } | null)[] } }[];
+          nodes: {
+            id: string;
+            content: { number?: number } | null;
+            fieldValues: { nodes: ({ name?: string; field?: { name?: string } } | null)[] };
+          }[];
         };
       };
     }>(OPTION_USAGE_QUERY, cursor ? { projectId, cursor } : { projectId });
 
     for (const item of data.node.items.nodes) {
+      const values = new Map<string, string>();
       for (const value of item.fieldValues.nodes) {
         const field = value?.field?.name;
         const option = value?.name;
-        if (!field || !option) continue;
-        const perField = usage.get(field) ?? new Map<string, number>();
-        perField.set(option, (perField.get(option) ?? 0) + 1);
-        usage.set(field, perField);
+        if (field && option) values.set(field, option);
       }
+      byItem.set(item.id, { issue: item.content?.number ?? null, values });
     }
     cursor = data.node.items.pageInfo.hasNextPage ? data.node.items.pageInfo.endCursor : undefined;
   } while (cursor);
+  return byItem;
+}
+
+export function optionUsage(byItem: ItemFieldValues): OptionUsage {
+  const usage: OptionUsage = new Map();
+  for (const { values } of byItem.values()) {
+    for (const [field, option] of values) {
+      const perField = usage.get(field) ?? new Map<string, number>();
+      perField.set(option, (perField.get(option) ?? 0) + 1);
+      usage.set(field, perField);
+    }
+  }
   return usage;
+}
+
+/**
+ * Counts, for every single-select field at once, how many items hold each option. This is
+ * what makes deleting an option a decidable question rather than a guess: an option no
+ * item holds can go without asking, one that is in use cannot.
+ */
+export async function fetchOptionUsage(projectId: string): Promise<OptionUsage> {
+  return optionUsage(await fetchSingleSelectValues(projectId));
 }
