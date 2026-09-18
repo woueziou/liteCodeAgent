@@ -149,10 +149,16 @@ export type SyncOptions = {
   onLog?: (line: string) => void;
 };
 
+const DEFAULT_THROTTLE_MS = 250;
+
 function throttleMs(opts: SyncOptions): number {
   const envVal = process.env.LITECODE_TICKET_SYNC_DELAY_MS;
-  if (envVal !== undefined) return Number(envVal);
-  return opts.delayMs ?? 250;
+  if (envVal !== undefined) {
+    const parsed = Number(envVal);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+    return opts.delayMs ?? DEFAULT_THROTTLE_MS;
+  }
+  return opts.delayMs ?? DEFAULT_THROTTLE_MS;
 }
 
 async function throttle(opts: SyncOptions): Promise<void> {

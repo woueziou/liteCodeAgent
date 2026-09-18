@@ -491,6 +491,11 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
   const { config } = await loadConfig(root);
   const dir = config.project.tickets.dir;
 
+  if (!config.project.tickets.enabled) {
+    console.log(c.red("Ticket buffer is disabled: set project.tickets.enabled to true in config to use `litecode ticket`."));
+    return 1;
+  }
+
   if (sub === "new") {
     const title = arg(argv, "--title");
     const label = arg(argv, "--label") as "bug" | "feature" | "doc" | "chore" | undefined;
@@ -590,11 +595,17 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       return 1;
     }
 
+    const number = config.project.board.number;
+    if (!number) {
+      console.log(c.red("No project number: set project.board.number in config, or pass --number <n>."));
+      return 1;
+    }
+
     if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
     const log = await applyTicketSync(root, plan, board, {
       repo: config.project.repo,
       owner: config.project.board.owner,
-      number: config.project.board.number!,
+      number,
       itemIdCache: config.project.board.itemIdCache,
       onLog: (line) => console.log(`  ${c.green("done")} ${line}`),
     });
