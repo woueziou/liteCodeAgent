@@ -1,3 +1,18 @@
+# [0.11.0](https://github.com/woueziou/liteCodeAgent/compare/v0.10.0...v0.11.0) (2026-09-18)
+
+
+### Bug Fixes
+
+* **board:** close the race and widen the integrity check ([4f96752](https://github.com/woueziou/liteCodeAgent/commit/4f967520abd3806e619d5897a4ae45e18ad49316))
+* **board:** post GraphQL variables as JSON, not as strings ([300967f](https://github.com/woueziou/liteCodeAgent/commit/300967f5c20af29f70829d37e7e28d16e8d682b6))
+* **board:** survive GitHub's rate limits instead of dying on them ([4294a26](https://github.com/woueziou/liteCodeAgent/commit/4294a26e8be25fe3a86769f9e1caaa2489f3b276))
+
+
+### Features
+
+* **board:** add missing single-select options instead of blocking ([6c2d23b](https://github.com/woueziou/liteCodeAgent/commit/6c2d23b1da1d055ab214a95ef57dcdd7e6346d98))
+* **board:** drop an unrecognised option when no item holds it ([bbc8191](https://github.com/woueziou/liteCodeAgent/commit/bbc8191fa0cd8b3531e38f954879b89a2a3c0431))
+
 # [0.10.0](https://github.com/woueziou/liteCodeAgent/compare/v0.9.0...v0.10.0) (2026-09-17)
 
 
