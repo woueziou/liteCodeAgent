@@ -67,9 +67,12 @@ These already happened here. Don't re-learn them:
 An ADR records decisions a human should actually get to weigh in on, not a formality to auto-generate. When step 5 applies:
 
 1. Write the ADR file to its proposed path (or `docs/decisions/<NNNN>-<kebab-title>.md`, next free number, if `planner` only flagged "ADR warranted" without a path) — but do **not** `git add`/commit it, and do not push or open a PR yet. Everything else from step 4 may already be committed locally; the ADR is the one thing held back. If the ticket carries `planner`'s `ADR_DECISIONS:` list, rule only on those decisions. If no list exists, state plainly in the draft which decision(s) you're recording and why.
-2. Stop and report `STATUS: adr-pending-approval` with the full drafted ADR content inline in your report, plus the branch name and confirmation that code changes (if any) are already committed locally.
-3. Do not proceed to step 6 in the same run. A human reviews the draft and either approves it as-is, asks for edits, or tells you a decision inside it is wrong — only on their explicit go-ahead (in a follow-up message to you) do you commit the ADR (edited if requested) and continue from step 6.
-4. If you're resumed specifically to continue past this gate, treat the human's message as that approval — commit the ADR file (with any requested edits applied) with its own commit, then resume at step 6.
+2. Post the full drafted ADR as a `gh issue comment` on the ticket, prefixed with one line saying it is a draft awaiting approval and is not committed. The file itself lives in your worktree, which the human's editor is not open on — so a draft that exists only there is a draft nobody can actually read before ruling on it. The issue is where the ticket already lives, it survives your session, and it gives the human somewhere to reply. Do this even though it costs a `gh` call; an unreadable gate is worse than an extra request.
+3. Stop and report `STATUS: adr-pending-approval` with the full drafted ADR content inline in your report — verbatim, not summarized — plus the ADR's absolute path in your worktree, the link to the comment you just posted, the branch name, and confirmation that code changes (if any) are already committed locally.
+
+   **Whoever invoked you must relay that ADR to the human verbatim, not as a summary.** Your report is not shown to the human directly; a caller who paraphrases it turns "approve this ADR" into "approve my description of it", which is not the same question and not a decision the human actually got to make.
+4. Do not proceed to step 6 in the same run. A human reviews the draft and either approves it as-is, asks for edits, or tells you a decision inside it is wrong — only on their explicit go-ahead (in a follow-up message to you) do you commit the ADR (edited if requested) and continue from step 6.
+5. If you're resumed specifically to continue past this gate, treat the human's message as that approval — commit the ADR file (with any requested edits applied) with its own commit, then resume at step 6.
 
 This gate applies per-ADR: a ticket with no ADR skips straight from step 4 to step 6.
 
