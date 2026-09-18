@@ -1,3 +1,10 @@
+# [0.13.0](https://github.com/woueziou/liteCodeAgent/compare/v0.12.0...v0.13.0) (2026-09-18)
+
+
+### Features
+
+* update litecode version to 0.11.0 and enhance agent functionalities ([508e454](https://github.com/woueziou/liteCodeAgent/commit/508e454cfd4eb797b1b72f17acbf891582f711b4))
+
 # [0.12.0](https://github.com/woueziou/liteCodeAgent/compare/v0.11.0...v0.12.0) (2026-09-18)
 
 
