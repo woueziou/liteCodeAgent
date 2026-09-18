@@ -28,7 +28,11 @@
       "No single large file"
     ],
     "trustBoundaries": [],
-    "lessons": [],
+    "lessons": [
+      "`updateProjectV2Field` replaces a single-select's WHOLE option list, so every option must be resent with its own id, colour and description. Omitting the id once regenerated every option id and silently nulled the Status of every board item. The ids are now echoed back (GitHub added `id` to the option input type), and `board init` aborts if any item lost its Status during a run — never weaken that check.",
+      "Deleting a single-select option is destructive in proportion to its use, not in principle: an option no item holds can go, one that items hold cannot. Decide it by counting actual usage (`fetchOptionUsage`), and treat unknown usage as in-use. Never delete on an assumption.",
+      "`gh api graphql -f name=value` sends every variable as a STRING, so list variables are rejected outright. That shipped a `board init --apply` that could never create a single-select field, through every release up to 0.9.0, because no test looked at the request body. Post variables as a JSON body on stdin, and assert on what goes over the wire — pure-function tests cannot catch an encoding bug."
+    ],
     "angles": [
       {
         "name": "correctness",
