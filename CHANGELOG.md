@@ -1,3 +1,15 @@
+# [0.12.0](https://github.com/woueziou/liteCodeAgent/compare/v0.11.0...v0.12.0) (2026-09-18)
+
+
+### Bug Fixes
+
+* **tickets:** harden throttle parsing, board.number check, enabled gate ([cb4fb67](https://github.com/woueziou/liteCodeAgent/commit/cb4fb676f11b6766ae90bb42587f81ec82047ad4)), closes [#10](https://github.com/woueziou/liteCodeAgent/issues/10)
+
+
+### Features
+
+* **tickets:** local ticket buffer, litecode ticket CLI, sync agent ([e3b72e9](https://github.com/woueziou/liteCodeAgent/commit/e3b72e9cf080600e350c2119813f262b29f8ae5b)), closes [#10](https://github.com/woueziou/liteCodeAgent/issues/10)
+
 # [0.11.0](https://github.com/woueziou/liteCodeAgent/compare/v0.10.0...v0.11.0) (2026-09-18)
 
 
