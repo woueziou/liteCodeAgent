@@ -41,6 +41,18 @@ const BoardSchema = z.object({
   itemIdCache: z.string().default(".claude/data/github-project-item-ids.json"),
 });
 
+/**
+ * Optional with a default, unlike `board`: `board` was required from day one, so every
+ * config that has ever parsed already carries it. `tickets` is new — a `litecode.config.json`
+ * committed before this feature existed has no `tickets` key at all, and making it required
+ * would break that config outright on upgrade. See ADR 0001.
+ */
+const TicketsSchema = z.object({
+  enabled: z.boolean().default(true),
+  /** Where the local ticket buffer lives, relative to the repo root. */
+  dir: z.string().default("docs/tickets"),
+});
+
 export const ProjectSchema = z.object({
   name: z.string(),
   /** owner/repo */
@@ -82,6 +94,8 @@ export const ProjectSchema = z.object({
   sizeRules: z.array(SizeRuleSchema).default([]),
 
   board: BoardSchema,
+  /** Optional: absent entirely in a config predating the local ticket buffer feature. */
+  tickets: TicketsSchema.default({ enabled: true, dir: "docs/tickets" }),
 
   /** Required only when the `web` pack is installed — it is what its expert skills interpolate. */
   web: z

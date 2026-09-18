@@ -10,6 +10,10 @@ import { ensureAuth, onGhRetry, RateLimitError } from "./board/gh.ts";
 import { fetchProject, fetchOptionUsage } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
+import type { BoardData } from "./board/spec.ts";
+import { createTicket, listTicketsDetailed } from "./tickets/store.ts";
+import { planTicketSync, applyTicketSync, planTicketPull, applyTicketPull, fetchTicketItems } from "./tickets/sync.ts";
+import { PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
 import { isInteractive, multiSelect } from "./prompt.ts";
@@ -59,6 +63,11 @@ function usage(): void {
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
   ${c.bold("bunx litecodeagent board init")} [--apply]     provision/resolve the GitHub Project board
   ${c.bold("bunx litecodeagent board doctor")}             check board.json against the live board
+  ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..]
+                                     draft a ticket file locally, no GitHub call
+  ${c.bold("bunx litecodeagent ticket list")}              list local ticket files and their dirty state
+  ${c.bold("bunx litecodeagent ticket sync")} [--apply]    pull the board into dirty tickets, then push the batch
+                                     ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("litecode upgrade")}                   update a legacy git-clone install
 
 Global: --project <dir>   target repo (default: cwd)
@@ -468,6 +477,134 @@ async function cmdBoard(root: string, argv: string[]): Promise<number> {
   return 0;
 }
 
+async function loadBoardData(root: string, dataFile: string): Promise<BoardData> {
+  const path = resolve(root, dataFile);
+  const file = Bun.file(path);
+  if (!(await file.exists())) {
+    throw new Error(`${dataFile} does not exist — run \`litecode board init --apply\` first.`);
+  }
+  return (await file.json()) as BoardData;
+}
+
+async function cmdTicket(root: string, argv: string[]): Promise<number> {
+  const sub = argv[1];
+  const { config } = await loadConfig(root);
+  const dir = config.project.tickets.dir;
+
+  if (sub === "new") {
+    const title = arg(argv, "--title");
+    const label = arg(argv, "--label") as "bug" | "feature" | "doc" | "chore" | undefined;
+    const LABELS = ["bug", "feature", "doc", "chore"] as const;
+    if (!title || !label) {
+      console.log(c.red("ticket new requires --title <text> and --label <bug|feature|doc|chore>"));
+      return 1;
+    }
+    if (!(LABELS as readonly string[]).includes(label)) {
+      console.log(c.red(`--label must be one of ${LABELS.join(", ")}`));
+      return 1;
+    }
+    const priority = arg(argv, "--priority") as Priority | undefined;
+    const size = arg(argv, "--size") as Size | undefined;
+    if (priority && !(PRIORITIES as readonly string[]).includes(priority)) {
+      console.log(c.red(`--priority must be one of ${PRIORITIES.join(", ")}`));
+      return 1;
+    }
+    if (size && !(SIZES as readonly string[]).includes(size)) {
+      console.log(c.red(`--size must be one of ${SIZES.join(", ")}`));
+      return 1;
+    }
+    const body = arg(argv, "--body") ?? `${title}\n`;
+    const ticket = await createTicket(root, dir, { title, label, body, priority, size });
+    console.log(`${c.green("created")} ${ticket.path}`);
+    console.log(c.dim(`Edit the file, then run \`litecode ticket sync --apply\` to push it.`));
+    return 0;
+  }
+
+  if (sub === "list") {
+    const { tickets, errors } = await listTicketsDetailed(root, dir);
+    for (const t of tickets) {
+      const state = t.synced && t.pendingComments.length === 0 ? c.dim("synced") : c.yellow("dirty ");
+      const issue = t.issue ? `#${t.issue}` : c.dim("(no issue yet)");
+      console.log(`  ${state} ${t.id.padEnd(40)} ${issue}`);
+    }
+    for (const e of errors) {
+      console.log(`  ${c.red("error ")} ${e.path}: ${e.error}`);
+    }
+    if (tickets.length === 0 && errors.length === 0) {
+      console.log(c.dim(`No tickets in ${dir}. Create one with \`litecode ticket new\`.`));
+    }
+    return errors.length > 0 ? 1 : 0;
+  }
+
+  if (sub === "sync") {
+    onGhRetry((attempt, waitMs, reason) => {
+      console.log(c.dim(`  ${reason} — retrying in ${Math.round(waitMs / 1000)}s (attempt ${attempt})`));
+    });
+    await ensureAuth();
+
+    const { tickets, errors } = await listTicketsDetailed(root, dir);
+    if (errors.length > 0) {
+      for (const e of errors) console.log(`  ${c.red("error ")} ${e.path}: ${e.error}`);
+      console.log(c.red("Fix the malformed ticket file(s) above before syncing."));
+      return 1;
+    }
+    if (tickets.length === 0) {
+      console.log(c.dim(`No tickets in ${dir}.`));
+      return 0;
+    }
+
+    const board = await loadBoardData(root, config.project.board.dataFile);
+    const remote = await fetchTicketItems(board.projectId);
+
+    // Pull before push, always: a push must never overwrite board state this run hasn't
+    // read yet.
+    const pullChanges = planTicketPull(tickets, board, remote);
+    for (const change of pullChanges) {
+      console.log(`  ${c.cyan("pull")} ${change.ticket.path}`);
+      for (const line of change.changes) console.log(`    ${line}`);
+    }
+
+    const pulledById = new Map(pullChanges.map((p) => [p.ticket.id, p.ticket]));
+    const afterPull = tickets.map((t) => pulledById.get(t.id) ?? t);
+
+    const plan = planTicketSync(afterPull, board);
+    for (const a of plan.actions) {
+      console.log(`  ${a.kind === "create" ? c.green("create") : c.yellow("update")} ${a.ticket.path}`);
+    }
+    for (const s of plan.skipped) {
+      console.log(`  ${c.dim("skip  ")} ${s.ticket.path} ${c.dim(`(${s.reason})`)}`);
+    }
+    for (const b of plan.blockers) {
+      console.log(`  ${c.red("BLOCKED")} ${b.ticket.path}: ${b.problem}`);
+      console.log(`           ${c.dim(`fix: ${b.fix}`)}`);
+    }
+
+    if (!argv.includes("--apply")) {
+      if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
+      console.log(c.dim(`\nDry run. Re-run with --apply to write the pulled files and push ${plan.actions.length} ticket(s).`));
+      return plan.blockers.length > 0 ? 1 : 0;
+    }
+    if (plan.blockers.length > 0) {
+      console.log(c.red("\nNot pushing: resolve the blockers above first."));
+      if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
+      return 1;
+    }
+
+    if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
+    const log = await applyTicketSync(root, plan, board, {
+      repo: config.project.repo,
+      owner: config.project.board.owner,
+      number: config.project.board.number!,
+      itemIdCache: config.project.board.itemIdCache,
+      onLog: (line) => console.log(`  ${c.green("done")} ${line}`),
+    });
+    return log.length === 0 && plan.actions.length > 0 ? 1 : 0;
+  }
+
+  usage();
+  return 1;
+}
+
 const argv = process.argv.slice(2);
 const root = resolve(arg(argv, "--project") ?? process.cwd());
 
@@ -506,6 +643,7 @@ try {
       case "config": return cmdConfig(root, argv);
       case "run": return cmdRun(root, argv);
       case "board": return cmdBoard(root, argv);
+      case "ticket": return cmdTicket(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
     }
   })();

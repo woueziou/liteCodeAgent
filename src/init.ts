@@ -125,6 +125,7 @@ function deriveAgentSkills(
     triage: board,
     dispatcher: board,
     tracker: [...board, ...attribution],
+    sync: [...board, ...attribution],
   };
 }
 
