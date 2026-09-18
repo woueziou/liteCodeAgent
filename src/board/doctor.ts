@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import type { Config } from "../config.ts";
-import { fetchProject, fetchItems } from "./query.ts";
+import { fetchProject, fetchItems, fetchOptionUsage } from "./query.ts";
 import { buildBoardData, planBoard } from "./init.ts";
 import type { BoardData } from "./spec.ts";
 
@@ -26,14 +26,19 @@ export async function doctor(projectRoot: string, config: Config): Promise<Findi
   }
   const remote = await fetchProject(config.project.board.owner, config.project.board.number);
 
-  const plan = planBoard(remote, config);
+  const plan = planBoard(remote, config, await fetchOptionUsage(remote.id));
   for (const b of plan.blockers) {
     findings.push({ severity: "error", message: `field '${b.field}': ${b.problem} — ${b.fix}` });
   }
-  for (const a of plan.actions.filter((x) => x.kind === "create-field")) {
-    findings.push({ severity: "error", message: `field '${a.field}' is missing from the live board` });
+  for (const a of plan.actions) {
+    if (a.kind === "create-field") {
+      findings.push({ severity: "error", message: `field '${a.field}' is missing from the live board` });
+    } else if (a.kind === "add-options" || a.kind === "remove-options") {
+      // Not drift between board.json and the board — drift between the board and the spec.
+      findings.push({ severity: "error", message: `field '${a.field}': ${a.detail} — run \`board init --apply\`` });
+    }
   }
-  if (plan.blockers.length > 0 || plan.actions.some((a) => a.kind === "create-field")) return findings;
+  if (findings.length > 0) return findings;
 
   const live = buildBoardData(remote, config);
 

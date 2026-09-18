@@ -2,7 +2,14 @@ import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 import type { Config } from "../config.ts";
 import { graphql, gh } from "./gh.ts";
-import { fetchProject, fetchItems, type RemoteProject, type RemoteField } from "./query.ts";
+import {
+  fetchProject,
+  fetchItems,
+  fetchOptionUsage,
+  type RemoteProject,
+  type RemoteField,
+  type OptionUsage,
+} from "./query.ts";
 import {
   FIELD_SPECS,
   STATUS_ROLES,
@@ -14,6 +21,7 @@ import {
 export type Action =
   | { kind: "create-field"; field: string; detail: string }
   | { kind: "add-options"; field: string; detail: string; options: string[] }
+  | { kind: "remove-options"; field: string; detail: string; options: string[] }
   | { kind: "create-label"; field: string; detail: string }
   | { kind: "write-board-json"; field: string; detail: string };
 
@@ -45,11 +53,20 @@ const DATATYPE: Record<string, string> = {
  * makes adding options non-destructive, and it is automated again — behind a before/after
  * check that every item still has a Status.
  *
- * REMOVING an option stays a blocker, and not for the same reason: no id trick saves the
- * items that legitimately hold the option being deleted. That one needs a human to decide
- * where those items go.
+ * REMOVING an option is decided by whether any item actually holds it. No id trick saves
+ * an item whose option is deleted — but an option nothing holds has nothing to lose, and
+ * that is the common case: GitHub's default `Todo` on a board the pipeline is only now
+ * taking over. So removal is automated when usage is known to be zero, and stays a blocker
+ * the moment a real item depends on it, where only a human can say where those items go.
+ *
+ * `usage` omitted means usage is unknown, which is treated as "in use" — the conservative
+ * reading, since planning must never delete on an assumption.
  */
-export function planBoard(project: RemoteProject, config: Config): BoardPlan {
+export function planBoard(
+  project: RemoteProject,
+  config: Config,
+  usage?: OptionUsage,
+): BoardPlan {
   const actions: Action[] = [];
   const blockers: Blocker[] = [];
   const byName = new Map(project.fields.map((f) => [f.name, f]));
@@ -89,15 +106,29 @@ export function planBoard(project: RemoteProject, config: Config): BoardPlan {
         });
       }
       const extra = [...have].filter((o) => !spec.options.includes(o));
-      if (extra.length > 0) {
+      const perField = usage?.get(spec.name);
+      const held = extra.filter((o) => !usage || (perField?.get(o) ?? 0) > 0);
+      const unused = extra.filter((o) => !held.includes(o));
+
+      if (unused.length > 0) {
+        actions.push({
+          kind: "remove-options",
+          field: spec.name,
+          detail: `remove unused option(s): ${unused.join(", ")} (no item holds them)`,
+          options: unused,
+        });
+      }
+      if (held.length > 0) {
         blockers.push({
           field: spec.name,
-          problem: `has option(s) the pipeline does not know: ${extra.join(", ")}`,
+          problem: `has option(s) the pipeline does not know, still held by items: ${held
+            .map((o) => `${o} (${perField?.get(o) ?? "?"} item(s))`)
+            .join(", ")}`,
           fix:
-            `move any item holding them to a known option, then delete them in the project ` +
-            `web UI — or extend FIELD_SPECS/statusRoles so agents know what they mean. ` +
-            `Not automated: deleting an option strips it from every item that holds it, ` +
-            `and only a human can say where those items belong.`,
+            `move those items to a known option, then re-run — an unused option is removed ` +
+            `automatically. Or extend FIELD_SPECS/statusRoles so agents know what the option ` +
+            `means. Not automated while in use: deleting an option strips it from every item ` +
+            `that holds it, and only a human can say where those items belong.`,
         });
       }
     }
@@ -227,34 +258,43 @@ export async function applyBoardPlan(
     log.push(`created field '${spec.name}'`);
   }
 
-  const optionActions = plan.actions.filter((a) => a.kind === "add-options");
+  // Add and remove are the same mutation — mergedOptions rebuilds the list from the spec,
+  // which appends what is missing and drops what is not in it — so a field touched by both
+  // is updated once, not twice.
+  const optionActions = plan.actions.filter(
+    (a) => a.kind === "add-options" || a.kind === "remove-options",
+  );
+  const touchedFields = [...new Set(optionActions.map((a) => a.field))];
 
   // Baseline taken BEFORE mutating, so a pre-existing null Status is not blamed on this
   // run — and so a null introduced by this run cannot hide behind one that predates it.
   const before = optionActions.length > 0 ? await fetchItems(plan.project.id) : [];
   const nullBefore = before.filter((i) => i.status === null).length;
 
-  for (const action of optionActions) {
-    const spec = FIELD_SPECS.find((f) => f.name === action.field);
+  for (const field of touchedFields) {
+    const spec = FIELD_SPECS.find((f) => f.name === field);
     if (!spec || spec.kind !== "single-select") continue;
-    const remote = plan.project.fields.find((f) => f.name === action.field);
+    const remote = plan.project.fields.find((f) => f.name === field);
     if (!remote) continue;
     await graphql(UPDATE_SELECT_FIELD, {
       fieldId: remote.id,
       options: JSON.stringify(mergedOptions(remote, spec.options)),
     });
-    log.push(`added option(s) to '${spec.name}': ${action.options.join(", ")}`);
+    for (const action of optionActions.filter((a) => a.field === field)) {
+      const verb = action.kind === "add-options" ? "added" : "removed";
+      log.push(`${verb} option(s) on '${field}': ${action.options.join(", ")}`);
+    }
   }
 
   // Re-fetch so board.json carries the ids the server actually assigned, never guesses.
   const refreshed = await fetchProject(config.project.board.owner, plan.project.number);
-  const verify = planBoard(refreshed, config);
+  const verify = planBoard(refreshed, config, await fetchOptionUsage(refreshed.id));
   if (verify.blockers.length > 0) {
     throw new Error(
       `Post-apply verification failed:\n${verify.blockers.map((b) => `  - ${b.field}: ${b.problem}`).join("\n")}`,
     );
   }
-  const unapplied = verify.actions.filter((a) => a.kind === "create-field" || a.kind === "add-options");
+  const unapplied = verify.actions.filter((a) => a.kind !== "write-board-json");
   if (unapplied.length > 0) {
     throw new Error(
       `Post-apply verification failed: still outstanding after applying:\n` +

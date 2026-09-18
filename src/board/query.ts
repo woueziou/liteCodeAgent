@@ -118,3 +118,60 @@ export async function fetchItems(projectId: string): Promise<BoardItem[]> {
   } while (cursor);
   return items;
 }
+
+const OPTION_USAGE_QUERY = `
+query($projectId: ID!, $cursor: String) {
+  node(id: $projectId) {
+    ... on ProjectV2 {
+      items(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2SingleSelectField { name } }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+/** field name -> option name -> how many items currently hold it. */
+export type OptionUsage = Map<string, Map<string, number>>;
+
+/**
+ * Counts, for every single-select field at once, how many items hold each option. This is
+ * what makes deleting an option a decidable question rather than a guess: an option no
+ * item holds can go without asking, one that is in use cannot.
+ */
+export async function fetchOptionUsage(projectId: string): Promise<OptionUsage> {
+  const usage: OptionUsage = new Map();
+  let cursor: string | undefined;
+  do {
+    const data = await graphql<{
+      node: {
+        items: {
+          pageInfo: { hasNextPage: boolean; endCursor: string };
+          nodes: { fieldValues: { nodes: ({ name?: string; field?: { name?: string } } | null)[] } }[];
+        };
+      };
+    }>(OPTION_USAGE_QUERY, cursor ? { projectId, cursor } : { projectId });
+
+    for (const item of data.node.items.nodes) {
+      for (const value of item.fieldValues.nodes) {
+        const field = value?.field?.name;
+        const option = value?.name;
+        if (!field || !option) continue;
+        const perField = usage.get(field) ?? new Map<string, number>();
+        perField.set(option, (perField.get(option) ?? 0) + 1);
+        usage.set(field, perField);
+      }
+    }
+    cursor = data.node.items.pageInfo.hasNextPage ? data.node.items.pageInfo.endCursor : undefined;
+  } while (cursor);
+  return usage;
+}

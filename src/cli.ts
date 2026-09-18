@@ -7,7 +7,7 @@ import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
 import { ensureAuth, onGhRetry, RateLimitError } from "./board/gh.ts";
-import { fetchProject } from "./board/query.ts";
+import { fetchProject, fetchOptionUsage } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
 import { init, summarize } from "./init.ts";
@@ -426,15 +426,18 @@ async function cmdBoard(root: string, argv: string[]): Promise<number> {
   const owner = arg(argv, "--owner") ?? config.project.board.owner;
 
   const remote = await fetchProject(owner, number);
+  // Which options are actually held decides whether an unknown one can be dropped.
+  const optionUsage = await fetchOptionUsage(remote.id);
   console.log(`${c.bold("Board")}    ${remote.title} ${c.dim(remote.url)}`);
   console.log(`${c.bold("Node id")}  ${remote.id}\n`);
 
-  const plan = planBoard(remote, config);
+  const plan = planBoard(remote, config, optionUsage);
 
   for (const a of plan.actions) {
     const verb =
       a.kind === "write-board-json" ? c.cyan("write   ")
       : a.kind === "add-options" ? c.yellow("update  ")
+      : a.kind === "remove-options" ? c.yellow("remove  ")
       : c.green("create  ");
     console.log(`  ${verb} ${a.field} ${c.dim(a.detail)}`);
   }

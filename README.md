@@ -287,23 +287,25 @@ Don't have a board yet? Create an empty GitHub Project first (org → Projects �
 project → Table), note its number from the URL, then run the command above — it will
 provision every field into it.
 
-#### If `board init` reports the Status field as BLOCKED
+#### Taking over a project that already has a Status field
 
-A brand-new project is provisioned end to end with no manual step. A project you already
-started carries GitHub's default `Status` field (`Todo` / `In Progress` / `Done`), and the
-pipeline needs seven statuses. The missing ones (`Backlog`, `Planned`, `Blocked`, `Review`,
-`Ready to Merge`) are **added for you** — existing options keep their ids, so no item loses
-its Status, and `board init` aborts rather than writing `board.json` if any item does.
+A project you already started carries GitHub's default `Status` field (`Todo` /
+`In Progress` / `Done`), while the pipeline needs seven statuses. `board init` reconciles
+that for you:
 
-What is *not* automated is an option the pipeline does not recognise, such as the default
-`Todo`. Deleting one strips it from every item that holds it, and only you can say where
-those items belong. So `board init` stops and asks you to, in the project's web UI:
+- missing options (`Backlog`, `Planned`, `Blocked`, `Review`, `Ready to Merge`) are added,
+  with every existing option echoed back under its own id, colour and description — so no
+  item loses its Status;
+- an option the pipeline does not know, such as `Todo`, is removed **only if no item holds
+  it**. That is the usual case when the pipeline is taking the board over.
 
-1. Move any item sitting in `Todo` to `Backlog`.
-2. Delete the `Todo` option (Settings → Fields → `Status`).
+`board init` aborts rather than writing `board.json` if any item lost its Status during the
+run, so the safety property is checked, not merely intended.
 
-Then re-run `bunx litecodeagent board init --apply`. Alternatively, keep the option and
-teach the pipeline what it means by extending `FIELD_SPECS` / `STATUS_ROLES`.
+It stops and asks for you only when an unknown option is **still in use** — deleting it
+would strip it from every item holding it, and only you can say where those items belong.
+Move them to a known option and re-run, or teach the pipeline what the option means by
+extending `FIELD_SPECS` / `STATUS_ROLES` in `src/board/spec.ts`.
 
 ### 5. Commit
 
