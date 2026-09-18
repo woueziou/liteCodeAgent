@@ -148,12 +148,16 @@ async function run(args: string[], input?: string): Promise<string> {
   }
 }
 
-export async function graphql<T>(query: string, vars: Record<string, string | number>): Promise<T> {
-  const args = ["api", "graphql", "-f", `query=${query}`];
-  for (const [k, v] of Object.entries(vars)) {
-    args.push(typeof v === "number" ? "-F" : "-f", `${k}=${v}`);
-  }
-  const out = await run(args);
+/**
+ * Variables go through a JSON body on stdin rather than `-f name=value`, because `-f`
+ * sends every value as a *string*: a list variable such as
+ * `[ProjectV2SingleSelectFieldOptionInput!]!` is then rejected outright ("Expected ... to
+ * be a key-value object"), which silently made creating any single-select field
+ * impossible. `--input -` posts real JSON, so lists, numbers and booleans survive.
+ */
+export async function graphql<T>(query: string, vars: Record<string, unknown>): Promise<T> {
+  const args = ["api", "graphql", "--input", "-"];
+  const out = await run(args, JSON.stringify({ query, variables: vars }));
   const parsed = JSON.parse(out) as { data?: T; errors?: { message: string; type?: string }[] };
   if (parsed.errors?.length) {
     // A 200 response can still carry RATE_LIMITED in the error body.

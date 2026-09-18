@@ -246,7 +246,7 @@ export async function applyBoardPlan(
       await graphql(CREATE_SELECT_FIELD, {
         projectId: plan.project.id,
         name: spec.name,
-        options: JSON.stringify(options),
+        options,
       });
     } else {
       await graphql(CREATE_FIELD, {
@@ -278,7 +278,7 @@ export async function applyBoardPlan(
     if (!remote) continue;
     await graphql(UPDATE_SELECT_FIELD, {
       fieldId: remote.id,
-      options: JSON.stringify(mergedOptions(remote, spec.options)),
+      options: mergedOptions(remote, spec.options),
     });
     for (const action of optionActions.filter((a) => a.field === field)) {
       const verb = action.kind === "add-options" ? "added" : "removed";
