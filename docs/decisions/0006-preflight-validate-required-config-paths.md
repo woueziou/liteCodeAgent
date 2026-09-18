@@ -49,20 +49,39 @@ validation to "every referenced path must be present" was rejected in favor of n
   never against `project.name`. `referencedPaths` (now fixed, see Decision 3) already
   excludes these from its output; a generalized required-path check would otherwise need
   the same scope-awareness duplicated in a second place.
-- **`agentSkills` is exactly the case that's actually broken today.** All 8 agent keys
-  (`debate-angle`, `planner`, `implementer`, `reviewer`, `triage`, `dispatcher`, `sync`,
-  `tracker`) share the same shape: a `z.record` default of `{}` that makes per-key absence
-  schema-valid while every pack file assumes presence via `| join`. No other path in
-  `ProjectSchema` has this exact mismatch — `web` is `.optional()` end-to-end (schema
-  agrees with template guards via `{{#if project.web}}`), `angles`/`domains` are
-  `.min(1)`-enforced arrays consumed via `{{#each}}` (no per-key absence is possible), and
-  everything else is a required scalar the schema itself would reject as missing.
+- **`agentSkills` is the case this ticket fixes, but it is not the only place with this
+  mismatch — see the correction below.** All 8 agent keys (`debate-angle`, `planner`,
+  `implementer`, `reviewer`, `triage`, `dispatcher`, `sync`, `tracker`) share the same shape:
+  a `z.record` default of `{}` that makes per-key absence schema-valid while every pack file
+  assumes presence via `| join`. `angles`/`domains` are `.min(1)`-enforced arrays consumed via
+  `{{#each}}` (no per-key absence is possible), and most other fields are required scalars the
+  schema itself would reject as missing.
+
+**Correction (post-review):** an earlier draft of this ADR claimed `project.web` was
+`.optional()` end-to-end "with schema agreeing with template guards via
+`{{#if project.web}}`." That claim was checked against the actual codebase during review and
+is false. `project.web` in `ProjectSchema` (`src/config.ts`) is
+`z.object({ appDir, framework, apiClient, typeSourceOfTruth, typecheck, styling }).optional()`
+— schema-valid when entirely absent — but every `SKILL.md` under `packs/web`
+(`frontend-expert`, `design-expert`, `typescript-expert`, `mobile-expert`,
+`mobile-design-expert`, `mobile-ui-ux-expert`, `ui-ux-expert`) references `project.web.appDir`
+/ `.framework` / `.styling` / `.typeSourceOfTruth` / `.typecheck` / `.apiClient`
+**unconditionally, with no `{{#if project.web}}` guard anywhere in the pack**. A config that
+lists `"web"` in `packs` without a `project.web` block is schema-valid today and will fail
+`install` mid-render with the same raw, confusing `TemplateError` issue #17 was filed to
+eliminate — this is a live, reproducible instance of the same bug class today, not a future
+hypothetical, and it is **not covered by this ticket's fix**. It is tracked as a separate
+follow-up (see Consequences) rather than folded into this PR, since fixing it properly means
+widening `missingAgentSkillPaths`'s scope (or a small generalization step), which is real code
+change, not a documentation correction.
 
 This scope is deliberately narrow given the evidence available: the planning panel that
 produced this ticket was degraded (the classifier's verdict was unreadable, and 2 of 3
 debate angles were lost), so this decision rests on direct code inspection during
-implementation rather than a full debate. A reviewer should re-examine it independently
-rather than treat this ADR as settling the question by authority.
+implementation rather than a full debate. That inspection missed the `project.web` gap above
+on the first pass; it was caught in review, not by the original analysis, which is itself
+evidence for why this ADR asked for independent re-examination rather than being accepted on
+authority.
 
 **Alternative considered and rejected: generalize now, accept some false positives.**
 Rejected because a pre-flight check that produces its own false-positive install failures
@@ -109,11 +128,15 @@ validation step never invents values itself; it only ever detects and reports.
 - `litecode install`/`config doctor` both fail loudly and specifically the moment an
   installed pack references an `agentSkills` key the config doesn't have, instead of a
   generic mid-render `TemplateError` pointing at a template file that isn't the actual bug.
-- The check does not protect against a pack introducing a *new* required top-level config
-  section (the way `web` did) with a template that unconditionally assumes it, no `{{#if}}`
-  guard, and no schema default. That would still fail with a raw `TemplateError`. This is an
-  accepted gap: no pack in this repo does that today, and closing it requires the
-  condition-aware generalization explicitly deferred above.
-- If a future pack needs pre-flight validation for a path shape outside `agentSkills`,
+- The check does not protect against a top-level config section that is schema-`.optional()`
+  but referenced unconditionally (no `{{#if}}` guard) by an installed pack's templates. This
+  is not a hypothetical future gap: `project.web` is exactly this shape today (see the
+  correction under Decision 1) and is currently unprotected — a config with `packs: ["web"]`
+  and no `project.web` block will still fail `install` with a raw, confusing `TemplateError`.
+  This PR does not fix that; it is filed as a separate follow-up ticket (same bug class as
+  #17, tracked and prioritized independently) rather than folded into this diff, since closing
+  it means widening `missingAgentSkillPaths`'s scope (or a small generalization step), not
+  editing this ADR further.
+- If a future pack needs pre-flight validation for a path shape outside `agentSkills`/`web`,
   extending `missingAgentSkillPaths`'s regex scope (or generalizing it) is the place to
   revisit this decision — not a reason to leave the new path unchecked.
