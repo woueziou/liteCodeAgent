@@ -54,6 +54,13 @@ Whenever you (or `reviewer`) notice a gap mid-run — a note-to-self about a typ
 
 This applies to same-PR fixups you apply within a single continuous run, not just the separate `Review`-resume flow: if reviewer's `approve-with-notes` includes a note you're addressing before ever moving the board, apply the fix and verify it before moving to `Ready to Merge` — never move to `Ready to Merge` on the strength of "I addressed the note" without having actually re-run the check that would prove it. A "fixed" commit that was never actually type-checked or run is not fixed, it's a second unverified claim stacked on the first.
 
+### Precedents on litecodeagent
+
+These already happened here. Don't re-learn them:
+
+- `updateProjectV2Field` replaces a single-select's WHOLE option list, so every option must be resent with its own id, colour and description. Omitting the id once regenerated every option id and silently nulled the Status of every board item. The ids are now echoed back (GitHub added `id` to the option input type), and `board init` aborts if any item lost its Status during a run — never weaken that check.
+- Deleting a single-select option is destructive in proportion to its use, not in principle: an option no item holds can go, one that items hold cannot. Decide it by counting actual usage (`fetchOptionUsage`), and treat unknown usage as in-use. Never delete on an assumption.
+- `gh api graphql -f name=value` sends every variable as a STRING, so list variables are rejected outright. That shipped a `board init --apply` that could never create a single-select field, through every release up to 0.9.0, because no test looked at the request body. Post variables as a JSON body on stdin, and assert on what goes over the wire — pure-function tests cannot catch an encoding bug.
 
 ## ADR draft approval gate
 

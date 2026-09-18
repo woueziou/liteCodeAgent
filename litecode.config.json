@@ -86,6 +86,10 @@
       "dispatcher": [
         "github-project-sync"
       ],
+      "sync": [
+        "github-project-sync",
+        "agent-attribution"
+      ],
       "tracker": [
         "github-project-sync",
         "agent-attribution"
