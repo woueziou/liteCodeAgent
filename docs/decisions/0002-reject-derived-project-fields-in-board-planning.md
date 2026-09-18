@@ -5,14 +5,14 @@ task: "#13"
 
 # 0002. Reject derived project fields in board planning
 
-Status: proposed
+Status: accepted
 Date: 2026-09-18
 
 ## Context
 
 Running `litecode board init`/`sync` against an existing org project (Fuel Manager
-Project, `https://github.com/orgs/kp-dev-org/projects/2`) planned option updates for
-`Priority` and `Size`, then crashed mid-apply:
+Project, `PVT_kwDODdLm7c4Bj5kj`) planned option updates for `Priority` and `Size`, then
+crashed mid-apply:
 
 ```
 gh api graphql --input - failed (exit 1):
@@ -23,10 +23,27 @@ updated through their respective APIs.
 `planBoard` (`src/board/init.ts`) matched project fields purely by name and only checked
 that the remote field's `dataType` matched the *kind* the spec expected
 (`single-select`/`text`/`date`). It never checked whether the matched field was a mutable
-*custom* field at all. So a name collision with a GitHub-derived field (one system
-auto-populates from the issue/PR itself, e.g. `Assignees`, `Labels`, `Milestone`) produced
-a plan that looked normal, then was rejected by the GraphQL mutation itself — after
-`board.json` may already have been left in a stale, partially-applied state.
+*custom* field at all. A first pass (`DERIVED_DATATYPES`, below) caught fields GitHub
+reports under an unambiguous derived `dataType` such as `ASSIGNEES` or `TITLE` — but the
+actually-failing mutation here was `updateProjectV2Field` on `Priority`, and a follow-up
+GraphQL debug/introspection pass against the live board established the real root cause,
+which the original diagnosis got wrong:
+
+- `Priority` reports `__typename: ProjectV2SingleSelectField`, `dataType: "SINGLE_SELECT"`,
+  and has **zero options**. That is indistinguishable from a genuine custom single-select by
+  `dataType` alone, so `DERIVED_DATATYPES` never catches it and the plan proceeds to attempt
+  the mutation, which GitHub then rejects.
+- `Size`, by contrast, is **not** a derived field at all (`isIssueField: false`) and would
+  have updated fine. The run only ever aborted on `Priority`, before reaching `Size` — the
+  original narrative that "Priority and Size are both non-editable template fields" was
+  incorrect; `Size` was misdiagnosed as part of the same failure purely because it never got
+  a chance to run.
+- GitHub does expose an exact discriminator the original fix ignored: `isIssueField: Boolean`
+  on `ProjectV2FieldCommon` (present on `ProjectV2Field` and `ProjectV2SingleSelectField`;
+  `null` on `ProjectV2IterationField`). Confirmed via live introspection and query against
+  the reporting board: `isIssueField: true` for `Priority`, `Start date`, `Target date`;
+  `isIssueField: false` for `Status`, `Size`, `Assigned Agent`, `Due Date`, and every
+  `DERIVED_DATATYPES` field.
 
 ## Decision: where detection lives, and why it must re-run every cycle
 
@@ -35,24 +52,31 @@ existing dataType/kind comparison — not as a one-off pre-apply check. `applyBo
 already re-invokes `planBoard` against a freshly re-fetched project both mid-run (before
 issuing option-update mutations) and post-apply (to verify nothing is left outstanding).
 Putting the check inside `planBoard` means every one of those cycles re-derives it for
-free, so a collision that only appears on re-fetch — e.g. the field's underlying type
-changed between the initial plan and the apply — is caught by the same mechanism, rather
+free, so a collision that only appears on re-fetch is caught by the same mechanism, rather
 than needing a second, easily-forgotten call site. This is the same reasoning the codebase
 already applies to `remote.dataType !== DATATYPE[spec.kind]`: correctness lives in the pure
 planning function, and every caller inherits it by construction.
 
-## Decision: the enumerated derived-dataType set, and how it stays in sync
+## Decision: two complementary checks, not one
 
 `src/board/query.ts` exports `DERIVED_DATATYPES`, a `Set` of `ProjectV2FieldCommon.dataType`
 values GitHub computes from the issue/PR rather than storing as an independent field value:
 `ASSIGNEES, LABELS, LINKED_PULL_REQUESTS, MILESTONE, REPOSITORY, REVIEWERS, TITLE,
-TRACKED_BY, TRACKS`. This list is GitHub's enum of derived field types as of this writing,
-not a full mapping of every `ProjectV2FieldType` — there is no API that classifies
-"editable vs derived" directly, so the set has to be maintained by hand against GitHub's
-GraphQL schema/changelog. If GitHub adds a new derived type in the future, a name collision
-with it would currently fall through to the ordinary dataType/kind blocker instead (still a
-blocker, just with a less specific message) rather than silently being accepted — the
-failure mode of an unmaintained set is a slightly worse error message, not a crash mid-apply.
+TRACKED_BY, TRACKS, PARENT_ISSUE, SUB_ISSUES_PROGRESS, CREATED, UPDATED, CLOSED` (the last
+five added after the live-board investigation surfaced them as additional derived
+dataTypes not previously enumerated). This catches every field GitHub marks with an
+unambiguous derived `dataType`.
+
+It cannot catch `Priority`-shaped fields, because those report an ordinary
+`dataType: "SINGLE_SELECT"`. `planBoard` therefore also checks `remote.isIssueField ===
+true` as a second, independent guard. The two checks are complementary rather than
+redundant: every field `DERIVED_DATATYPES` catches also reports `isIssueField: false` on
+the live board, so neither check subsumes the other — dropping either one reopens a real
+gap. The `isIssueField` blocker carries its own message, because the remedy differs from a
+`DERIVED_DATATYPES` collision: an issue-derived field's options live on the issue itself
+and must be managed through the issues API or repo settings, not the project, so the
+actionable fix is to rename/remove the project-level field (or rename the spec field)
+rather than "recreate it as a plain custom field in the Project UI."
 
 ## Decision: a collision is a hard Blocker, not a silent skip or auto-rename
 
@@ -70,21 +94,26 @@ Two alternatives were considered and rejected:
   `tickets/sync.ts`, doubling the surface area that can drift out of sync. Blocking keeps
   `FIELD_SPECS` the single source of truth for field names project-wide.
 
-So the guard pushes a `Blocker` with a human-actionable fix ("recreate it as a plain custom
-single-select in the Project UI") and fails loudly at plan time, before any mutation is
-attempted — consistent with every other blocker `planBoard` already raises.
+So both guards push a `Blocker` with a human-actionable fix and fail loudly at plan time,
+before any mutation is attempted — consistent with every other blocker `planBoard` already
+raises.
 
-## Accepted limitation: the guard is necessary, not sufficient
+## Residual limitation (narrowed from the original)
 
-`PROJECT_FRAGMENT` in `src/board/query.ts` only distinguishes three GraphQL field shapes:
-`ProjectV2Field`, `ProjectV2SingleSelectField`, and `ProjectV2IterationField`. If GitHub
-ever ships a derived field that is *shaped* like `ProjectV2SingleSelectField` (i.e. reports
-`dataType: "SINGLE_SELECT"` while still being non-editable), it would not appear in
-`DERIVED_DATATYPES` under a distinguishable dataType and would slip past this guard
-undetected — the mutation would then fail mid-apply again, exactly as before this fix,
-though now scoped to a single field's option-update call rather than the whole run, and
-caught immediately by the `try`/`catch` added around that call (which reports which fields
-already succeeded rather than leaving the caller to guess). No fields of this shape are
-known to exist as of this writing; if one is discovered, `DERIVED_DATATYPES` should be
-extended, or the guard should additionally special-case known field names GitHub reserves
-(e.g. `Status` is not reserved, but hypothetical system fields might be).
+The original version of this ADR described the `Priority`/`Size` scenario as a hypothetical
+future risk ("if GitHub ever ships a derived field shaped like `ProjectV2SingleSelectField`
+..."). It was not hypothetical — it was the exact bug reported in #13 — and `isIssueField`
+now closes it directly, confirmed by the reproduction added in `tests/board.test.ts`
+(`Priority`, `dataType: SINGLE_SELECT`, `options: []`, `isIssueField: true` → blocked, zero
+actions).
+
+What remains unhandled: `PROJECT_FRAGMENT` still only distinguishes three GraphQL field
+shapes (`ProjectV2Field`, `ProjectV2SingleSelectField`, `ProjectV2IterationField`), and
+`isIssueField` is only defined on `ProjectV2FieldCommon` as of this writing. If GitHub ever
+introduces a *different* non-editable field category that reports neither a
+`DERIVED_DATATYPES` dataType nor `isIssueField: true`, it would still slip through
+undetected and fail at the `UPDATE_SELECT_FIELD` mutation — caught by the `try`/`catch`
+already in place around that call (which reports which fields already succeeded rather than
+leaving the caller to guess), not by `planBoard`. No such category is known to exist today;
+if one surfaces, extend `DERIVED_DATATYPES` or add a further discriminator the same way
+`isIssueField` was added here.

@@ -98,6 +98,24 @@ export function planBoard(
       continue;
     }
 
+    // A field can be SINGLE_SELECT-shaped (indistinguishable from a genuine custom field by
+    // `dataType` alone) while still being derived from the issue itself — e.g. `Priority`
+    // seeded from a repo's issue-forms template, with zero options. GitHub's own
+    // `updateProjectV2Field` rejects mutating these the same way it rejects DERIVED_DATATYPES,
+    // but the remedy differs: an issue-derived field's options live on the issue, not the
+    // project, so they can't be fixed by editing the project field at all.
+    if (remote.isIssueField === true) {
+      blockers.push({
+        field: spec.name,
+        problem: `exists as an issue-derived field (${remote.dataType}), whose options live on the issue itself, not the project`,
+        fix:
+          `Field '${spec.name}' is derived from the issue/PR — its options can't be managed ` +
+          `through the project API at all. Rename or remove this project-level field (or rename ` +
+          `the spec field instead), then re-run.`,
+      });
+      continue;
+    }
+
     if (remote.dataType !== DATATYPE[spec.kind]) {
       blockers.push({
         field: spec.name,
