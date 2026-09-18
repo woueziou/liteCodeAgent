@@ -8,9 +8,9 @@ priority: medium
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
+issue: 19
+synced: true
+syncedAt: 2026-09-18T16:52:30.820Z
 ---
 
 ## Le vrai défaut, plus large que le littéral codé en dur
