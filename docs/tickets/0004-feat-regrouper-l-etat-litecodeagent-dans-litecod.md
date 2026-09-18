@@ -8,9 +8,9 @@ priority: medium
 size: large
 assignedAgent: implementer
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
+issue: 18
+synced: true
+syncedAt: 2026-09-18T16:52:19.914Z
 ---
 
 ## Objectif
