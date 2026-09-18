@@ -11,6 +11,30 @@ export type RemoteField = {
   options?: { id: string; name: string; color?: string; description?: string }[];
 };
 
+/**
+ * `dataType` values GitHub derives from the issue/PR itself rather than storing as a plain
+ * custom field value. `updateProjectV2Field`/`createProjectV2Field` reject these outright
+ * ("Only custom fields can be updated. Fields derived from issues or pull requests must be
+ * updated through their respective APIs.") — so a name collision with one of these must be
+ * treated as unfixable by this pipeline, not attempted and left to fail mid-apply.
+ *
+ * Known limitation: `PROJECT_FRAGMENT` below only distinguishes `ProjectV2Field` /
+ * `ProjectV2SingleSelectField` / `ProjectV2IterationField`, so a SINGLE_SELECT-shaped system
+ * field (if GitHub ever ships one) would report `dataType: "SINGLE_SELECT"` and slip past
+ * this set undetected. This guard is necessary, not sufficient.
+ */
+export const DERIVED_DATATYPES = new Set([
+  "ASSIGNEES",
+  "LABELS",
+  "LINKED_PULL_REQUESTS",
+  "MILESTONE",
+  "REPOSITORY",
+  "REVIEWERS",
+  "TITLE",
+  "TRACKED_BY",
+  "TRACKS",
+]);
+
 export type RemoteProject = {
   id: string;
   number: number;

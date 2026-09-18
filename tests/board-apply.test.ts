@@ -42,13 +42,14 @@ type Recorded = { query: string; variables: Record<string, unknown> };
  * that looks at what actually goes over the wire.
  */
 async function stubGh(
-  opts: { initial?: RemoteProject; items?: unknown[] } = {},
+  opts: { initial?: RemoteProject; items?: unknown[]; failUpdateOnCall?: number } = {},
 ): Promise<{ root: string; requests: () => Promise<Recorded[]> }> {
   const dir = await mkdtemp(join(tmpdir(), "litecode-apply-"));
   const log = join(dir, "requests.jsonl");
   const payload = JSON.stringify(complete());
   const initial = JSON.stringify(opts.initial ?? complete());
   const items = JSON.stringify(opts.items ?? []);
+  const failUpdateOnCall = opts.failUpdateOnCall ?? 0;
   const bin = join(dir, "gh");
 
   await writeFile(
@@ -59,6 +60,7 @@ const args = process.argv.slice(2);
 const project = ${payload};
 const initial = ${initial};
 const items = ${items};
+const failUpdateOnCall = ${failUpdateOnCall};
 
 if (args[0] !== "api" || args[1] !== "graphql") { process.exit(0); } // label create etc.
 
@@ -66,6 +68,16 @@ const body = JSON.parse(fs.readFileSync(0, "utf8"));
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(body) + "\\n");
 
 const q = body.query;
+
+if (failUpdateOnCall > 0 && q.includes("updateProjectV2Field")) {
+  const prior = fs.readFileSync(${JSON.stringify(log)}, "utf8").split("\\n").filter(Boolean);
+  const updateCallNumber = prior.filter((l) => l.includes("updateProjectV2Field")).length;
+  if (updateCallNumber === failUpdateOnCall) {
+    process.stderr.write("gh: Only custom fields can be updated. Fields derived from issues or pull requests must be updated through their respective APIs.");
+    process.exit(1);
+  }
+}
+
 let data;
 if (q.includes("repositoryOwner")) {
   // Before any mutation the board is still in its initial state; after one, provisioned.
@@ -77,6 +89,8 @@ if (q.includes("repositoryOwner")) {
   data = { node: { items: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: items } } };
 } else if (q.includes("items(")) {
   data = { node: { items: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } };
+} else if (q.includes("updateProjectV2Field")) {
+  data = { updateProjectV2Field: { projectV2Field: { id: "x", name: "x", options: [] } } };
 } else {
   data = { ok: true };
 }
@@ -197,4 +211,50 @@ test("a board that changed since the plan aborts instead of deleting", async () 
   // The point of aborting is that nothing was destroyed — no mutation may have been sent.
   const sent = await requests();
   expect(sent.some((r) => r.query.includes("updateProjectV2Field"))).toBe(false);
+});
+
+test("applyBoardPlan refuses to mutate a field that collides with a derived field", async () => {
+  const derived = {
+    ...complete(),
+    fields: complete().fields.map((f) => (f.name === "Priority" ? { ...f, dataType: "ASSIGNEES" } : f)),
+  };
+  const { root, requests } = await stubGh({ initial: derived });
+  const plan = planBoard(derived, config, new Map());
+
+  expect(plan.blockers.some((b) => b.field === "Priority")).toBe(true);
+
+  const err = (await applyBoardPlan(root, plan, config).catch((e) => e)) as Error;
+  expect(err).toBeInstanceOf(Error);
+  expect(err.message).toContain("unresolved blockers");
+
+  // No create/update mutation may have been issued at all — planBoard's blocker stopped
+  // applyBoardPlan before it ever reached the network.
+  const sent = await requests();
+  expect(sent.some((r) => r.query.includes("updateProjectV2Field"))).toBe(false);
+  expect(sent.some((r) => r.query.includes("createProjectV2Field"))).toBe(false);
+});
+
+test("a mid-loop option-update failure reports which field already succeeded", async () => {
+  // Two single-select fields both need an option added, so the loop updates two fields.
+  // The stub fails the SECOND updateProjectV2Field call, after the first has already
+  // logged its success — the thrown error must carry that already-applied work forward.
+  const missingTwo = {
+    ...complete(),
+    fields: complete().fields.map((f) => {
+      if (f.name === "Status") return { ...f, options: f.options!.filter((o) => o.name !== "Review") };
+      if (f.name === "Priority") return { ...f, options: f.options!.filter((o) => o.name !== "High") };
+      return f;
+    }),
+  };
+  const { root } = await stubGh({ initial: missingTwo, failUpdateOnCall: 2 });
+  const plan = planBoard(missingTwo, config, new Map());
+
+  const err = (await applyBoardPlan(root, plan, config).catch((e) => e)) as Error;
+
+  expect(err).toBeInstanceOf(Error);
+  expect(err.message).toMatch(/Field '(Status|Priority)':/);
+  expect(err.message).toContain("Only custom fields can be updated");
+  expect(err.message).toContain("already updated before failure");
+  // The first field's success must be named, not just "something succeeded".
+  expect(err.message).toMatch(/added option\(s\) on '(Status|Priority)'/);
 });

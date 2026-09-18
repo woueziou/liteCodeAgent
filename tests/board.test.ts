@@ -165,3 +165,28 @@ test("a field of the wrong type is a blocker", () => {
   );
   expect(plan.blockers.find((b) => b.field === "Due Date")!.problem).toContain("TEXT");
 });
+
+test("a name collision with a GitHub-derived field is a blocker, not a mutation attempt", () => {
+  const p = project();
+  const plan = planBoard(
+    { ...p, fields: p.fields.map((f) => (f.name === "Priority" ? { ...f, dataType: "ASSIGNEES" } : f)) },
+    config,
+  );
+  const blocker = plan.blockers.find((b) => b.field === "Priority")!;
+  expect(blocker).toBeDefined();
+  expect(blocker.problem).toContain("ASSIGNEES");
+  expect(blocker.fix).toContain("cannot be edited via the API");
+  // No action of any kind is emitted for a derived-field collision.
+  expect(plan.actions.some((a) => a.field === "Priority")).toBe(false);
+});
+
+test("a derived TITLE field collision is also blocked", () => {
+  const p = project();
+  const plan = planBoard(
+    { ...p, fields: p.fields.map((f) => (f.name === "Status" ? { ...f, dataType: "TITLE" } : f)) },
+    config,
+  );
+  const blocker = plan.blockers.find((b) => b.field === "Status")!;
+  expect(blocker).toBeDefined();
+  expect(blocker.problem).toContain("TITLE");
+});
