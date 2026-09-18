@@ -246,6 +246,51 @@ export function requiredPaths(files: { rel: string; source: string }[]): string[
   return [...paths].sort();
 }
 
+export type MissingConfigPath = { path: string; sources: string[] };
+
+/**
+ * Missing `project.agentSkills.*` leaves the installed packs require. Scoped narrowly to
+ * `agentSkills` rather than every path `requiredPaths` could in principle yield — see
+ * ADR 0006 for why the broader scope was rejected (false positives on `{{#if}}`-guarded
+ * and `{{#each}}` item-scoped paths). A key entirely absent from the config is the failure;
+ * a key present with an empty array is a legitimate "no skills for this agent" and is fine.
+ */
+export function missingAgentSkillPaths(
+  files: { rel: string; source: string; packName: string }[],
+  agentSkills: Record<string, string[]>,
+): MissingConfigPath[] {
+  const sourcesByPath = new Map<string, string[]>();
+  for (const file of files) {
+    for (const path of referencedPaths(file.source)) {
+      if (!/^project\.agentSkills\.[^.]+$/.test(path)) continue;
+      sourcesByPath.set(path, [...(sourcesByPath.get(path) ?? []), `${file.packName}:${file.rel}`]);
+    }
+  }
+  const missing: MissingConfigPath[] = [];
+  for (const [path, sources] of sourcesByPath) {
+    const key = path.slice("project.agentSkills.".length);
+    if (agentSkills[key] === undefined) missing.push({ path, sources: [...new Set(sources)] });
+  }
+  return missing.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/**
+ * Pre-flight: fail before any render/write with an actionable error, instead of letting
+ * the strict template renderer throw a raw `TemplateError` mid-render (see #17).
+ */
+function validateRequiredConfigPaths(
+  config: Config,
+  files: { rel: string; source: string; packName: string }[],
+): void {
+  const missing = missingAgentSkillPaths(files, config.project.agentSkills);
+  if (missing.length === 0) return;
+  throw new Error(
+    "litecode.config.json is missing config path(s) the installed packs require:\n" +
+      missing.map((m) => `  - ${m.path} (referenced by ${m.sources.join(", ")})`).join("\n") +
+      "\n\nRun `litecode config doctor --fix` to fill in missing agentSkills keys, or add them by hand.",
+  );
+}
+
 /** Returns all generated output paths for a source pack file. */
 function outputFiles(file: PackFile, config: Config, target: InstallTarget): { rel: string; content: string }[] {
   const rendered = render(file.source, { project: config.project }, `${file.rel}`);
@@ -362,6 +407,11 @@ export async function buildPlan(projectRoot: string, packsRoot: string, config: 
       if (match?.[1]) packSkills.add(match[1]);
     }
   }
+
+  validateRequiredConfigPaths(
+    config,
+    packs.flatMap(({ packName, pack }) => pack.files.map((file) => ({ ...file, packName }))),
+  );
 
   for (const targetName of targets) {
     for (const { packName, pack } of packs) {

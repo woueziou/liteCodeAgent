@@ -105,7 +105,7 @@ function candidateDomains(d: Detected, available: Set<string>): { match: string;
  * domains already chosen. Asking a human to maintain this list by hand is how it drifts
  * into naming skills that no installed pack provides.
  */
-function deriveAgentSkills(
+export function deriveAgentSkills(
   angles: Angle[],
   domains: { skills: string[] }[],
   available: Set<string>,
