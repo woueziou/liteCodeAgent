@@ -432,7 +432,10 @@ async function cmdBoard(root: string, argv: string[]): Promise<number> {
   const plan = planBoard(remote, config);
 
   for (const a of plan.actions) {
-    const verb = a.kind === "write-board-json" ? c.cyan("write   ") : c.green("create  ");
+    const verb =
+      a.kind === "write-board-json" ? c.cyan("write   ")
+      : a.kind === "add-options" ? c.yellow("update  ")
+      : c.green("create  ");
     console.log(`  ${verb} ${a.field} ${c.dim(a.detail)}`);
   }
   for (const b of plan.blockers) {

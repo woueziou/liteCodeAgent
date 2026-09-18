@@ -4,7 +4,11 @@ export type RemoteField = {
   id: string;
   name: string;
   dataType: string;
-  options?: { id: string; name: string }[];
+  /**
+   * color and description are carried because updating a single-select means resending
+   * the whole option list: anything not echoed back would be silently reset.
+   */
+  options?: { id: string; name: string; color?: string; description?: string }[];
 };
 
 export type RemoteProject = {
@@ -21,7 +25,7 @@ fragment P on ProjectV2 {
   fields(first: 50) {
     nodes {
       ... on ProjectV2Field { id name dataType }
-      ... on ProjectV2SingleSelectField { id name dataType options { id name } }
+      ... on ProjectV2SingleSelectField { id name dataType options { id name color description } }
       ... on ProjectV2IterationField { id name dataType }
     }
   }

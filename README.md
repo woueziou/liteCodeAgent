@@ -289,23 +289,21 @@ provision every field into it.
 
 #### If `board init` reports the Status field as BLOCKED
 
-A brand-new project is provisioned end to end with no manual step. But a project you
-already started carries GitHub's default `Status` field (`Todo` / `In Progress` / `Done`),
-and the pipeline needs seven statuses. `board init` then stops with two blockers: options
-missing, and `Todo` unrecognised.
+A brand-new project is provisioned end to end with no manual step. A project you already
+started carries GitHub's default `Status` field (`Todo` / `In Progress` / `Done`), and the
+pipeline needs seven statuses. The missing ones (`Backlog`, `Planned`, `Blocked`, `Review`,
+`Ready to Merge`) are **added for you** — existing options keep their ids, so no item loses
+its Status, and `board init` aborts rather than writing `board.json` if any item does.
 
-Fix it once in the project's web UI (Settings → Fields → `Status`):
+What is *not* automated is an option the pipeline does not recognise, such as the default
+`Todo`. Deleting one strips it from every item that holds it, and only you can say where
+those items belong. So `board init` stops and asks you to, in the project's web UI:
 
-1. Add the missing options, with these exact labels — `Backlog`, `Planned`, `Blocked`,
-   `Review`, `Ready to Merge`. (`In Progress` and `Done` already exist; leave them alone.)
-2. Move any item sitting in `Todo` to `Backlog`, then delete the `Todo` option.
+1. Move any item sitting in `Todo` to `Backlog`.
+2. Delete the `Todo` option (Settings → Fields → `Status`).
 
-Then re-run `bunx litecodeagent board init --apply`.
-
-This is deliberately not automated. `updateProjectV2Field` replaces a single-select's
-whole option list, so a careless call reassigns every option id and silently nulls the
-Status of every existing item — a failure this project has already lived through once.
-Adding options in the web UI preserves the existing ids.
+Then re-run `bunx litecodeagent board init --apply`. Alternatively, keep the option and
+teach the pipeline what it means by extending `FIELD_SPECS` / `STATUS_ROLES`.
 
 ### 5. Commit
 

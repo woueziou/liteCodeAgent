@@ -2,7 +2,7 @@ import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 import type { Config } from "../config.ts";
 import { graphql, gh } from "./gh.ts";
-import { fetchProject, fetchItems, type RemoteProject } from "./query.ts";
+import { fetchProject, fetchItems, type RemoteProject, type RemoteField } from "./query.ts";
 import {
   FIELD_SPECS,
   STATUS_ROLES,
@@ -13,6 +13,7 @@ import {
 
 export type Action =
   | { kind: "create-field"; field: string; detail: string }
+  | { kind: "add-options"; field: string; detail: string; options: string[] }
   | { kind: "create-label"; field: string; detail: string }
   | { kind: "write-board-json"; field: string; detail: string };
 
@@ -32,14 +33,21 @@ const DATATYPE: Record<string, string> = {
 };
 
 /**
- * Why adding an option to an EXISTING single-select field is never automated here:
+ * Adding an option to an EXISTING single-select field used to be refused here, because
+ * `updateProjectV2Field.singleSelectOptions` replaces the whole option list and the input
+ * type carried no option `id` — every option was reassigned a fresh id, and every board
+ * item whose Status referenced an old id silently became null. That destroyed a real
+ * board once.
  *
- * `updateProjectV2Field.singleSelectOptions` takes a list of {name, color, description} —
- * there is no option `id` in the input type, so the API cannot be asked to preserve the
- * existing option ids. Every option is reassigned a fresh id, and every board item whose
- * Status referenced an old id silently becomes null. That has already destroyed a real
- * board once. So: missing options on an existing field are reported as a blocker for a
- * human to fix in the web UI (which adds options non-destructively), never mutated here.
+ * GitHub has since added `id` to ProjectV2SingleSelectFieldOptionInput, so the existing
+ * options can be echoed back with their own ids (and their own color/description, which
+ * the same call would otherwise reset) while the new ones are appended without one. That
+ * makes adding options non-destructive, and it is automated again — behind a before/after
+ * check that every item still has a Status.
+ *
+ * REMOVING an option stays a blocker, and not for the same reason: no id trick saves the
+ * items that legitimately hold the option being deleted. That one needs a human to decide
+ * where those items go.
  */
 export function planBoard(project: RemoteProject, config: Config): BoardPlan {
   const actions: Action[] = [];
@@ -73,13 +81,11 @@ export function planBoard(project: RemoteProject, config: Config): BoardPlan {
       const have = new Set((remote.options ?? []).map((o) => o.name));
       const missing = spec.options.filter((o) => !have.has(o));
       if (missing.length > 0) {
-        blockers.push({
+        actions.push({
+          kind: "add-options",
           field: spec.name,
-          problem: `missing option(s): ${missing.join(", ")}`,
-          fix:
-            `add them in the project web UI (Settings -> ${spec.name} -> New option). ` +
-            `Not automated: the GraphQL update replaces the whole option list and regenerates ` +
-            `every option id, which nulls the field on every existing board item.`,
+          detail: `add option(s): ${missing.join(", ")} (existing ids preserved)`,
+          options: missing,
         });
       }
       const extra = [...have].filter((o) => !spec.options.includes(o));
@@ -87,7 +93,11 @@ export function planBoard(project: RemoteProject, config: Config): BoardPlan {
         blockers.push({
           field: spec.name,
           problem: `has option(s) the pipeline does not know: ${extra.join(", ")}`,
-          fix: `either remove them, or extend FIELD_SPECS/statusRoles so agents know what they mean`,
+          fix:
+            `move any item holding them to a known option, then delete them in the project ` +
+            `web UI — or extend FIELD_SPECS/statusRoles so agents know what they mean. ` +
+            `Not automated: deleting an option strips it from every item that holds it, ` +
+            `and only a human can say where those items belong.`,
         });
       }
     }
@@ -153,6 +163,36 @@ mutation($projectId: ID!, $name: String!, $options: [ProjectV2SingleSelectFieldO
   }
 }`;
 
+const UPDATE_SELECT_FIELD = `
+mutation($fieldId: ID!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
+  updateProjectV2Field(input: {fieldId: $fieldId, singleSelectOptions: $options}) {
+    projectV2Field { ... on ProjectV2SingleSelectField { id name options { id name } } }
+  }
+}`;
+
+/**
+ * The option list sent to `updateProjectV2Field` is the WHOLE list, not a delta: every
+ * existing option must be echoed back with its own id, color and description, or it is
+ * respectively re-created under a new id (nulling items), recoloured, or stripped of its
+ * description. New options are the only ones sent without an id.
+ */
+export function mergedOptions(
+  remote: RemoteField,
+  specOptions: readonly string[],
+): { id?: string; name: string; color: string; description: string }[] {
+  const existing = new Map((remote.options ?? []).map((o) => [o.name, o]));
+  return specOptions.map((name) => {
+    const prior = existing.get(name);
+    const description = STATUS_ROLES.find((r) => r.label === name)?.description ?? "";
+    return {
+      ...(prior ? { id: prior.id } : {}),
+      name,
+      color: prior?.color ?? "GRAY",
+      description: prior?.description || description,
+    };
+  });
+}
+
 export async function applyBoardPlan(
   projectRoot: string,
   plan: BoardPlan,
@@ -187,6 +227,25 @@ export async function applyBoardPlan(
     log.push(`created field '${spec.name}'`);
   }
 
+  const optionActions = plan.actions.filter((a) => a.kind === "add-options");
+
+  // Baseline taken BEFORE mutating, so a pre-existing null Status is not blamed on this
+  // run — and so a null introduced by this run cannot hide behind one that predates it.
+  const before = optionActions.length > 0 ? await fetchItems(plan.project.id) : [];
+  const nullBefore = before.filter((i) => i.status === null).length;
+
+  for (const action of optionActions) {
+    const spec = FIELD_SPECS.find((f) => f.name === action.field);
+    if (!spec || spec.kind !== "single-select") continue;
+    const remote = plan.project.fields.find((f) => f.name === action.field);
+    if (!remote) continue;
+    await graphql(UPDATE_SELECT_FIELD, {
+      fieldId: remote.id,
+      options: JSON.stringify(mergedOptions(remote, spec.options)),
+    });
+    log.push(`added option(s) to '${spec.name}': ${action.options.join(", ")}`);
+  }
+
   // Re-fetch so board.json carries the ids the server actually assigned, never guesses.
   const refreshed = await fetchProject(config.project.board.owner, plan.project.number);
   const verify = planBoard(refreshed, config);
@@ -195,15 +254,33 @@ export async function applyBoardPlan(
       `Post-apply verification failed:\n${verify.blockers.map((b) => `  - ${b.field}: ${b.problem}`).join("\n")}`,
     );
   }
+  const unapplied = verify.actions.filter((a) => a.kind === "create-field" || a.kind === "add-options");
+  if (unapplied.length > 0) {
+    throw new Error(
+      `Post-apply verification failed: still outstanding after applying:\n` +
+        unapplied.map((a) => `  - ${a.field}: ${a.detail}`).join("\n"),
+    );
+  }
 
   // The failure mode this guards against: a field mutation silently nulling every item's
   // Status. Cheap to check, catastrophic to miss.
   const items = await fetchItems(refreshed.id);
   const nulled = items.filter((i) => i.status === null);
+
+  // The catastrophic failure mode: an option-list update that regenerates every id and
+  // nulls every item's Status. If this run made it worse, say so loudly rather than
+  // writing a board.json that enshrines the damage.
+  if (optionActions.length > 0 && nulled.length > nullBefore) {
+    throw new Error(
+      `Status integrity check failed: ${nulled.length - nullBefore} item(s) lost their Status ` +
+        `during this run (issues: ${nulled.map((i) => i.issue ?? "?").join(", ")}).\n` +
+        `Restore them in the project UI before re-running.`,
+    );
+  }
   if (nulled.length > 0) {
     log.push(
       `WARNING: ${nulled.length} board item(s) have a null Status ` +
-        `(issues: ${nulled.map((i) => i.issue ?? "?").join(", ")}). Verify this predates the run.`,
+        `(issues: ${nulled.map((i) => i.issue ?? "?").join(", ")}). This predates the run.`,
     );
   }
 
