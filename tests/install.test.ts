@@ -148,3 +148,30 @@ test("dropping the web pack surfaces the now-dangling skill references", async (
   config.packs = ["core"];
   await expect(buildPlan(await targetRepo(), PACKS, config)).rejects.toThrow(/frontend-expert/);
 });
+
+test("a config listing the web pack without a project.web block fails pre-flight with an actionable error, not a raw TemplateError", async () => {
+  const config = await exampleConfig();
+  delete (config.project as { web?: unknown }).web;
+  const error = await buildPlan(await targetRepo(), PACKS, config).catch((e) => e);
+  expect(error).toBeInstanceOf(Error);
+  expect(error.message).not.toMatch(/is not defined in the project config/);
+  expect(error.message).toMatch(/project\.web/);
+  expect(error.message).toMatch(/SKILL\.md/);
+});
+
+test("dropping the web pack itself does not falsely demand a project.web block", async () => {
+  const config = await exampleConfig();
+  config.packs = ["core"];
+  delete (config.project as { web?: unknown }).web;
+  const error = await buildPlan(await targetRepo(), PACKS, config).catch((e) => e);
+  // core-only install fails on the dangling frontend-expert skill reference, never on project.web.
+  expect(error.message).not.toMatch(/project\.web/);
+});
+
+test("nothing is written when project.web pre-flight validation fails", async () => {
+  const config = await exampleConfig();
+  delete (config.project as { web?: unknown }).web;
+  const root = await targetRepo();
+  await expect(buildPlan(root, PACKS, config)).rejects.toThrow();
+  expect(await Bun.file(join(root, ".claude", "agents", "sync.md")).exists()).toBe(false);
+});
