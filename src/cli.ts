@@ -12,9 +12,10 @@ import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import type { BoardData } from "./board/spec.ts";
-import { createTicket, listTicketsDetailed } from "./tickets/store.ts";
+import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
 import { planTicketSync, applyTicketSync, planTicketPull, applyTicketPull, fetchTicketItems } from "./tickets/sync.ts";
 import { PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
+import { findDuplicate, localDedupeCandidates, fetchOpenIssueDedupeCandidates, type DedupeCandidate } from "./tickets/dedupe.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
 import { isInteractive, multiSelect } from "./prompt.ts";
@@ -66,8 +67,10 @@ function usage(): void {
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
   ${c.bold("bunx litecodeagent board init")} [--apply]     provision/resolve the GitHub Project board
   ${c.bold("bunx litecodeagent board doctor")}             check board.json against the live board
-  ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..]
-                                     draft a ticket file locally, no GitHub call
+  ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--force]
+                                     draft a ticket file locally; checks the title against local tickets and open
+                                     issues for a likely duplicate first (read-only GitHub call) and blocks if one
+                                     is found — pass --force to create anyway
   ${c.bold("bunx litecodeagent ticket list")}              list local ticket files and their dirty state
   ${c.bold("bunx litecodeagent ticket sync")} [--apply]    pull the board into dirty tickets, then push the batch
                                      ${c.dim("(dry-run by default; --apply writes)")}
@@ -538,6 +541,32 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     if (size && !(SIZES as readonly string[]).includes(size)) {
       console.log(c.red(`--size must be one of ${SIZES.join(", ")}`));
       return 1;
+    }
+    if (!argv.includes("--force")) {
+      const candidates: DedupeCandidate[] = localDedupeCandidates(await listTickets(root, dir));
+      try {
+        candidates.push(...(await fetchOpenIssueDedupeCandidates(config.project.repo)));
+      } catch (e) {
+        console.log(
+          c.yellow(`Could not fetch open issues to check for duplicates (${(e as Error).message}); checked local tickets only.`),
+        );
+      }
+      const duplicate = findDuplicate(title, candidates);
+      if (duplicate) {
+        const where =
+          duplicate.candidate.source === "issue"
+            ? `issue #${duplicate.candidate.ref}`
+            : `local ticket ${duplicate.candidate.ref}`;
+        console.log(c.red(`Likely duplicate of ${where}: "${duplicate.candidate.title}" (${duplicate.reason}).`));
+        console.log(c.dim("If this is genuinely different work that just reads similarly, re-run with --force to create it anyway."));
+        console.log(
+          c.dim(
+            "If the existing ticket/issue actually IS this work and just needs linking, this command cannot attach an `issue:` " +
+              "after the fact — see ticket 0009 for board→file hydration, which is the reconciliation path, not this guard.",
+          ),
+        );
+        return 1;
+      }
     }
     const body = arg(argv, "--body") ?? `${title}\n`;
     const ticket = await createTicket(root, dir, { title, label, body, priority, size });
