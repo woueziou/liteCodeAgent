@@ -1,6 +1,6 @@
 {
-  "litecodeVersion": "0.13.0",
-  "installedAt": "2026-09-18T13:04:09.765Z",
+  "litecodeVersion": "0.13.1",
+  "installedAt": "2026-09-19T10:15:04.051Z",
   "packs": {
     "core": "0.3.0"
   },
@@ -23,7 +23,7 @@
     ".claude/agents/reviewer.md": {
       "pack": "core",
       "version": "0.3.0",
-      "hash": "6414feb50b98f6ff"
+      "hash": "59cc9d0fd77decd1"
     },
     ".claude/agents/tracker.md": {
       "pack": "core",
@@ -68,7 +68,7 @@
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.3.0",
-      "hash": "0c8a093990bdb29d"
+      "hash": "9b11feb1b7d56a33"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
