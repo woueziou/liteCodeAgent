@@ -623,14 +623,22 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     }
 
     if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
-    const log = await applyTicketSync(root, plan, board, {
+    const results = await applyTicketSync(root, plan, board, {
       repo: config.project.repo,
       owner: config.project.board.owner,
       number,
       itemIdCache: config.project.board.itemIdCache,
       onLog: (line) => console.log(`  ${c.green("done")} ${line}`),
     });
-    return log.length === 0 && plan.actions.length > 0 ? 1 : 0;
+    for (const r of results) {
+      console.log(`  ${c.green("result")} ${r.ticket.path} [${r.outcome}] ${r.detail}`);
+    }
+    // `applyTicketSync` only ever processes `plan.actions` (a plan with blockers has already
+    // returned 1 above, before this point), so every entry it produces is "synced" — there is
+    // no "blocked"/"skipped"/"hydrated" branch to check for here. See the `SyncOutcome` doc
+    // comment in tickets/sync.ts for why the type still carries those variants.
+    const nothingHappened = results.length === 0 && plan.actions.length > 0;
+    return nothingHappened ? 1 : 0;
   }
 
   usage();

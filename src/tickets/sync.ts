@@ -129,6 +129,23 @@ async function cacheItemId(root: string, cachePath: string, issue: number, itemI
   await Bun.write(abs, JSON.stringify(ordered, null, 2) + "\n");
 }
 
+/**
+ * Per-ticket outcome of a ticket-sync run.
+ *
+ * `applyTicketSync` itself only ever processes `plan.actions` (tickets `planTicketSync`
+ * decided are dirty and not blocked), so every entry it currently produces is "synced" — the
+ * other three variants are not reachable through this function today. They exist because this
+ * type is meant to describe a ticket's outcome across the wider sync pipeline, not just this
+ * one function: "blocked" and "skipped" mirror `SyncPlan.blockers` / `SyncPlan.skipped`
+ * (currently reported separately, by `planTicketSync`, not merged into this type), and
+ * "hydrated" is reserved for a ticket pulled fresh from the board with no prior local file —
+ * neither producer exists yet. Trim the type back to "synced" only if no caller ends up
+ * needing the other three; don't let it silently rot as dead variants otherwise.
+ */
+export type SyncOutcome = "synced" | "blocked" | "hydrated" | "skipped";
+
+export type PerTicketResult = { ticket: Ticket; outcome: SyncOutcome; detail: string };
+
 export type SyncOptions = {
   repo: string;
   owner: string;
@@ -182,16 +199,16 @@ export async function applyTicketSync(
   plan: SyncPlan,
   board: BoardData,
   opts: SyncOptions,
-): Promise<string[]> {
-  const log: string[] = [];
+): Promise<PerTicketResult[]> {
+  const results: PerTicketResult[] = [];
   const stamp = opts.now ?? (() => new Date().toISOString());
   const emit = (line: string) => {
-    log.push(line);
     opts.onLog?.(line);
   };
 
   for (const action of plan.actions) {
     let ticket = { ...action.ticket };
+    let detail = "";
 
     if (action.kind === "create") {
       const url = (
@@ -210,7 +227,8 @@ export async function applyTicketSync(
       // recreate one.
       ticket = { ...ticket, issue };
       await writeTicket(root, ticket);
-      emit(`created #${issue} from ${ticket.path}`);
+      detail = `created #${issue} from ${ticket.path}`;
+      emit(detail);
       await throttle(opts);
 
       const itemId = (
@@ -237,7 +255,8 @@ export async function applyTicketSync(
         "--title", ticket.title,
         "--body", ticket.body,
       ]);
-      emit(`updated #${action.issue} from ${ticket.path}`);
+      detail = `updated #${action.issue} from ${ticket.path}`;
+      emit(detail);
       await throttle(opts);
     }
 
@@ -255,8 +274,9 @@ export async function applyTicketSync(
 
     ticket = { ...ticket, synced: true, syncedAt: stamp() };
     await writeTicket(root, ticket);
+    results.push({ ticket, outcome: "synced", detail });
   }
-  return log;
+  return results;
 }
 
 export type PullChange = { ticket: Ticket; changes: string[] };
