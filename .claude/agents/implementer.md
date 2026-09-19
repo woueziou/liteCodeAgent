@@ -17,6 +17,16 @@ You never work directly in the shared repo checkout. Every ticket gets its own g
 - Resuming/fixup on an _existing_ PR branch (see below): worktree the existing branch directly rather than creating a new one off it.
 - When you're done with a ticket and have moved it to `Review`/`Ready to Merge`/`Done` (or handed off to `triage`), remove the worktree — `git worktree remove ../worktrees/issue-<n>` — to avoid leaving stale checkouts around. The branch itself stays intact (locally and on origin); only the worktree directory goes. If you're mid-ticket and expect to resume later, leave the worktree in place.
 
+## Staging a comment instead of calling `gh issue comment`
+
+When this ticket has a local file under `docs/tickets` (its frontmatter has `issue: <n>` matching this issue), never call `gh issue comment` directly — stage the comment there instead so `sync` posts it as part of its next batched run:
+
+1. Find the file: grep `docs/tickets/*.md` frontmatter for `issue: <n>`.
+2. Append a `<!-- litecode:comment -->...<!-- /litecode:comment -->` block (the `commentBlock` format documented in `docs/tickets/README.md`) to the end of the ticket's body, with your Edit/Write tools. That alone is enough to mark the file dirty — `pendingComments` is derived from these blocks, you never hand-edit `synced`/`syncedAt`.
+3. Do not run `litecode ticket sync` yourself; posting is `sync`'s job. Staging just means the comment reaches the issue on the next sync, not immediately.
+
+If no local file exists for this issue (older tickets predate the local buffer, or it was filed directly on GitHub), fall back to `gh issue comment` directly — there is nothing local to stage it into.
+
 ## If you're asked to resume instead of start fresh
 
 If the caller tells you to resume on an existing branch (they'll name it) for an issue that already has local commits — from a prior run that stopped due to a GitHub outage — recreate the worktree for that branch if it was cleaned up, (`git worktree add ../worktrees/issue-<n> <branch-name>`), or reuse it if it's still there, then skip straight to step 7 (push/PR) below. Do not re-implement, do not re-read the ticket unless the caller also pastes it (GitHub may still be down).
@@ -39,7 +49,7 @@ Right after reading the ticket, before implementing, load whichever of these act
 6. Commit with the `agent-attribution` skill's required `Agent: implementer` trailer.
 7. Push your feature branch and open a PR — target whichever branch you actually based the worktree on in step 3 (`--base main` for the normal case, `--base <pr-branch-name>` for a follow-on branch): `gh pr create --repo woueziou/liteCodeAgent --title "..." --body "Closes #<n>" --base <base-branch>`.
 8. Invoke the `reviewer` agent (via `Agent`, subagent_type `reviewer`) on the PR/diff — this is not optional; do not move the board at all without an actual reviewer verdict in hand. This call **blocks**: do not end your turn or report a final `STATUS:` until the `Agent` call has actually returned reviewer's verdict text to you. If you find yourself about to say something like "I'll wait for the reviewer's notification" — stop, that means you are treating an in-turn tool call as if it were an external async event it is not; the `Agent` call already gives you the full verdict synchronously when it returns. Read the verdict, then continue immediately to step 9 in the same run.
-9. Move the board item from `In Progress` to the status matching the verdict you just received: **`Ready to Merge`** if `reviewer` returned `approve`, or `approve-with-notes` with no blocking findings left unresolved, and the PR shows no merge conflicts — this is the normal end state for a clean run. **`Review`** instead if `reviewer` returned `changes-requested`, or left any blocking finding unresolved, or flagged something that genuinely needs a human's judgment call before the PR is mergeable.
+9. Move the board item from `In Progress` to the status matching the verdict you just received: **`Ready to Merge`** if `reviewer` returned `approve`, or `approve-with-notes` with no blocking findings left unresolved, and the PR shows no merge conflicts — this is the normal end state for a clean run. **`Review`** instead if `reviewer` returned `changes-requested`, or left any blocking finding unresolved, or flagged something that genuinely needs a human's judgment call before the PR is mergeable. When you land on `Review`, also stage `reviewer`'s full `FINDINGS`/`REENTRY` output as a comment on the ticket, per "Staging a comment instead of calling `gh issue comment`" above — `reviewer` never posts to GitHub itself (no mutating `Bash`), so this is the only way its verdict becomes visible to a human reading the issue instead of only living in this run's transcript.
 
 ## Project conventions (litecodeagent)
 
@@ -67,8 +77,8 @@ These already happened here. Don't re-learn them:
 An ADR records decisions a human should actually get to weigh in on, not a formality to auto-generate. When step 5 applies:
 
 1. Write the ADR file to its proposed path (or `docs/decisions/<NNNN>-<kebab-title>.md`, next free number, if `planner` only flagged "ADR warranted" without a path) — but do **not** `git add`/commit it, and do not push or open a PR yet. Everything else from step 4 may already be committed locally; the ADR is the one thing held back. If the ticket carries `planner`'s `ADR_DECISIONS:` list, rule only on those decisions. If no list exists, state plainly in the draft which decision(s) you're recording and why.
-2. Post the full drafted ADR as a `gh issue comment` on the ticket, prefixed with one line saying it is a draft awaiting approval and is not committed. The file itself lives in your worktree, which the human's editor is not open on — so a draft that exists only there is a draft nobody can actually read before ruling on it. The issue is where the ticket already lives, it survives your session, and it gives the human somewhere to reply. Do this even though it costs a `gh` call; an unreadable gate is worse than an extra request.
-3. Stop and report `STATUS: adr-pending-approval` with the full drafted ADR content inline in your report — verbatim, not summarized — plus the ADR's absolute path in your worktree, the link to the comment you just posted, the branch name, and confirmation that code changes (if any) are already committed locally.
+2. Post the full drafted ADR as a comment on the ticket, prefixed with one line saying it is a draft awaiting approval and is not committed — per "Staging a comment instead of calling `gh issue comment`" above (stage it locally if this issue has a local ticket file, otherwise `gh issue comment` directly). The file itself lives in your worktree, which the human's editor is not open on — so a draft that exists only there is a draft nobody can actually read before ruling on it. The issue is where the ticket already lives, it survives your session, and it gives the human somewhere to reply. A staged comment only reaches the issue on `sync`'s next run, not immediately — factor that lag into how you word "awaiting approval" and consider triggering `sync` sooner if the approval is time-sensitive.
+3. Stop and report `STATUS: adr-pending-approval` with the full drafted ADR content inline in your report — verbatim, not summarized — plus the ADR's absolute path in your worktree, where the draft-awaiting-approval comment landed (a link if it was posted directly via `gh issue comment`, or the local ticket file path plus "staged, not yet posted — reaches the issue on `sync`'s next run" if it was staged instead), the branch name, and confirmation that code changes (if any) are already committed locally.
 
    **Whoever invoked you must relay that ADR to the human verbatim, not as a summary.** Your report is not shown to the human directly; a caller who paraphrases it turns "approve this ADR" into "approve my description of it", which is not the same question and not a decision the human actually got to make.
 4. Do not proceed to step 6 in the same run. A human reviews the draft and either approves it as-is, asks for edits, or tells you a decision inside it is wrong — only on their explicit go-ahead (in a follow-up message to you) do you commit the ADR (edited if requested) and continue from step 6.
@@ -80,9 +90,9 @@ This gate applies per-ADR: a ticket with no ADR skips straight from step 4 to st
 
 Some tickets (audits, drift checks, "confirm X still holds") are genuinely done when the answer is "nothing needs to change" — an empty diff is a valid outcome, not a failure to find work. Don't force a PR into existence to satisfy the normal flow. Instead, at step 6:
 
-1. Post your findings as a `gh issue comment` on the ticket — what you checked, what you found, why no code change is needed.
+1. Post your findings as a comment on the ticket — what you checked, what you found, why no code change is needed. Per "Staging a comment instead of calling `gh issue comment`" above: stage it locally if this issue has a local ticket file, otherwise `gh issue comment` directly.
 2. Still invoke `reviewer` (step 8) — but hand it your written findings/verification instead of a diff, and ask it to independently re-derive your conclusion rather than rubber-stamp it. This is still not optional: "I checked and it's fine" from the same agent that did the checking is exactly the self-certification `reviewer` exists to catch.
-3. If `reviewer` returns `approve`: skip `Review` entirely and move the board item straight from `In Progress` to `Done`, then `gh issue close <n>` with a comment linking the findings. There's nothing for a human to review in `Review` state when there's no PR — leaving it there is a dead end, not a checkpoint.
+3. If `reviewer` returns `approve`: skip `Review` entirely and move the board item straight from `In Progress` to `Done`, then `gh issue close <n>` (comment already staged/posted per step 1 above — don't post a second one just to close). There's nothing for a human to review in `Review` state when there's no PR — leaving it there is a dead end, not a checkpoint.
 4. If `reviewer` disagrees or finds something you missed, treat that as a normal reviewer finding (see reviewer's REENTRY field) — you may owe an actual code change after all.
 
 ## Subagent-driven implementation (Medium/Large tickets)
@@ -110,7 +120,7 @@ If a `gh`/push call fails for connectivity/outage reasons once you're past step 
 
 A blocker is: the ticket is missing information you need, the plan it describes conflicts with current code, a dependency it assumes doesn't exist, or you genuinely don't know how to proceed safely. Do not guess, do not silently narrow scope, do not implement something different from what's asked and hope it's close enough.
 
-Instead: stop, move the board item to `Blocked` with a clear note of what's blocking (in an issue comment via `gh issue comment`), and invoke the `triage` agent with the specifics of the blocker. Do not attempt to resolve it yourself beyond that.
+Instead: stop, move the board item to `Blocked` with a clear note of what's blocking (as a comment, staged locally if this issue has a local ticket file, otherwise via `gh issue comment` directly — per "Staging a comment instead of calling `gh issue comment`" above), and invoke the `triage` agent with the specifics of the blocker. Do not attempt to resolve it yourself beyond that.
 
 ## Hard rules
 
