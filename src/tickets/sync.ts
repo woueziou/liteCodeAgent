@@ -130,14 +130,17 @@ async function cacheItemId(root: string, cachePath: string, issue: number, itemI
 }
 
 /**
- * Per-ticket outcome of an `applyTicketSync` run.
+ * Per-ticket outcome of a ticket-sync run.
  *
- * `applyTicketSync` only ever processes `plan.actions` (tickets `planTicketSync` decided are
- * dirty and not blocked), so every entry it produces is "synced". "blocked" and "skipped"
- * outcomes are surfaced by `planTicketSync` itself (`plan.blockers` / `plan.skipped`); "hydrated"
- * covers a ticket pulled fresh from the board with no prior local file. The type carries all
- * four so a caller that merges plan + apply results (e.g. the CLI) can report one coherent
- * per-ticket status instead of a bare exit code.
+ * `applyTicketSync` itself only ever processes `plan.actions` (tickets `planTicketSync`
+ * decided are dirty and not blocked), so every entry it currently produces is "synced" — the
+ * other three variants are not reachable through this function today. They exist because this
+ * type is meant to describe a ticket's outcome across the wider sync pipeline, not just this
+ * one function: "blocked" and "skipped" mirror `SyncPlan.blockers` / `SyncPlan.skipped`
+ * (currently reported separately, by `planTicketSync`, not merged into this type), and
+ * "hydrated" is reserved for a ticket pulled fresh from the board with no prior local file —
+ * neither producer exists yet. Trim the type back to "synced" only if no caller ends up
+ * needing the other three; don't let it silently rot as dead variants otherwise.
  */
 export type SyncOutcome = "synced" | "blocked" | "hydrated" | "skipped";
 
