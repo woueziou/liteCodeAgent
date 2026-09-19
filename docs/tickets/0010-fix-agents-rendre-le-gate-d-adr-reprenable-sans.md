@@ -149,7 +149,7 @@ committed" precedent this ADR shares with the ticket-buffer dedupe fix.
 ```resume-manifest
 worktree: ../worktrees/issue-28
 branch: fix/resumable-adr-gate/issue-28
-commit: none
+commit: 9f0d150
 adr_path: docs/decisions/0008-adr-gate-resumes-from-durable-comment-manifest.md
 board_status: In Progress
 checks_passed: bun run check: pass; bun test: pass (119 pass, 0 fail)
