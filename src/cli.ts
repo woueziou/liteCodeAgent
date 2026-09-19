@@ -623,14 +623,19 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     }
 
     if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
-    const log = await applyTicketSync(root, plan, board, {
+    const results = await applyTicketSync(root, plan, board, {
       repo: config.project.repo,
       owner: config.project.board.owner,
       number,
       itemIdCache: config.project.board.itemIdCache,
       onLog: (line) => console.log(`  ${c.green("done")} ${line}`),
     });
-    return log.length === 0 && plan.actions.length > 0 ? 1 : 0;
+    for (const r of results) {
+      console.log(`  ${c.green("result")} ${r.ticket.path} [${r.outcome}] ${r.detail}`);
+    }
+    const failed = results.some((r) => r.outcome === "blocked" || r.outcome === "skipped");
+    const nothingHappened = results.length === 0 && plan.actions.length > 0;
+    return failed || nothingHappened ? 1 : 0;
   }
 
   usage();

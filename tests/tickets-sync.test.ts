@@ -95,12 +95,17 @@ echo "unexpected gh call: $*" >&2; exit 1
   expect(plan.actions).toHaveLength(1);
   expect(plan.actions[0]!.kind).toBe("update");
 
-  await applyTicketSync(root, plan, board, SYNC_OPTS);
+  const results = await applyTicketSync(root, plan, board, SYNC_OPTS);
 
   const calls = await callsOf(log);
   expect(calls.some((c) => c.includes("item-edit"))).toBe(false);
   expect(calls.some((c) => c.startsWith("issue edit 42"))).toBe(true);
   expect(calls.some((c) => c.startsWith("issue comment 42"))).toBe(true);
+
+  expect(results).toHaveLength(1);
+  expect(results[0]!.outcome).toBe("synced");
+  expect(results[0]!.detail).toContain("updated #42");
+  expect(results[0]!.ticket.issue).toBe(42);
 });
 
 test("a failure right after `issue create` does not recreate the issue on re-run", async () => {
@@ -137,7 +142,10 @@ echo "unexpected gh call: $*" >&2; exit 1
   const plan2 = planTicketSync([afterFailure!], board);
   expect(plan2.actions).toHaveLength(1);
   expect(plan2.actions[0]!.kind).toBe("update");
-  await applyTicketSync(root, plan2, board, SYNC_OPTS);
+  const results2 = await applyTicketSync(root, plan2, board, SYNC_OPTS);
+  expect(results2).toHaveLength(1);
+  expect(results2[0]!.outcome).toBe("synced");
+  expect(results2[0]!.detail).toContain("updated #7");
 
   const calls2 = await callsOf(log2);
   expect(calls2.some((c) => c.startsWith("issue create"))).toBe(false);

@@ -129,6 +129,20 @@ async function cacheItemId(root: string, cachePath: string, issue: number, itemI
   await Bun.write(abs, JSON.stringify(ordered, null, 2) + "\n");
 }
 
+/**
+ * Per-ticket outcome of an `applyTicketSync` run.
+ *
+ * `applyTicketSync` only ever processes `plan.actions` (tickets `planTicketSync` decided are
+ * dirty and not blocked), so every entry it produces is "synced". "blocked" and "skipped"
+ * outcomes are surfaced by `planTicketSync` itself (`plan.blockers` / `plan.skipped`); "hydrated"
+ * covers a ticket pulled fresh from the board with no prior local file. The type carries all
+ * four so a caller that merges plan + apply results (e.g. the CLI) can report one coherent
+ * per-ticket status instead of a bare exit code.
+ */
+export type SyncOutcome = "synced" | "blocked" | "hydrated" | "skipped";
+
+export type PerTicketResult = { ticket: Ticket; outcome: SyncOutcome; detail: string };
+
 export type SyncOptions = {
   repo: string;
   owner: string;
@@ -182,16 +196,16 @@ export async function applyTicketSync(
   plan: SyncPlan,
   board: BoardData,
   opts: SyncOptions,
-): Promise<string[]> {
-  const log: string[] = [];
+): Promise<PerTicketResult[]> {
+  const results: PerTicketResult[] = [];
   const stamp = opts.now ?? (() => new Date().toISOString());
   const emit = (line: string) => {
-    log.push(line);
     opts.onLog?.(line);
   };
 
   for (const action of plan.actions) {
     let ticket = { ...action.ticket };
+    let detail = "";
 
     if (action.kind === "create") {
       const url = (
@@ -210,7 +224,8 @@ export async function applyTicketSync(
       // recreate one.
       ticket = { ...ticket, issue };
       await writeTicket(root, ticket);
-      emit(`created #${issue} from ${ticket.path}`);
+      detail = `created #${issue} from ${ticket.path}`;
+      emit(detail);
       await throttle(opts);
 
       const itemId = (
@@ -237,7 +252,8 @@ export async function applyTicketSync(
         "--title", ticket.title,
         "--body", ticket.body,
       ]);
-      emit(`updated #${action.issue} from ${ticket.path}`);
+      detail = `updated #${action.issue} from ${ticket.path}`;
+      emit(detail);
       await throttle(opts);
     }
 
@@ -255,8 +271,9 @@ export async function applyTicketSync(
 
     ticket = { ...ticket, synced: true, syncedAt: stamp() };
     await writeTicket(root, ticket);
+    results.push({ ticket, outcome: "synced", detail });
   }
-  return log;
+  return results;
 }
 
 export type PullChange = { ticket: Ticket; changes: string[] };
