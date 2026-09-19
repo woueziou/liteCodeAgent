@@ -275,6 +275,30 @@ export function missingAgentSkillPaths(
 }
 
 /**
+ * Missing `project.web` block despite being referenced unconditionally (no `{{#if}}` guard)
+ * by an installed pack's templates — e.g. every `packs/web/**\/SKILL.md`. Unlike
+ * `agentSkills`, `project.web` is a single `.optional()` object (`src/config.ts`), not a
+ * per-key record, so there is no finer granularity to report: either the whole block is
+ * present (in which case its own required fields are already schema-enforced) or it's
+ * entirely absent. See ADR 0006's "Consequences" section, which flagged this exact gap as
+ * an unfixed follow-up when #17 deliberately scoped its fix to `agentSkills` only.
+ */
+export function missingWebConfigPaths(
+  files: { rel: string; source: string; packName: string }[],
+  web: unknown,
+): MissingConfigPath[] {
+  if (web !== undefined) return [];
+  const sources = new Set<string>();
+  for (const file of files) {
+    for (const path of referencedPaths(file.source)) {
+      if (path === "project.web" || path.startsWith("project.web.")) sources.add(`${file.packName}:${file.rel}`);
+    }
+  }
+  if (sources.size === 0) return [];
+  return [{ path: "project.web", sources: [...sources].sort() }];
+}
+
+/**
  * Pre-flight: fail before any render/write with an actionable error, instead of letting
  * the strict template renderer throw a raw `TemplateError` mid-render (see #17).
  */
@@ -282,12 +306,16 @@ function validateRequiredConfigPaths(
   config: Config,
   files: { rel: string; source: string; packName: string }[],
 ): void {
-  const missing = missingAgentSkillPaths(files, config.project.agentSkills);
+  const missing = [
+    ...missingAgentSkillPaths(files, config.project.agentSkills),
+    ...missingWebConfigPaths(files, config.project.web),
+  ];
   if (missing.length === 0) return;
   throw new Error(
     "litecode.config.json is missing config path(s) the installed packs require:\n" +
       missing.map((m) => `  - ${m.path} (referenced by ${m.sources.join(", ")})`).join("\n") +
-      "\n\nRun `litecode config doctor --fix` to fill in missing agentSkills keys, or add them by hand.",
+      "\n\nRun `litecode config doctor --fix` to fill in missing agentSkills keys, or add the" +
+      " missing `project.web` block by hand (required when the `web` pack is installed).",
   );
 }
 
