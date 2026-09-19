@@ -19,7 +19,7 @@ Le humain ne veut plus avoir à demander la synchronisation à chaque fois: elle
 
 ## Contraintes vérifiées (ne pas re-dériver)
 
-- Décision déjà prise par le humain dans ce projet: `synced: false` vaut VERROU — un ticket qui porte des modifications locales non synchronisées est considéré « en vol » et aucun autre agent ne doit le prendre (voir ticket 0008). Un sync qui se déclenche tout seul doit donc savoir s'il est en train de publier l'état d'un agent encore au travail, ou de libérer un verrou.
+- ~~Décision déjà prise: `synced: false` vaut VERROU (voir ticket 0008)~~ — CORRIGÉ par triage: ticket 0008 (issue #26) a été closed "not planned", jamais implémenté; `synced` reste aujourd'hui un simple flag dirty/pushed-or-not (vérifié dans `src/tickets/spec.ts`/`store.ts`/`sync.ts`). Ne pas supposer de sémantique de verrou. Ce ticket ne doit pas re-dériver le verrou unilatéralement.
 - Décision déjà prise: `applyTicketSync` doit retourner un résultat TYPÉ par ticket (`{ticket, outcome: "synced"|"blocked"|"hydrated"|"skipped", detail}`) au lieu de l'actuel `Promise<string[]>` (voir ticket 0007). Un déclenchement automatique a besoin de ce résultat structuré pour décider quoi faire d'un échec sans intervention humaine.
 - Décision déjà prise: politique de conflit = detect-and-block. Un sync automatique ne doit JAMAIS résoudre un conflit tout seul; il doit s'arrêter et le signaler.
 - `src/tickets/sync.ts:246-252` persiste le fichier après CHAQUE mutation pour qu'un crash en milieu de lot reste reprenable et ne reposte pas les commentaires déjà postés. Tout déclenchement automatique doit préserver cet invariant.
@@ -33,6 +33,8 @@ Le humain ne veut plus avoir à demander la synchronisation à chaque fois: elle
 
 ## Dependencies
 
-Dépend du ticket 0007 (résultat typé) et devrait suivre 0008 (verrou), puisque le sens du déclenchement dépend de la sémantique du verrou.
+Dépend du ticket 0007 (résultat typé) — issue #25, MERGÉ (PR #36), satisfait.
+
+~~devrait suivre 0008 (verrou)~~ — ticket 0008 (issue #26) a été CLOSED "not planned" par le owner, jamais implémenté. Ce ticket est donc RE-SCOPÉ pour ne plus dépendre de la sémantique de verrou (voir triage: https://github.com/woueziou/liteCodeAgent/issues/31#issuecomment-5745408296). Scope actuel: déclencheur + gestion de conflit detect-and-block sans surveillance + anti-emballement (throttling `gh`). La sémantique "en vol vs verrou libéré" est retirée des critères d'acceptation; un suivi lock-aware nécessitera une décision humaine sur la replanification de 0008 avant d'être scopé.
 
 generated_by: tracker

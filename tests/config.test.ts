@@ -41,7 +41,12 @@ test("a config predating the ticket buffer, with no `tickets` key at all, still 
       board: { owner: "demo" },
     },
   });
-  expect(config.project.tickets).toEqual({ enabled: true, dir: "docs/tickets" });
+  expect(config.project.tickets).toEqual({
+    enabled: true,
+    dir: "docs/tickets",
+    autoStateFile: ".claude/data/ticket-sync-auto-state.json",
+    autoMinIntervalMs: 60_000,
+  });
 });
 
 test("addTargets extends a legacy single-target config", () => {

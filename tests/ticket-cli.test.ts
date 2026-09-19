@@ -121,3 +121,34 @@ test("`ticket list` reports a malformed file as an error without losing the othe
   expect(list).toContain("error");
   expect(list).toContain("0002-broken.md");
 });
+
+test("`ticket sync --auto` no-ops without touching `gh` when the last attempt is inside the cooldown", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Anything", "--label", "feature"]);
+
+  await Bun.write(
+    join(root, ".claude/data/ticket-sync-auto-state.json"),
+    JSON.stringify({ lastAttemptAt: new Date().toISOString(), blockers: {} }, null, 2) + "\n",
+  );
+
+  // No `gh` stub installed at all: if the cooldown didn't short-circuit before `ensureAuth`,
+  // this would fail trying to invoke a real `gh` binary instead of just no-op'ing.
+  const output = await runCli(root, ["ticket", "sync", "--auto"]);
+  expect(output).toMatch(/skipping auto-sync/i);
+});
+
+test("`ticket sync --auto` runs (and records the attempt) once the cooldown has passed", async () => {
+  const root = await project();
+
+  await Bun.write(
+    join(root, ".claude/data/ticket-sync-auto-state.json"),
+    JSON.stringify({ lastAttemptAt: new Date(0).toISOString(), blockers: {} }, null, 2) + "\n",
+  );
+  await stubGhIssueList([]);
+
+  const output = await runCli(root, ["ticket", "sync", "--auto"]);
+  expect(output).not.toMatch(/skipping auto-sync/i);
+
+  const state = await Bun.file(join(root, ".claude/data/ticket-sync-auto-state.json")).json();
+  expect(Date.now() - Date.parse(state.lastAttemptAt)).toBeLessThan(60_000);
+});
