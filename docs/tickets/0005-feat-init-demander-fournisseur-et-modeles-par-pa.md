@@ -10,7 +10,7 @@ assignedAgent: implementer
 dueDate: 
 issue: 19
 synced: true
-syncedAt: 2026-09-18T16:52:30.820Z
+syncedAt: 2026-09-18T17:28:10.544Z
 ---
 
 ## Le vrai défaut, plus large que le littéral codé en dur
