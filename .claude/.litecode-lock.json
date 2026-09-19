@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.13.1",
-  "installedAt": "2026-09-19T10:15:04.051Z",
+  "installedAt": "2026-09-19T21:15:40.484Z",
   "packs": {
     "core": "0.3.0"
   },
@@ -13,17 +13,17 @@
     ".claude/agents/synthesizer.md": {
       "pack": "core",
       "version": "0.3.0",
-      "hash": "742a7783f97a92ea"
+      "hash": "d1c4be595234adfe"
     },
     ".claude/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.3.0",
-      "hash": "94e49657e4302159"
+      "hash": "f2af38139f077677"
     },
     ".claude/agents/reviewer.md": {
       "pack": "core",
       "version": "0.3.0",
-      "hash": "59cc9d0fd77decd1"
+      "hash": "e08a4009946fedc4"
     },
     ".claude/agents/tracker.md": {
       "pack": "core",
