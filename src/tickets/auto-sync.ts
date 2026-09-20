@@ -1,7 +1,7 @@
 /**
  * Safety rails for an unattended `ticket sync --auto` run: a cooldown so a failing trigger
  * can't retry in a tight loop, and a durable trace for a detect-and-block conflict that
- * happens when nobody is watching stdout. See ADR 0008 (issue #31).
+ * happens when nobody is watching stdout. See ADR 0009 (issue #31).
  *
  * Deliberately pure/stateless functions over a plain `AutoSyncState` value: the only I/O
  * (reading/writing `config.project.tickets.autoStateFile`) lives in the CLI glue, so this

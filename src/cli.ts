@@ -611,7 +611,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     // cron wrapper) without a human deciding each time whether it's a good moment. The
     // cooldown is what makes that safe: a caller that re-invokes `--auto` on every single
     // agent action does not turn into a `gh`-call storm just because nothing changed since
-    // the last attempt. See ADR 0008 (issue #31).
+    // the last attempt. See ADR 0009 (issue #31).
     let autoState = auto ? await loadAutoSyncState(root, autoStateFile) : null;
     if (autoState) {
       if (shouldSkipForCooldown(autoState, now, autoMinIntervalMs)) {

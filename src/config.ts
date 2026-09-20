@@ -53,7 +53,7 @@ const TicketsSchema = z.object({
   dir: z.string().default("docs/tickets"),
   /**
    * Where `ticket sync --auto` persists its cooldown timestamp and unresolved blocker
-   * trace. See ADR 0008 (issue #31): an unattended auto-trigger must leave a durable trace
+   * trace. See ADR 0009 (issue #31): an unattended auto-trigger must leave a durable trace
    * of a detect-and-block conflict, not just stdout nobody is watching, and must remember
    * its last attempt so it can refuse to run again before `autoMinIntervalMs` has passed.
    */
