@@ -16,9 +16,9 @@ import { join } from "node:path";
 import { gh } from "../board/gh.ts";
 import type { BoardData } from "../board/spec.ts";
 import { fetchTicketItems, type RemoteItem } from "./remote.ts";
-import { priorityOption, sizeOption, type Ticket } from "./spec.ts";
+import { priorityOption, sizeOption, slugify, type Ticket, type TicketMeta } from "./spec.ts";
 import { PRIORITIES, SIZES } from "./spec.ts";
-import { writeTicket } from "./store.ts";
+import { nextNumber, writeTicket } from "./store.ts";
 
 export type FieldEdit = {
   field: string;
@@ -133,14 +133,12 @@ async function cacheItemId(root: string, cachePath: string, issue: number, itemI
  * Per-ticket outcome of a ticket-sync run.
  *
  * `applyTicketSync` itself only ever processes `plan.actions` (tickets `planTicketSync`
- * decided are dirty and not blocked), so every entry it currently produces is "synced" — the
- * other three variants are not reachable through this function today. They exist because this
- * type is meant to describe a ticket's outcome across the wider sync pipeline, not just this
- * one function: "blocked" and "skipped" mirror `SyncPlan.blockers` / `SyncPlan.skipped`
- * (currently reported separately, by `planTicketSync`, not merged into this type), and
- * "hydrated" is reserved for a ticket pulled fresh from the board with no prior local file —
- * neither producer exists yet. Trim the type back to "synced" only if no caller ends up
- * needing the other three; don't let it silently rot as dead variants otherwise.
+ * decided are dirty and not blocked), so every entry it produces is "synced" — "blocked"
+ * and "skipped" mirror `SyncPlan.blockers` / `SyncPlan.skipped` (reported separately, by
+ * `planTicketSync`, not merged into this type). "hydrated" is now produced too, but by a
+ * separate producer (`planTicketHydration`/`applyTicketHydration`), for a board item that
+ * had no local file at all — see issue #27. Trim the type back to "synced"/"hydrated"
+ * only if "blocked"/"skipped" never end up needing to merge in here.
  */
 export type SyncOutcome = "synced" | "blocked" | "hydrated" | "skipped";
 
@@ -286,6 +284,102 @@ function statusRoleFor(board: BoardData, label: string): Ticket["status"] | null
     if (v.label === label) return role as Ticket["status"];
   }
   return null;
+}
+
+const KNOWN_LABELS: readonly TicketMeta["label"][] = ["bug", "feature", "doc", "chore"];
+
+function labelFor(remote: RemoteItem): TicketMeta["label"] {
+  return remote.labels.find((l): l is TicketMeta["label"] => (KNOWN_LABELS as readonly string[]).includes(l)) ?? "chore";
+}
+
+export type HydrationSkip = { issue: number; reason: string };
+
+export type HydrationPlan = { toCreate: Ticket[]; skipped: HydrationSkip[] };
+
+/**
+ * Board -> file, for board items that have **no local file at all** yet (filed directly
+ * on GitHub, or created before the local buffer existed). Without this, `dispatcher`
+ * ranking from the local buffer would have a strictly worse view than querying the board
+ * directly — a board item invisible to the pipeline is worse than one it can at least see
+ * and rank. See ticket 0009 / issue #27.
+ *
+ * Every hydrated ticket is written `synced: true` — it mirrors exactly what the board
+ * already holds, so there is nothing pending to push. A board item whose Status is not
+ * yet set is skipped rather than hydrated with a fabricated default: there is nothing to
+ * rank it by, and materialising a file with an invented status would misrepresent the
+ * board, not reconcile it. `dispatcher` is expected to log these skips, not silently drop
+ * them (Context section of issue #27: a board item with NULL fields must not be invisible).
+ */
+export function planTicketHydration(
+  tickets: Ticket[],
+  board: BoardData,
+  remote: Map<number, RemoteItem>,
+  dir: string,
+): HydrationPlan {
+  const known = new Set(tickets.filter((t) => t.issue !== undefined).map((t) => t.issue));
+  const toCreate: Ticket[] = [];
+  const skipped: HydrationSkip[] = [];
+  // `nextNumber` looks at file ids only, so track pending creations in the same batch too
+  // — otherwise two board items hydrated in one run would collide on the same NNNN.
+  let pool = [...tickets];
+
+  // Deterministic order (ascending issue number) so a hydration run's output — and the
+  // NNNN each gets assigned — doesn't depend on GraphQL's pagination order.
+  const items = [...remote.values()].sort((a, b) => a.issue - b.issue);
+
+  for (const item of items) {
+    if (known.has(item.issue)) continue;
+    if (item.state && item.state !== "OPEN") {
+      skipped.push({ issue: item.issue, reason: `issue is ${item.state.toLowerCase()}, not pipeline-relevant` });
+      continue;
+    }
+    const statusLabel = item.fields.get("Status");
+    if (!statusLabel) {
+      skipped.push({ issue: item.issue, reason: "no Status set on the board item — nothing to rank it by" });
+      continue;
+    }
+    const status = statusRoleFor(board, statusLabel);
+    if (!status) {
+      skipped.push({ issue: item.issue, reason: `Status '${statusLabel}' does not map to any known role (board.json may be stale)` });
+      continue;
+    }
+
+    const priorityRaw = item.fields.get("Priority")?.toLowerCase();
+    const priority = (PRIORITIES as readonly string[]).includes(priorityRaw ?? "") ? (priorityRaw as Ticket["priority"]) : "medium";
+    const sizeRaw = item.fields.get("Size")?.toLowerCase();
+    const size = (SIZES as readonly string[]).includes(sizeRaw ?? "") ? (sizeRaw as Ticket["size"]) : "medium";
+    const dueDateRaw = item.fields.get("Due Date");
+    const dueDate = dueDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dueDateRaw) ? dueDateRaw : undefined;
+
+    const title = item.title ?? `Issue #${item.issue}`;
+    const id = `${String(nextNumber(pool)).padStart(4, "0")}-${slugify(title)}`;
+    const ticket: Ticket = {
+      schemaVersion: 1,
+      id,
+      title,
+      label: labelFor(item),
+      status,
+      priority,
+      size,
+      assignedAgent: item.fields.get("Assigned Agent") ?? "human",
+      dueDate,
+      issue: item.issue,
+      synced: true,
+      syncedAt: new Date().toISOString(),
+      path: join(dir, `${id}.md`),
+      body: (item.body?.trim() || `Hydrated from #${item.issue} — see the GitHub issue for the full body.`) + "\n",
+      pendingComments: [],
+    };
+    toCreate.push(ticket);
+    pool = [...pool, ticket];
+  }
+
+  return { toCreate, skipped };
+}
+
+/** Writes every hydrated ticket to its file. */
+export async function applyTicketHydration(root: string, toCreate: Ticket[]): Promise<void> {
+  for (const ticket of toCreate) await writeTicket(root, ticket);
 }
 
 /**

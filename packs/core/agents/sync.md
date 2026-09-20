@@ -16,8 +16,9 @@ Run it once without `--apply` first if you want to preview the plan (create/upda
 
 ## What this does, and why it is the only agent allowed to do it
 
-Every dirty ticket file under the local buffer (`synced: false`, or holding staged comments) gets synced in a single pass:
+Every dirty ticket file under the local buffer (`synced: false`, or holding staged comments) gets synced in a single pass, after a hydration pass that runs first:
 
+0. **Hydrate.** Any board item with no matching local file at all (filed directly on GitHub, or predating the buffer) gets one materialised, `synced: true`, from what the board already shows. A board item with no Status set yet is skipped instead — there's nothing to rank it by, so a fabricated default would misrepresent the board rather than reconcile it — and reported, not silently dropped (see `dispatcher`'s "Local-first ranking" section for why this matters: it is the only thing standing between an invisible board item and a dispatcher that ranks with a strictly worse view than before).
 1. **Pull first.** Whatever a human or another agent moved on the board — Status, Priority, Size, Assigned Agent — is read back into the file before anything is pushed. This is not optional and cannot be skipped: a push that runs before a pull risks overwriting board state the file hasn't seen yet.
 2. **Push second**, and only what is still allowed to be pushed:
    - A ticket with no `issue` yet is **created**: `gh issue create`, added to the board, and its Status/Priority/Size are set **for the first and only time** — the board has never seen this item before, so there is nothing to conflict with.

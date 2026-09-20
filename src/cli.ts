@@ -13,7 +13,15 @@ import { doctor } from "./board/doctor.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import type { BoardData } from "./board/spec.ts";
 import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
-import { planTicketSync, applyTicketSync, planTicketPull, applyTicketPull, fetchTicketItems } from "./tickets/sync.ts";
+import {
+  planTicketSync,
+  applyTicketSync,
+  planTicketPull,
+  applyTicketPull,
+  planTicketHydration,
+  applyTicketHydration,
+  fetchTicketItems,
+} from "./tickets/sync.ts";
 import {
   loadAutoSyncState,
   saveAutoSyncState,
@@ -643,24 +651,42 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(c.red("Fix the malformed ticket file(s) above before syncing."));
       return 1;
     }
-    if (tickets.length === 0) {
-      console.log(c.dim(`No tickets in ${dir}.`));
-      return 0;
-    }
 
     const board = await loadBoardData(root, config.project.board.dataFile);
     const remote = await fetchTicketItems(board.projectId);
 
+    // Hydration first: a board item with no local file at all is invisible to everything
+    // below (pull only reconciles tickets that already have a file), so it must be
+    // materialised before pull/push can reason about the buffer as a whole. See
+    // `planTicketHydration`'s doc comment / issue #27.
+    const hydration = planTicketHydration(tickets, board, remote, dir);
+    for (const t of hydration.toCreate) {
+      console.log(`  ${c.cyan("hydrate")} ${t.path} (from #${t.issue})`);
+    }
+    for (const s of hydration.skipped) {
+      console.log(`  ${c.dim("skip  ")} #${s.issue} ${c.dim(`(${s.reason})`)}`);
+    }
+
+    if (tickets.length === 0 && hydration.toCreate.length === 0) {
+      console.log(c.dim(`No tickets in ${dir}.`));
+      return 0;
+    }
+
+    if (argv.includes("--apply") && hydration.toCreate.length > 0) {
+      await applyTicketHydration(root, hydration.toCreate);
+    }
+    const allTickets = argv.includes("--apply") ? [...tickets, ...hydration.toCreate] : tickets;
+
     // Pull before push, always: a push must never overwrite board state this run hasn't
     // read yet.
-    const pullChanges = planTicketPull(tickets, board, remote);
+    const pullChanges = planTicketPull(allTickets, board, remote);
     for (const change of pullChanges) {
       console.log(`  ${c.cyan("pull")} ${change.ticket.path}`);
       for (const line of change.changes) console.log(`    ${line}`);
     }
 
     const pulledById = new Map(pullChanges.map((p) => [p.ticket.id, p.ticket]));
-    const afterPull = tickets.map((t) => pulledById.get(t.id) ?? t);
+    const afterPull = allTickets.map((t) => pulledById.get(t.id) ?? t);
 
     const plan = planTicketSync(afterPull, board);
     for (const a of plan.actions) {
@@ -716,9 +742,11 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(`  ${c.green("result")} ${r.ticket.path} [${r.outcome}] ${r.detail}`);
     }
     // `applyTicketSync` only ever processes `plan.actions` (a plan with blockers has already
-    // returned 1 above, before this point), so every entry it produces is "synced" — there is
-    // no "blocked"/"skipped"/"hydrated" branch to check for here. See the `SyncOutcome` doc
-    // comment in tickets/sync.ts for why the type still carries those variants.
+    // returned 1 above, before this point), so every entry it produces is "synced" — the
+    // "hydrated" outcome is produced separately, above, by `planTicketHydration` /
+    // `applyTicketHydration` (already logged and written before this point runs); "blocked"
+    // and "skipped" mirror `SyncPlan.blockers`/`SyncPlan.skipped`, reported separately too.
+    // See the `SyncOutcome` doc comment in tickets/sync.ts for the full picture.
     const nothingHappened = results.length === 0 && plan.actions.length > 0;
     return nothingHappened ? 1 : 0;
   }
