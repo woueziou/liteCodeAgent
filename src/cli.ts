@@ -652,6 +652,16 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       return 1;
     }
 
+    // Hydration needs the board even with an empty local ticket dir (a board-only item
+    // could still need hydrating), but a genuinely fresh repo — no local tickets *and*
+    // `board init --apply` never run yet — must still no-op gracefully here rather than
+    // hard-fail on a missing `board.json`, same as it did before hydration existed.
+    const boardDataPath = resolve(root, config.project.board.dataFile);
+    if (tickets.length === 0 && !(await Bun.file(boardDataPath).exists())) {
+      console.log(c.dim(`No tickets in ${dir}.`));
+      return 0;
+    }
+
     const board = await loadBoardData(root, config.project.board.dataFile);
     const remote = await fetchTicketItems(board.projectId);
 
@@ -679,7 +689,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     // still falling through into a real apply for everything else below.
     const applying = argv.includes("--apply") || auto;
     if (applying && hydration.toCreate.length > 0) {
-      await applyTicketHydration(root, hydration.toCreate);
+      await applyTicketHydration(root, dir, hydration.toCreate);
     }
     const allTickets = applying ? [...tickets, ...hydration.toCreate] : tickets;
 

@@ -28,7 +28,7 @@ import type { BoardData } from "../board/spec.ts";
 import { fetchTicketItems, type RemoteItem } from "./remote.ts";
 import { priorityOption, sizeOption, slugify, type Ticket, type TicketMeta } from "./spec.ts";
 import { PRIORITIES, SIZES } from "./spec.ts";
-import { nextNumber, writeTicket } from "./store.ts";
+import { listTickets, nextNumber, writeTicket, writeTicketExclusive } from "./store.ts";
 
 export type FieldEdit = {
   field: string;
@@ -448,8 +448,39 @@ export function planTicketHydration(
 }
 
 /** Writes every hydrated ticket to its file. */
-export async function applyTicketHydration(root: string, toCreate: Ticket[]): Promise<void> {
-  for (const ticket of toCreate) await writeTicket(root, ticket);
+const MAX_HYDRATION_ATTEMPTS = 8;
+
+/**
+ * A plain `writeTicket` here would reopen the exact race `createTicket`'s exclusive
+ * `wx`-flag write exists to close (see `store.ts`'s doc comment on it): `planTicketHydration`
+ * assigns each candidate's NNNN from a listing taken at plan time, and a concurrent
+ * `ticket new` or a second concurrent hydration run can pick the same next-id before this
+ * runs. `writeTicketExclusive` refuses to overwrite whatever won that race; on collision,
+ * `dir` lets this re-derive a fresh NNNN (the id is the only thing that can collide — issue
+ * number, title, etc. came from the board and don't change) and retry, same pattern as
+ * `createTicket`.
+ */
+export async function applyTicketHydration(root: string, dir: string, toCreate: Ticket[]): Promise<void> {
+  for (const planned of toCreate) {
+    let ticket = planned;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await writeTicketExclusive(root, ticket);
+        break;
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+        if (attempt >= MAX_HYDRATION_ATTEMPTS) {
+          throw new Error(
+            `Could not hydrate #${ticket.issue} after ${MAX_HYDRATION_ATTEMPTS} attempts — ` +
+              "too many concurrent writers picking the same id.",
+          );
+        }
+        const existing = await listTickets(root, dir);
+        const id = `${String(nextNumber(existing)).padStart(4, "0")}-${slugify(ticket.title)}`;
+        ticket = { ...ticket, id, path: join(dir, `${id}.md`) };
+      }
+    }
+  }
 }
 
 /**

@@ -146,10 +146,55 @@ test("applyTicketHydration writes every hydrated ticket to disk", async () => {
   const remote = new Map<number, RemoteItem>([[30, remoteItem({ issue: 30, title: "Hydrate me", fields: new Map([["Status", "Backlog"]]) })]]);
   const plan = planTicketHydration([], board, remote, "docs/tickets");
 
-  await applyTicketHydration(root, plan.toCreate);
+  await applyTicketHydration(root, "docs/tickets", plan.toCreate);
 
   const onDisk = await listTickets(root, "docs/tickets");
   expect(onDisk).toHaveLength(1);
   expect(onDisk[0]!.issue).toBe(30);
   expect(onDisk[0]!.synced).toBe(true);
+});
+
+test("applyTicketHydration does not clobber a file that already won the race for its planned id", async () => {
+  const root = await mkdtemp(join(tmpdir(), "litecode-hydrate-"));
+  const dir = "docs/tickets";
+  const board = boardFixture();
+  const remote = new Map<number, RemoteItem>([[31, remoteItem({ issue: 31, title: "Hydrate me too", fields: new Map([["Status", "Backlog"]]) })]]);
+  const plan = planTicketHydration([], board, remote, dir);
+  expect(plan.toCreate).toHaveLength(1);
+  const planned = plan.toCreate[0]!;
+  expect(planned.id).toBe("0001-hydrate-me-too"); // first ticket in an empty buffer -> 0001
+
+  // Simulate a concurrent writer that already claimed 0001 (a `ticket new` draft that ran
+  // between planning and applying) before hydration's own write happens.
+  const { writeTicketExclusive } = await import("../src/tickets/store.ts");
+  const concurrent: Ticket = {
+    schemaVersion: 1,
+    id: "0001-someone-elses-draft",
+    title: "Someone else's draft",
+    label: "feature",
+    status: "backlog",
+    priority: "medium",
+    size: "medium",
+    assignedAgent: "human",
+    dueDate: undefined,
+    issue: undefined,
+    synced: false,
+    syncedAt: undefined,
+    path: join(dir, "0001-hydrate-me-too.md"), // collides with the planned hydration path directly
+    body: "Concurrent draft body.\n",
+    pendingComments: [],
+  };
+  await writeTicketExclusive(root, concurrent);
+
+  await applyTicketHydration(root, dir, plan.toCreate);
+
+  const onDisk = await listTickets(root, dir);
+  // Both tickets must exist — the concurrent draft untouched, and the hydrated ticket
+  // retried onto a fresh id instead of overwriting it.
+  expect(onDisk).toHaveLength(2);
+  const draft = onDisk.find((t) => t.title === "Someone else's draft");
+  expect(draft?.id).toBe("0001-someone-elses-draft");
+  const hydrated = onDisk.find((t) => t.issue === 31);
+  expect(hydrated).toBeDefined();
+  expect(hydrated!.id).not.toBe("0001-hydrate-me-too");
 });

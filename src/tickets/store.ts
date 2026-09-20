@@ -1,6 +1,6 @@
 /** Reading and writing the ticket buffer directory. No GitHub access lives here. */
 
-import { readdir, mkdir } from "node:fs/promises";
+import { readdir, mkdir, open } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { parseTicket, serializeTicket, slugify, type Ticket, type TicketMeta } from "./spec.ts";
 
@@ -55,6 +55,27 @@ export async function writeTicket(root: string, ticket: Ticket): Promise<void> {
 }
 
 /**
+ * Like `writeTicket`, but refuses to overwrite anything already at `ticket.path` — throws
+ * an `EEXIST` error instead. `createTicket` needs this to avoid two concurrent drafters
+ * silently clobbering each other's file for the same id; `applyTicketHydration`
+ * (`src/tickets/sync.ts`) needs the identical guarantee for the same reason (two
+ * concurrent `sync` runs, or a hydration racing a concurrent `ticket new`, picking the
+ * same next-id).
+ */
+export async function writeTicketExclusive(root: string, ticket: Ticket): Promise<void> {
+  const abs = resolve(root, ticket.path);
+  await mkdir(join(abs, ".."), { recursive: true });
+  // node:fs 'wx' flag: fails with EEXIST rather than silently overwriting a file that won
+  // the race for this id since the caller last listed the directory.
+  const fd = await open(abs, "wx");
+  try {
+    await fd.writeFile(serializeTicket(ticket));
+  } finally {
+    await fd.close();
+  }
+}
+
+/**
  * Numbers are local file identity only — deliberately not GitHub issue numbers, which do
  * not exist yet at draft time and are assigned by GitHub on sync.
  */
@@ -102,15 +123,8 @@ export async function createTicket(root: string, dir: string, input: NewTicket):
       pendingComments: [],
     };
 
-    const abs = resolve(root, ticket.path);
-    await mkdir(join(abs, ".."), { recursive: true });
-
     try {
-      // node:fs 'wx' flag: fails with EEXIST rather than silently overwriting a file that
-      // won the race for this id since we listed `existing` above.
-      const fd = await import("node:fs/promises").then((fs) => fs.open(abs, "wx"));
-      await fd.writeFile(serializeTicket(ticket));
-      await fd.close();
+      await writeTicketExclusive(root, ticket);
       return ticket;
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === "EEXIST") continue; // retry with a fresh listing

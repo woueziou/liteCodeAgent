@@ -198,6 +198,16 @@ test("`ticket sync --auto` runs (and records the attempt) once the cooldown has 
   expect(Date.now() - Date.parse(state.lastAttemptAt)).toBeLessThan(60_000);
 });
 
+test("`ticket sync` no-ops gracefully on a fresh repo with no tickets and no board.json yet (regression: hydration must not require board setup just to say 'nothing to do')", async () => {
+  const root = await project();
+  // No `ticket new` ever ran, and `board init --apply` never ran either — genuinely fresh.
+  await stubGhIssueList([]);
+
+  const output = await runCli(root, ["ticket", "sync"]);
+  expect(output).toMatch(/no tickets/i);
+  expect(output).not.toMatch(/does not exist|Error/i);
+});
+
 async function writeBoardData(root: string, dataFile: string): Promise<void> {
   await Bun.write(
     join(root, dataFile),

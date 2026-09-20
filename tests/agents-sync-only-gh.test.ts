@@ -61,6 +61,37 @@ test("only documented entry points mention a gh board/issue mutation in an agent
   expect(violations).toEqual([]);
 });
 
+/**
+ * Agent prompts aren't the only place an agent takes its instructions from — every agent
+ * that lists `github-project-sync` in its `skills` also has that skill's prose injected
+ * into its own context (see this test's own prior finding: the skill's "Moving an item
+ * between statuses" section used to instruct a direct `item-edit`, which every agent
+ * loading the skill would then follow regardless of what its own prompt said). Skill files
+ * legitimately need to *document* the real `gh project item-add`/`item-edit` commands
+ * somewhere — that's what `sync`'s own implementation actually runs — so this doesn't ban
+ * the substrings outright the way the agent-prompt scan does; it only requires any skill
+ * mentioning them to explicitly scope that mention to `sync`, via `SKILL_ITEM_MUTATION_ALLOWED`.
+ * Anything not on that list is a skill an agent other than `sync` could read as license to
+ * call the GitHub Project directly.
+ */
+const SKILL_ITEM_MUTATION_ALLOWED = ["github-project-sync"];
+
+test("only the github-project-sync skill's reference doc mentions a gh project item-add/item-edit mutation", async () => {
+  const violations: string[] = [];
+  const mutationPatterns = [FORBIDDEN["gh project item-add"]!.pattern, FORBIDDEN["gh project item-edit"]!.pattern];
+  for (const name of await listPacks(PACKS)) {
+    const pack = await loadPack(PACKS, name);
+    for (const file of pack.files.filter((f) => f.rel.startsWith("skills/") && f.rel.endsWith("SKILL.md"))) {
+      const skillName = file.rel.split("/")[1]!;
+      const mentions = mutationPatterns.some((pattern) => pattern.test(file.source));
+      if (mentions && !SKILL_ITEM_MUTATION_ALLOWED.includes(skillName)) {
+        violations.push(`${name}/${file.rel} mentions a gh project item mutation, which is not on SKILL_ITEM_MUTATION_ALLOWED`);
+      }
+    }
+  }
+  expect(violations).toEqual([]);
+});
+
 test("sync.md is the only agent whose description says it talks to gh on a ticket's behalf", async () => {
   for (const name of await listPacks(PACKS)) {
     const pack = await loadPack(PACKS, name);
