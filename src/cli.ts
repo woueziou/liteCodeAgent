@@ -20,6 +20,7 @@ import {
   shouldSkipForCooldown,
   recordAttempt,
   reconcileBlockers,
+  resolveAutoMinIntervalMs,
 } from "./tickets/auto-sync.ts";
 import { PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
 import { findDuplicate, localDedupeCandidates, fetchOpenIssueDedupeCandidates, type DedupeCandidate } from "./tickets/dedupe.ts";
@@ -604,7 +605,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
   if (sub === "sync") {
     const auto = argv.includes("--auto");
     const autoStateFile = config.project.tickets.autoStateFile;
-    const autoMinIntervalMs = config.project.tickets.autoMinIntervalMs;
+    const autoMinIntervalMs = resolveAutoMinIntervalMs(config.project.tickets.autoMinIntervalMs);
     const now = new Date();
 
     // `--auto` is meant to be called opportunistically by automation (the `sync` agent, a

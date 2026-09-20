@@ -49,6 +49,20 @@ export function recordAttempt(state: AutoSyncState, now: Date): AutoSyncState {
 }
 
 /**
+ * `LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS` overrides `tickets.autoMinIntervalMs` for a
+ * single invocation, mirroring how ADR 0001's `LITECODE_TICKET_SYNC_DELAY_MS` overrides
+ * `delayMs` in `sync.ts`'s `throttleMs`. An unparsable or negative value falls back to the
+ * configured/default value rather than silently disabling the cooldown.
+ */
+export function resolveAutoMinIntervalMs(configuredMs: number): number {
+  const envVal = process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS;
+  if (envVal === undefined) return configuredMs;
+  const parsed = Number(envVal);
+  if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  return configuredMs;
+}
+
+/**
  * Folds `plan.blockers` into the persisted trace: a blocker seen again bumps `attempts` and
  * `lastSeenAt`; a ticket that was blocked before and is no longer in `plan.blockers` is
  * dropped (it resolved). Detect-and-block never auto-resolves a conflict itself — this only

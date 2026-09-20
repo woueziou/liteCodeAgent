@@ -5,6 +5,7 @@ import {
   EMPTY_AUTO_SYNC_STATE,
   reconcileBlockers,
   recordAttempt,
+  resolveAutoMinIntervalMs,
   shouldSkipForCooldown,
 } from "../src/tickets/auto-sync.ts";
 
@@ -102,4 +103,34 @@ test("reconcileBlockers: a ticket no longer blocked drops out of the trace (reso
 
   expect(second.newlyReported).toHaveLength(0);
   expect(second.state.blockers).toEqual({});
+});
+
+test("resolveAutoMinIntervalMs: no env var falls back to configured value", () => {
+  delete process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS;
+  expect(resolveAutoMinIntervalMs(60_000)).toBe(60_000);
+});
+
+test("resolveAutoMinIntervalMs: valid env var overrides the configured value", () => {
+  process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS = "5000";
+  try {
+    expect(resolveAutoMinIntervalMs(60_000)).toBe(5000);
+  } finally {
+    delete process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS;
+  }
+});
+
+test("resolveAutoMinIntervalMs: unparsable or negative env var falls back to configured value", () => {
+  process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS = "not-a-number";
+  try {
+    expect(resolveAutoMinIntervalMs(60_000)).toBe(60_000);
+  } finally {
+    delete process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS;
+  }
+
+  process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS = "-1";
+  try {
+    expect(resolveAutoMinIntervalMs(60_000)).toBe(60_000);
+  } finally {
+    delete process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS;
+  }
 });
