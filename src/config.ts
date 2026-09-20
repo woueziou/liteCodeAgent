@@ -51,6 +51,21 @@ const TicketsSchema = z.object({
   enabled: z.boolean().default(true),
   /** Where the local ticket buffer lives, relative to the repo root. */
   dir: z.string().default("docs/tickets"),
+  /**
+   * Where `ticket sync --auto` persists its cooldown timestamp and unresolved blocker
+   * trace. See ADR 0009 (issue #31): an unattended auto-trigger must leave a durable trace
+   * of a detect-and-block conflict, not just stdout nobody is watching, and must remember
+   * its last attempt so it can refuse to run again before `autoMinIntervalMs` has passed.
+   */
+  autoStateFile: z.string().default(".claude/data/ticket-sync-auto-state.json"),
+  /**
+   * Minimum time between `ticket sync --auto` runs, in ms. Overridable via
+   * `LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS`, distinct from ADR 0001's
+   * `LITECODE_TICKET_SYNC_DELAY_MS` (which throttles individual `gh` calls *within* one
+   * run) — this throttles how often a whole run is allowed to start at all, which is what
+   * actually stops a failing auto-trigger from retrying in a tight loop and burning quota.
+   */
+  autoMinIntervalMs: z.number().int().nonnegative().default(60_000),
 });
 
 export const ProjectSchema = z.object({
@@ -95,7 +110,12 @@ export const ProjectSchema = z.object({
 
   board: BoardSchema,
   /** Optional: absent entirely in a config predating the local ticket buffer feature. */
-  tickets: TicketsSchema.default({ enabled: true, dir: "docs/tickets" }),
+  tickets: TicketsSchema.default({
+    enabled: true,
+    dir: "docs/tickets",
+    autoStateFile: ".claude/data/ticket-sync-auto-state.json",
+    autoMinIntervalMs: 60_000,
+  }),
 
   /** Required only when the `web` pack is installed — it is what its expert skills interpolate. */
   web: z

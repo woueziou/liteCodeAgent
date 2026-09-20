@@ -14,6 +14,14 @@ import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.t
 import type { BoardData } from "./board/spec.ts";
 import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
 import { planTicketSync, applyTicketSync, planTicketPull, applyTicketPull, fetchTicketItems } from "./tickets/sync.ts";
+import {
+  loadAutoSyncState,
+  saveAutoSyncState,
+  shouldSkipForCooldown,
+  recordAttempt,
+  reconcileBlockers,
+  resolveAutoMinIntervalMs,
+} from "./tickets/auto-sync.ts";
 import { PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
 import { findDuplicate, localDedupeCandidates, fetchOpenIssueDedupeCandidates, type DedupeCandidate } from "./tickets/dedupe.ts";
 import { init, summarize } from "./init.ts";
@@ -72,8 +80,11 @@ function usage(): void {
                                      issues for a likely duplicate first (read-only GitHub call) and blocks if one
                                      is found — pass --force to create anyway
   ${c.bold("bunx litecodeagent ticket list")}              list local ticket files and their dirty state
-  ${c.bold("bunx litecodeagent ticket sync")} [--apply]    pull the board into dirty tickets, then push the batch
+  ${c.bold("bunx litecodeagent ticket sync")} [--apply|--auto]    pull the board into dirty tickets, then push the batch
                                      ${c.dim("(dry-run by default; --apply writes)")}
+                                     ${c.dim("--auto: for unattended callers — implies --apply, skips the run if the last")}
+                                     ${c.dim("--auto attempt was within tickets.autoMinIntervalMs, and records any")}
+                                     ${c.dim("--auto detect-and-block conflict to tickets.autoStateFile instead of only stdout")}
   ${c.bold("litecode upgrade")}                   update a legacy git-clone install
 
 Global: --project <dir>   target repo (default: cwd)
@@ -592,6 +603,35 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
   }
 
   if (sub === "sync") {
+    const auto = argv.includes("--auto");
+    const autoStateFile = config.project.tickets.autoStateFile;
+    const autoMinIntervalMs = resolveAutoMinIntervalMs(config.project.tickets.autoMinIntervalMs);
+    const now = new Date();
+
+    // `--auto` is meant to be called opportunistically by automation (the `sync` agent, a
+    // cron wrapper) without a human deciding each time whether it's a good moment. The
+    // cooldown is what makes that safe: a caller that re-invokes `--auto` on every single
+    // agent action does not turn into a `gh`-call storm just because nothing changed since
+    // the last attempt. See ADR 0009 (issue #31).
+    //
+    // This is a soft, opportunistic guard, not a hard mutex: the load/check/record/save
+    // sequence below is not atomic, so two `--auto` invocations started within milliseconds
+    // of each other could both pass the cooldown check before either persists its attempt.
+    // Acceptable for the "don't retry-storm on repeated single-caller invocations" problem
+    // this exists to solve; true concurrent-run exclusion would need file locking, which is
+    // out of scope here.
+    let autoState = auto ? await loadAutoSyncState(root, autoStateFile) : null;
+    if (autoState) {
+      if (shouldSkipForCooldown(autoState, now, autoMinIntervalMs)) {
+        console.log(c.dim(`Skipping auto-sync: last attempt was within ${autoMinIntervalMs}ms.`));
+        return 0;
+      }
+      // Persisted before any `gh` call: a crash mid-run still counts as an attempt, so a
+      // retry-on-crash-loop is bounded by the same cooldown as an ordinary failure.
+      autoState = recordAttempt(autoState, now);
+      await saveAutoSyncState(root, autoStateFile, autoState);
+    }
+
     onGhRetry((attempt, waitMs, reason) => {
       console.log(c.dim(`  ${reason} — retrying in ${Math.round(waitMs / 1000)}s (attempt ${attempt})`));
     });
@@ -634,7 +674,20 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(`           ${c.dim(`fix: ${b.fix}`)}`);
     }
 
-    if (!argv.includes("--apply")) {
+    if (autoState) {
+      // Durable trace for detect-and-block: an unattended `--auto` run has nobody reading
+      // stdout, so an unresolved conflict must still be discoverable later from
+      // `autoStateFile`. A blocker already reported on a prior run is not re-announced here
+      // — only genuinely new/changed blockers are, so a stuck ticket doesn't spam every run.
+      const { state, newlyReported } = reconcileBlockers(autoState, plan.blockers, now);
+      autoState = state;
+      for (const b of newlyReported) {
+        console.log(c.yellow(`  new blocker recorded in ${autoStateFile}: ${b.ticket.path} — ${b.problem}`));
+      }
+      await saveAutoSyncState(root, autoStateFile, autoState);
+    }
+
+    if (!argv.includes("--apply") && !auto) {
       if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
       console.log(c.dim(`\nDry run. Re-run with --apply to write the pulled files and push ${plan.actions.length} ticket(s).`));
       return plan.blockers.length > 0 ? 1 : 0;
