@@ -181,12 +181,22 @@ test("loadAutoSyncState: round-trips a saved state", async () => {
   }
 });
 
-test("loadAutoSyncState: a truncated/corrupted file reads as EMPTY_AUTO_SYNC_STATE instead of throwing", async () => {
+test("loadAutoSyncState: a truncated/corrupted file does not throw, and does not reset the cooldown", async () => {
   const dir = await mkdtemp(join(tmpdir(), "litecode-auto-sync-"));
   try {
+    const before = new Date();
     await Bun.write(join(dir, "corrupt.json"), "{ this is not valid json");
     const state = await loadAutoSyncState(dir, "corrupt.json");
-    expect(state).toEqual(EMPTY_AUTO_SYNC_STATE);
+
+    // Fails closed, not open: a parse failure must not look like "never attempted" (that
+    // would let shouldSkipForCooldown skip the cooldown entirely). It recovers the file's
+    // own mtime as a best-effort lastAttemptAt instead, so the cooldown still applies.
+    expect(state.blockers).toEqual({});
+    expect(state.lastAttemptAt).toBeDefined();
+    const recovered = Date.parse(state.lastAttemptAt as string);
+    expect(Number.isNaN(recovered)).toBe(false);
+    expect(recovered).toBeGreaterThanOrEqual(before.getTime() - 5000);
+    expect(shouldSkipForCooldown(state, before, 60_000)).toBe(true);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

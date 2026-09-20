@@ -99,9 +99,13 @@ export function reconcileBlockers(
 /**
  * Missing file reads as `EMPTY_AUTO_SYNC_STATE`: a first-ever `--auto` run has nothing to
  * skip. A truncated/corrupted file (e.g. the process was killed mid-`Bun.write` during a
- * prior unattended run) reads the same way rather than throwing: the module's own cooldown
- * doc explicitly anticipates a crash mid-run, so a corrupt trace must not turn into a
- * permanent failure that wedges every subsequent `--auto` invocation identically forever.
+ * prior unattended run) must not read the same way, though: that would report no prior
+ * attempt at all, which makes `shouldSkipForCooldown` skip the cooldown entirely — silently
+ * defeating the anti-runaway guard exactly in the failure mode (a supervisor killing the
+ * process at a consistent point) most likely to recur. Instead, a parse failure fails
+ * *closed*: it falls back to the file's own last-modified time as `lastAttemptAt`, so the
+ * cooldown still applies (worst case, once) while the caller recovers a fresh trace on the
+ * next successful write.
  */
 export async function loadAutoSyncState(root: string, path: string): Promise<AutoSyncState> {
   const file = Bun.file(join(root, path));
@@ -110,7 +114,9 @@ export async function loadAutoSyncState(root: string, path: string): Promise<Aut
     const raw = (await file.json()) as Partial<AutoSyncState>;
     return { lastAttemptAt: raw.lastAttemptAt, blockers: raw.blockers ?? {} };
   } catch {
-    return EMPTY_AUTO_SYNC_STATE;
+    const lastModified = file.lastModified;
+    const lastAttemptAt = Number.isFinite(lastModified) ? new Date(lastModified).toISOString() : undefined;
+    return { lastAttemptAt, blockers: {} };
   }
 }
 
