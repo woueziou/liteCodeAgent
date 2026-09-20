@@ -91,7 +91,7 @@ An ADR records decisions a human should actually get to weigh in on, not a forma
 1. Write the ADR file to its proposed path (or `{{ project.adrDir }}/<NNNN>-<kebab-title>.md`, next free number, if `planner` only flagged "ADR warranted" without a path) — but do **not** `git add`/commit it, and do not push or open a PR yet. Everything else from step 4 may already be committed locally; the ADR is the one thing held back. If the ticket carries `planner`'s `ADR_DECISIONS:` list, rule only on those decisions. If no list exists, state plainly in the draft which decision(s) you're recording and why.
 2. Post the full drafted ADR as a comment on the ticket, prefixed with one line saying it is a draft awaiting approval and is not committed — per "Staging a comment instead of calling `gh issue comment`" above (stage it locally if this issue has a local ticket file, otherwise `gh issue comment` directly). Append a fenced `resume-manifest` block to the end of that same comment (not a separate one — see below for why it has to be the same durable artifact):
 
-   ```
+   ````
    ```resume-manifest
    worktree: {{ project.worktreeRoot }}/issue-<n>
    branch: <branch name>
@@ -101,7 +101,7 @@ An ADR records decisions a human should actually get to weigh in on, not a forma
    checks_passed: <e.g. "{{ project.checkCommand }}: pass" or "not yet run">
    adr_posted: true
    ```
-   ```
+   ````
 
    This manifest, not the calling session's memory of this run, is what makes the gate resumable: the file itself lives only in your worktree, which nobody but you can read mid-run, and the invoking session's context is not guaranteed to survive to the point of approval (see step 5). The comment is the one artifact that's durable, human-visible, and reachable by whoever resumes this — so it has to carry the state, not just the ADR text. A staged comment only reaches the issue on `sync`'s next run, not immediately — factor that lag into how you word "awaiting approval," and into when the manifest actually becomes fetchable by a resuming agent.
 3. Stop and report `STATUS: adr-pending-approval` with the full drafted ADR content (including the manifest block) inline in your report — verbatim, not summarized — plus the ADR's absolute path in your worktree, where the draft-awaiting-approval comment landed (a link if it was posted directly via `gh issue comment`, or the local ticket file path plus "staged, not yet posted — reaches the issue on `sync`'s next run" if it was staged instead), the branch name, and confirmation that code changes (if any) are already committed locally.
@@ -114,7 +114,7 @@ An ADR records decisions a human should actually get to weigh in on, not a forma
    - Reuse the manifest's `worktree`/`branch` as-is: if the worktree still exists, use it; if it was cleaned up, recreate it with `git worktree add <worktree> <branch>` (checking out the existing branch, never `-b` a new one — the branch already exists).
    - Verify, don't just trust, each manifest field against actual repo state before acting on it: confirm `commit` is present in `git log` on that branch, confirm the ADR file at `adr_path` exists and matches what's in the comment, confirm `checks_passed` by re-running `{{ project.checkCommand }}` rather than assuming it's still true.
    - Treat `adr_posted: true` as an idempotency guard: never re-post or re-stage the ADR comment on resume, only commit the already-written file.
-   - If the manifest comment is missing (deleted), unparseable (malformed fenced block), or if multiple ADR-draft comments exist on the same issue with no single one you can identify as authoritative (prefer the most recent one whose `resume-manifest` block is well-formed and has `adr_posted: true`, but stop if that still leaves genuine ambiguity), do not guess which state to act on — stop and escalate to `triage` with what you found, the same as any other unresolvable blocker. Likewise, if the manifest's `commit` field isn't found in `git log` on the branch, don't assume it's stale-but-harmless — stop and escalate rather than committing on top of state you can't verify.
+   - If the manifest comment is missing (deleted), unparseable (malformed fenced block), or if multiple ADR-draft comments exist on the same issue with no single one you can identify as authoritative (prefer the most recent one whose `resume-manifest` block is well-formed and has `adr_posted: true`, but stop if that still leaves genuine ambiguity), do not guess which state to act on — stop and escalate to `triage` with what you found, the same as any other unresolvable blocker. Likewise, if the manifest's `commit` field isn't found in `git log` on the branch, don't assume it's stale-but-harmless — stop and escalate rather than committing on top of state you can't verify. The one exception: `commit: none` is a valid, expected value (it means nothing was committed before the gate — a legitimate ADR-only ticket), so treat that literal value as confirmed with nothing to look up, not as an unverifiable sha.
    - Commit the ADR file (with any requested edits applied) with its own commit, then resume at step 6. Do not re-run step 2's board edit (it's still `In Progress` per the manifest) and do not re-create the branch.
 
 This gate applies per-ADR: a ticket with no ADR skips straight from step 4 to step 6.
