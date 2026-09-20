@@ -92,11 +92,15 @@ echo "unexpected gh call: $*" >&2; exit 1
 `);
 
   const board = boardFixture();
-  const plan = planTicketSync([dirty!], board, new Map());
+  // Realistic `remote`: this ticket was already synced (its Status is genuinely "Backlog"
+  // on the board already) — only the staged comment makes it dirty, so there's nothing for
+  // `statusEdit`/`statusUnresolved` to disagree about.
+  const remote = new Map([[42, remoteItem(42, "Backlog")]]);
+  const plan = planTicketSync([dirty!], board, remote);
   expect(plan.actions).toHaveLength(1);
   expect(plan.actions[0]!.kind).toBe("update");
 
-  const results = await applyTicketSync(root, plan, board, new Map(), SYNC_OPTS);
+  const results = await applyTicketSync(root, plan, board, remote, SYNC_OPTS);
 
   const calls = await callsOf(log);
   expect(calls.some((c) => c.includes("item-edit"))).toBe(false);
@@ -135,7 +139,12 @@ echo "unexpected gh call: $*" >&2; exit 1
   expect(afterFailure!.synced).toBe(false); // not marked synced: item-add/edits never ran
 
   // Second attempt: the file already carries issue #7, so the plan must be an update, not
-  // a second create.
+  // a second create. `remote` still has no entry for #7 (item-add never actually
+  // succeeded, so the issue was never added to the project board at all) — the retry can
+  // still push title/body, but with no board item to diff Status against, the outcome must
+  // stay "blocked", not "synced": the ticket's Priority/Size/Status/Assigned Agent were
+  // never actually set on the board in the first place, so reporting it fully synced would
+  // be a lie regardless of this PR's Status-push mechanism.
   const { log: log2 } = await stubGh(`
 if [ "$1 $2" = "issue edit" ]; then exit 0; fi
 echo "unexpected gh call: $*" >&2; exit 1
@@ -145,8 +154,9 @@ echo "unexpected gh call: $*" >&2; exit 1
   expect(plan2.actions[0]!.kind).toBe("update");
   const results2 = await applyTicketSync(root, plan2, board, new Map(), SYNC_OPTS);
   expect(results2).toHaveLength(1);
-  expect(results2[0]!.outcome).toBe("synced");
+  expect(results2[0]!.outcome).toBe("blocked");
   expect(results2[0]!.detail).toContain("updated #7");
+  expect(results2[0]!.ticket.synced).toBe(false);
 
   const calls2 = await callsOf(log2);
   expect(calls2.some((c) => c.startsWith("issue create"))).toBe(false);
@@ -305,6 +315,47 @@ test("an update sends no Status edit when remote has no entry for the issue yet"
   const plan = planTicketSync([dirty!], board, new Map());
   const action = plan.actions[0]!;
   expect(action.kind === "update" ? action.edits : ["not-empty"]).toEqual([]);
+  expect(action.kind === "update" ? action.statusUnresolved : "not-update").toBe(true);
+});
+
+test("applyTicketSync does not mark a ticket synced when its Status push was unresolved (no remote data for the issue)", async () => {
+  const root = await mkdtemp(join(tmpdir(), "litecode-tickets-"));
+  const dir = "docs/tickets";
+  const created = await createTicket(root, dir, { title: "Unresolved-status ticket", label: "feature", body: "Body." });
+  await Bun.write(
+    join(root, created.path),
+    (await Bun.file(join(root, created.path)).text())
+      .replace("issue: \n", "issue: 60\n")
+      .replace("status: backlog\n", "status: inProgress\n")
+      .replace("synced: false\n", "synced: true\n"),
+  );
+  const [reloaded] = await listTickets(root, dir);
+  await Bun.write(join(root, reloaded!.path), (await Bun.file(join(root, reloaded!.path)).text()).replace("synced: true\n", "synced: false\n"));
+  const [dirty] = await listTickets(root, dir);
+
+  const board = boardFixture();
+  // `remote` has no entry at all for #60 — e.g. deleted from the board, or this sync run's
+  // fetch raced ahead of the item actually landing on it.
+  const plan = planTicketSync([dirty!], board, new Map());
+  expect(plan.actions[0]!.kind === "update" ? plan.actions[0]!.statusUnresolved : false).toBe(true);
+
+  const { log } = await stubGh(`
+if [ "$1 $2" = "issue edit" ]; then exit 0; fi
+echo "unexpected gh call: $*" >&2; exit 1
+`);
+  const results = await applyTicketSync(root, plan, board, new Map(), SYNC_OPTS);
+
+  // No item-edit was ever possible (no remote data), and title/body were still pushed.
+  const calls = await callsOf(log);
+  expect(calls.some((c) => c.includes("item-edit"))).toBe(false);
+  expect(calls.some((c) => c.startsWith("issue edit 60"))).toBe(true);
+
+  // The ticket must stay dirty so the next `sync` run retries the Status push, instead of
+  // silently reporting "synced" while the board never actually moved.
+  expect(results[0]!.outcome).toBe("blocked");
+  expect(results[0]!.ticket.synced).toBe(false);
+  const [onDisk] = await listTickets(root, dir);
+  expect(onDisk!.synced).toBe(false);
 });
 
 test("planTicketSync throws rather than silently dropping a Status edit when board.json has no mapping for the ticket's status role", async () => {

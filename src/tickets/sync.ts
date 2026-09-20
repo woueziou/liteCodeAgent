@@ -41,7 +41,22 @@ export type FieldEdit = {
 
 export type TicketAction =
   | { kind: "create"; ticket: Ticket; edits: FieldEdit[]; comments: string[] }
-  | { kind: "update"; ticket: Ticket; issue: number; edits: FieldEdit[]; comments: string[] };
+  | {
+      kind: "update";
+      ticket: Ticket;
+      issue: number;
+      edits: FieldEdit[];
+      comments: string[];
+      /**
+       * True when `remote` had no usable Status data for this issue (item missing from
+       * the board fetch entirely, or its Status field unset) — `edits` is then `[]`
+       * because there was nothing to diff the local `status` against, not because it's
+       * confirmed to already agree. `applyTicketSync` must not mark a ticket "synced" on
+       * this basis: a real disagreement could exist and go undetected until `remote`
+       * eventually has data for it. See the reviewer finding this fixes, PR #41.
+       */
+      statusUnresolved: boolean;
+    };
 
 export type SyncPlan = {
   actions: TicketAction[];
@@ -126,6 +141,20 @@ function statusEdit(board: BoardData, ticket: Ticket, remote: Map<number, Remote
   return [{ field: "Status", fieldId: field(board, "Status").id, from: remoteStatus, to: desired.label, optionId: desired.optionId }];
 }
 
+/**
+ * True when `statusEdit` couldn't diff at all — no remote entry for the issue, or the
+ * remote entry's Status is unset — as opposed to having diffed and found the two already
+ * agree. `applyTicketSync` needs this distinction: only the latter is safe to mark
+ * "synced", since the former means a real disagreement could exist and simply wasn't
+ * detectable this run.
+ */
+function statusUnresolved(ticket: Ticket, remote: Map<number, RemoteItem>): boolean {
+  if (ticket.issue === undefined) return false;
+  const remoteItem = remote.get(ticket.issue);
+  if (!remoteItem) return true;
+  return remoteItem.fields.get("Status") === undefined;
+}
+
 export function planTicketSync(tickets: Ticket[], board: BoardData, remote: Map<number, RemoteItem>): SyncPlan {
   const plan: SyncPlan = { actions: [], skipped: [], blockers: [] };
 
@@ -160,6 +189,7 @@ export function planTicketSync(tickets: Ticket[], board: BoardData, remote: Map<
       ticket,
       issue: ticket.issue,
       edits: statusEdit(board, ticket, remote),
+      statusUnresolved: statusUnresolved(ticket, remote),
       comments: ticket.pendingComments,
     });
   }
@@ -340,9 +370,21 @@ export async function applyTicketSync(
       await throttle(opts);
     }
 
-    ticket = { ...ticket, synced: true, syncedAt: stamp() };
+    // An `update` whose Status disagreement couldn't be checked this run (no remote data
+    // for the issue) must not be marked "synced" — that would permanently clear the dirty
+    // flag on a ticket whose pending Status move may never have reached the board. Leave
+    // it dirty so the next `sync` run retries once `remote` (hopefully) has data for it;
+    // title/body/comments already pushed above are unaffected (comments are already
+    // shifted off `pendingComments`, and re-pushing title/body on a retry is a harmless
+    // no-op `gh issue edit`).
+    const statusUnresolved = action.kind === "update" && action.statusUnresolved;
+    ticket = statusUnresolved ? ticket : { ...ticket, synced: true, syncedAt: stamp() };
     await writeTicket(root, ticket);
-    results.push({ ticket, outcome: "synced", detail });
+    results.push({
+      ticket,
+      outcome: statusUnresolved ? "blocked" : "synced",
+      detail: statusUnresolved ? `${detail} (Status unresolved: no board data yet for #${ticket.issue} — will retry next sync)` : detail,
+    });
   }
   return results;
 }
