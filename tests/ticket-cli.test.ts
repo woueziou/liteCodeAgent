@@ -61,6 +61,32 @@ echo "unexpected gh call: $*" >&2; exit 1
   process.env.LITECODE_GH_BIN = bin;
 }
 
+/**
+ * Like `stubGhForHydration`, but the board fetch comes back with zero items — simulating a
+ * ticket's board item being gone (or this run's fetch racing ahead of it) — and also
+ * handles `issue edit`/`issue comment`, for a dirty *existing* ticket's push rather than a
+ * hydration scenario.
+ */
+async function stubGhEmptyBoard(): Promise<void> {
+  const dir = await mkdtemp(join(tmpdir(), "litecode-gh-stub-"));
+  const bin = join(dir, "gh");
+  const graphqlBody = JSON.stringify({
+    data: { node: { items: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } },
+  });
+  await writeFile(
+    bin,
+    `#!/usr/bin/env bash
+if [ "$1" = "auth" ]; then exit 0; fi
+if [ "$1 $2" = "api graphql" ]; then echo ${JSON.stringify(graphqlBody)}; exit 0; fi
+if [ "$1 $2" = "issue edit" ]; then exit 0; fi
+if [ "$1 $2" = "issue comment" ]; then exit 0; fi
+echo "unexpected gh call: $*" >&2; exit 1
+`,
+  );
+  await chmod(bin, 0o755);
+  process.env.LITECODE_GH_BIN = bin;
+}
+
 afterEach(() => {
   if (realBin) process.env.LITECODE_GH_BIN = realBin;
   else delete process.env.LITECODE_GH_BIN;
@@ -74,13 +100,18 @@ function plain(text: string): string {
 }
 
 async function runCli(cwd: string, args: string[]): Promise<string> {
-  const proc = Bun.spawn(["bun", "run", CLI, ...args], { cwd, env: process.env, stdout: "pipe", stderr: "pipe" });
-  const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-  await proc.exited;
-  return plain(out + err);
+  const { output } = await runCliWithExit(cwd, args);
+  return output;
 }
 
-async function project(): Promise<string> {
+async function runCliWithExit(cwd: string, args: string[]): Promise<{ output: string; exitCode: number }> {
+  const proc = Bun.spawn(["bun", "run", CLI, ...args], { cwd, env: process.env, stdout: "pipe", stderr: "pipe" });
+  const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+  const exitCode = await proc.exited;
+  return { output: plain(out + err), exitCode };
+}
+
+async function project(opts?: { boardNumber?: number }): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "litecode-ticket-cli-"));
   await Bun.write(join(root, "package.json"), JSON.stringify({ name: "demo", scripts: { test: "bun test" } }));
   const path = await init(root, { yes: true, packsRoot: PACKS, targets: ["claude-code"] });
@@ -88,6 +119,7 @@ async function project(): Promise<string> {
   raw.project.repo = "demo/demo";
   raw.project.checkCommand = "bun test";
   raw.project.board.owner = "demo";
+  if (opts?.boardNumber !== undefined) raw.project.board.number = opts.boardNumber;
   await Bun.write(path, `${JSON.stringify(raw, null, 2)}\n`);
   return root;
 }
@@ -259,4 +291,29 @@ test("`ticket sync --auto` actually applies hydration, not just a dry-run log li
   // and the ticket stayed invisible to `dispatcher`'s local-first ranking forever.
   const list = await runCli(root, ["ticket", "list"]);
   expect(list).toContain("#18");
+});
+
+test("`ticket sync --apply` exits non-zero when a ticket's Status push is left unresolved (regression: exit code must reflect a 'blocked' outcome, not just plan-level blockers)", async () => {
+  const root = await project({ boardNumber: 1 });
+  await writeBoardData(root, ".claude/data/board.json");
+
+  // A ticket already tied to an issue, explicitly dirtied the way `implementer` would
+  // (Status moved, synced: false) — but the board fetch below returns zero items, so
+  // `remote` has nothing to diff its Status against.
+  await stubGhIssueList([]);
+  await runCli(root, ["ticket", "new", "--title", "In-flight ticket", "--label", "feature"]);
+  const before = await Bun.file(join(root, "docs/tickets/0001-in-flight-ticket.md")).text();
+  await Bun.write(
+    join(root, "docs/tickets/0001-in-flight-ticket.md"),
+    before.replace("issue: \n", "issue: 99\n").replace("status: backlog\n", "status: inProgress\n"),
+  );
+
+  await stubGhEmptyBoard();
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "sync", "--apply"]);
+  expect(output).toContain("[blocked]");
+  expect(exitCode).not.toBe(0);
+
+  // The regression: this used to compute `nothingHappened` from `results.length` alone,
+  // which is unaffected by a per-result "blocked" outcome — a sync leaving a Status push
+  // unresolved silently reported exit 0, indistinguishable from a fully clean run.
 });

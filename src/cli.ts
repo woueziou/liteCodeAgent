@@ -758,13 +758,21 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(`  ${c.green("result")} ${r.ticket.path} [${r.outcome}] ${r.detail}`);
     }
     // `applyTicketSync` only ever processes `plan.actions` (a plan with blockers has already
-    // returned 1 above, before this point), so every entry it produces is "synced" — the
+    // returned 1 above, before this point) — but as of ADR 0010's Status push-on-update, an
+    // individual entry can still come back "blocked" (statusUnresolved: no board data this
+    // run to diff the local Status against) even though the action itself ran without
+    // throwing. A caller gating on this CLI's exit code (the `sync` agent, `--auto`
+    // automation) must see that as a non-clean run, same as a plan-level blocker — the
     // "hydrated" outcome is produced separately, above, by `planTicketHydration` /
-    // `applyTicketHydration` (already logged and written before this point runs); "blocked"
-    // and "skipped" mirror `SyncPlan.blockers`/`SyncPlan.skipped`, reported separately too.
-    // See the `SyncOutcome` doc comment in tickets/sync.ts for the full picture.
+    // `applyTicketHydration` (already logged and written before this point runs); "skipped"
+    // mirrors `SyncPlan.skipped`, reported separately too. See the `SyncOutcome` doc comment
+    // in tickets/sync.ts for the full picture.
     const nothingHappened = results.length === 0 && plan.actions.length > 0;
-    return nothingHappened ? 1 : 0;
+    const blockedResults = results.filter((r) => r.outcome === "blocked");
+    if (blockedResults.length > 0) {
+      console.log(c.yellow(`\n${blockedResults.length} ticket(s) left with an unresolved Status push — will retry next sync.`));
+    }
+    return nothingHappened || blockedResults.length > 0 ? 1 : 0;
   }
 
   usage();
