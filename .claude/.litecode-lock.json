@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.13.1",
-  "installedAt": "2026-09-19T21:30:17.870Z",
+  "installedAt": "2026-09-20T13:29:39.265Z",
   "packs": {
     "core": "0.3.0"
   },
@@ -68,7 +68,7 @@
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.3.0",
-      "hash": "146cd0602dd2fb13"
+      "hash": "ed7a44ffd3af7adc"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
