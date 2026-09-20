@@ -306,3 +306,28 @@ test("an update sends no Status edit when remote has no entry for the issue yet"
   const action = plan.actions[0]!;
   expect(action.kind === "update" ? action.edits : ["not-empty"]).toEqual([]);
 });
+
+test("planTicketSync throws rather than silently dropping a Status edit when board.json has no mapping for the ticket's status role", async () => {
+  const root = await mkdtemp(join(tmpdir(), "litecode-tickets-"));
+  const dir = "docs/tickets";
+  const created = await createTicket(root, dir, { title: "Stale-board-mapping ticket", label: "feature", body: "Body." });
+  await Bun.write(
+    join(root, created.path),
+    (await Bun.file(join(root, created.path)).text())
+      .replace("issue: \n", "issue: 58\n")
+      .replace("status: backlog\n", "status: review\n")
+      .replace("synced: false\n", "synced: true\n")
+      .trimEnd() + `\n\n${commentBlock("hi")}`,
+  );
+  const [dirty] = await listTickets(root, dir);
+
+  const board = boardFixture();
+  // Simulate a stale board.json: the "review" role has no board mapping any more. `as
+  // BoardData` because `BoardData.statusRoles` requires every role — that's exactly the
+  // invariant a real stale file would violate, which is what this test exercises.
+  const { review: _dropped, ...statusRoles } = board.statusRoles;
+  const staleBoard = { ...board, statusRoles } as unknown as BoardData;
+  const remote = new Map([[58, remoteItem(58, "In Progress")]]);
+
+  expect(() => planTicketSync([dirty!], staleBoard, remote)).toThrow(/No board status mapped to role 'review'/);
+});

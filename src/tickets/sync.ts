@@ -101,7 +101,9 @@ function creationEdits(board: BoardData, ticket: Ticket): FieldEdit[] {
  *
  * Only produces an edit when `remote` actually has an entry for the ticket's issue and
  * that entry's Status disagrees with what the local file now says — no remote data means
- * nothing to diff against, so no edit is pushed blind.
+ * nothing to diff against, so no edit is pushed blind. Throws, rather than silently
+ * skipping, if `ticket.status` itself has no board mapping (a stale `board.json`) — see
+ * the throw below for why.
  */
 function statusEdit(board: BoardData, ticket: Ticket, remote: Map<number, RemoteItem>): FieldEdit[] {
   if (ticket.issue === undefined) return [];
@@ -109,8 +111,17 @@ function statusEdit(board: BoardData, ticket: Ticket, remote: Map<number, Remote
   if (!remoteItem) return [];
   const remoteStatus = remoteItem.fields.get("Status");
   if (remoteStatus === undefined) return [];
+  // Unlike a missing `remoteItem`/`remoteStatus` (nothing to diff against yet, so no edit
+  // is the right no-op), a `ticket.status` role with no board mapping means `board.json` is
+  // stale — the same failure mode `creationEdits`/`planTicketPull` both already throw on
+  // for this exact field, so silently skipping the edit here would leave `applyTicketSync`
+  // reporting a ticket "synced" while its Status quietly never moved on the board.
   const desired = board.statusRoles[ticket.status];
-  if (!desired) return [];
+  if (!desired) {
+    throw new Error(
+      `No board status mapped to role '${ticket.status}' for #${ticket.issue} — board.json may be stale, run \`litecode board init --apply\``,
+    );
+  }
   if (remoteStatus === desired.label) return [];
   return [{ field: "Status", fieldId: field(board, "Status").id, from: remoteStatus, to: desired.label, optionId: desired.optionId }];
 }

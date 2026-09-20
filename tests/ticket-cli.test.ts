@@ -16,6 +16,51 @@ async function stubGhIssueList(issues: { number: number; title: string }[]): Pro
   process.env.LITECODE_GH_BIN = bin;
 }
 
+/**
+ * Stands in for the handful of `gh` subcommands a `ticket sync` run makes: `auth status`
+ * (always ok), `api graphql` (the whole-board fetch, returns one fixed item with a Status
+ * that maps to a known role and nothing else set — enough for hydration, per
+ * `planTicketHydration`'s Priority/Size medium fallback), and anything else fails loudly
+ * so an unexpected mutating call (e.g. a stray `item-edit`) is caught rather than silently
+ * stubbed away.
+ */
+async function stubGhForHydration(issue: number, title: string): Promise<void> {
+  const dir = await mkdtemp(join(tmpdir(), "litecode-gh-stub-"));
+  const bin = join(dir, "gh");
+  const graphqlBody = JSON.stringify({
+    data: {
+      node: {
+        items: {
+          pageInfo: { hasNextPage: false, endCursor: null },
+          nodes: [
+            {
+              id: `ITEM_${issue}`,
+              content: {
+                number: issue,
+                state: "OPEN",
+                title,
+                body: "Body from the board.",
+                labels: { nodes: [{ name: "feature" }] },
+              },
+              fieldValues: { nodes: [{ name: "Planned", field: { name: "Status" } }] },
+            },
+          ],
+        },
+      },
+    },
+  });
+  await writeFile(
+    bin,
+    `#!/usr/bin/env bash
+if [ "$1" = "auth" ]; then exit 0; fi
+if [ "$1 $2" = "api graphql" ]; then echo ${JSON.stringify(graphqlBody)}; exit 0; fi
+echo "unexpected gh call: $*" >&2; exit 1
+`,
+  );
+  await chmod(bin, 0o755);
+  process.env.LITECODE_GH_BIN = bin;
+}
+
 afterEach(() => {
   if (realBin) process.env.LITECODE_GH_BIN = realBin;
   else delete process.env.LITECODE_GH_BIN;
@@ -151,4 +196,57 @@ test("`ticket sync --auto` runs (and records the attempt) once the cooldown has 
 
   const state = await Bun.file(join(root, ".claude/data/ticket-sync-auto-state.json")).json();
   expect(Date.now() - Date.parse(state.lastAttemptAt)).toBeLessThan(60_000);
+});
+
+async function writeBoardData(root: string, dataFile: string): Promise<void> {
+  await Bun.write(
+    join(root, dataFile),
+    JSON.stringify(
+      {
+        $generatedBy: "test",
+        owner: "demo",
+        number: 1,
+        url: "https://github.com/orgs/demo/projects/1",
+        projectId: "PVT_1",
+        repo: "demo/demo",
+        fields: {
+          Status: { id: "FIELD_STATUS", kind: "single-select", options: { Backlog: "OPT_BACKLOG", Planned: "OPT_PLANNED" } },
+          Priority: { id: "FIELD_PRIORITY", kind: "single-select", options: { Low: "OPT_LOW", Medium: "OPT_MEDIUM", High: "OPT_HIGH" } },
+          Size: { id: "FIELD_SIZE", kind: "single-select", options: { Trivial: "OPT_T", Small: "OPT_S", Medium: "OPT_M", Large: "OPT_L" } },
+          "Assigned Agent": { id: "FIELD_AGENT", kind: "text" },
+          "Due Date": { id: "FIELD_DUE", kind: "date" },
+        },
+        statusRoles: {
+          backlog: { label: "Backlog", optionId: "OPT_BACKLOG" },
+          planned: { label: "Planned", optionId: "OPT_PLANNED" },
+          inProgress: { label: "In Progress", optionId: "OPT_IN_PROGRESS" },
+          blocked: { label: "Blocked", optionId: "OPT_BLOCKED" },
+          review: { label: "Review", optionId: "OPT_REVIEW" },
+          readyToMerge: { label: "Ready to Merge", optionId: "OPT_RTM" },
+          done: { label: "Done", optionId: "OPT_DONE" },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+}
+
+test("`ticket sync --auto` actually applies hydration, not just a dry-run log line (regression: --auto must imply --apply for hydration too)", async () => {
+  const root = await project();
+  await writeBoardData(root, ".claude/data/board.json");
+  await Bun.write(
+    join(root, ".claude/data/ticket-sync-auto-state.json"),
+    JSON.stringify({ lastAttemptAt: new Date(0).toISOString(), blockers: {} }, null, 2) + "\n",
+  );
+  await stubGhForHydration(18, "Board-only ticket, no local file yet");
+
+  const output = await runCli(root, ["ticket", "sync", "--auto"]);
+  expect(output).toMatch(/hydrate/i);
+
+  // The regression: this used to log "hydrate" but never call `applyTicketHydration`
+  // because the gate only checked `--apply`, not `auto` — so nothing ever landed on disk
+  // and the ticket stayed invisible to `dispatcher`'s local-first ranking forever.
+  const list = await runCli(root, ["ticket", "list"]);
+  expect(list).toContain("#18");
 });

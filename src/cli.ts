@@ -672,10 +672,16 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       return 0;
     }
 
-    if (argv.includes("--apply") && hydration.toCreate.length > 0) {
+    // `--auto` implies `--apply` (see usage text above) — the hydration-apply gate must
+    // honor that too, or an unattended `--auto` run silently drops a hydrated ticket from
+    // `allTickets` (it never gets written to disk, stays invisible to `dispatcher`'s
+    // local-first ranking, and gets re-logged as `hydrate` on every subsequent run) while
+    // still falling through into a real apply for everything else below.
+    const applying = argv.includes("--apply") || auto;
+    if (applying && hydration.toCreate.length > 0) {
       await applyTicketHydration(root, hydration.toCreate);
     }
-    const allTickets = argv.includes("--apply") ? [...tickets, ...hydration.toCreate] : tickets;
+    const allTickets = applying ? [...tickets, ...hydration.toCreate] : tickets;
 
     // Pull before push, always: a push must never overwrite board state this run hasn't
     // read yet.
@@ -713,7 +719,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       await saveAutoSyncState(root, autoStateFile, autoState);
     }
 
-    if (!argv.includes("--apply") && !auto) {
+    if (!applying) {
       if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
       console.log(c.dim(`\nDry run. Re-run with --apply to write the pulled files and push ${plan.actions.length} ticket(s).`));
       return plan.blockers.length > 0 ? 1 : 0;
