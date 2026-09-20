@@ -2,3 +2,4 @@ node_modules/
 bun.lockb
 *.log
 .DS_Store
+.claude/data/ticket-sync-auto-state.json

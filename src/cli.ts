@@ -613,6 +613,13 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     // cooldown is what makes that safe: a caller that re-invokes `--auto` on every single
     // agent action does not turn into a `gh`-call storm just because nothing changed since
     // the last attempt. See ADR 0009 (issue #31).
+    //
+    // This is a soft, opportunistic guard, not a hard mutex: the load/check/record/save
+    // sequence below is not atomic, so two `--auto` invocations started within milliseconds
+    // of each other could both pass the cooldown check before either persists its attempt.
+    // Acceptable for the "don't retry-storm on repeated single-caller invocations" problem
+    // this exists to solve; true concurrent-run exclusion would need file locking, which is
+    // out of scope here.
     let autoState = auto ? await loadAutoSyncState(root, autoStateFile) : null;
     if (autoState) {
       if (shouldSkipForCooldown(autoState, now, autoMinIntervalMs)) {

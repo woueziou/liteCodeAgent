@@ -1,11 +1,16 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Ticket } from "../src/tickets/spec.ts";
 import type { SyncPlan } from "../src/tickets/sync.ts";
 import {
   EMPTY_AUTO_SYNC_STATE,
+  loadAutoSyncState,
   reconcileBlockers,
   recordAttempt,
   resolveAutoMinIntervalMs,
+  saveAutoSyncState,
   shouldSkipForCooldown,
 } from "../src/tickets/auto-sync.ts";
 
@@ -132,5 +137,57 @@ test("resolveAutoMinIntervalMs: unparsable or negative env var falls back to con
     expect(resolveAutoMinIntervalMs(60_000)).toBe(60_000);
   } finally {
     delete process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS;
+  }
+});
+
+test("resolveAutoMinIntervalMs: empty-string env var falls back to configured value", () => {
+  process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS = "";
+  try {
+    expect(resolveAutoMinIntervalMs(60_000)).toBe(60_000);
+  } finally {
+    delete process.env.LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS;
+  }
+});
+
+test("reconcileBlockers: fix text is refreshed even when the problem is unchanged", () => {
+  const t0 = new Date("2026-01-01T00:00:00.000Z");
+  const t1 = new Date("2026-01-01T00:05:00.000Z");
+  const first = reconcileBlockers(EMPTY_AUTO_SYNC_STATE, [blocker("0001", "no board option")], t0);
+  const updated = { ...blocker("0001", "no board option"), fix: "updated guidance text" };
+  const second = reconcileBlockers(first.state, [updated], t1);
+
+  expect(second.state.blockers["0001"]).toMatchObject({ fix: "updated guidance text", attempts: 2 });
+});
+
+test("loadAutoSyncState: missing file reads as EMPTY_AUTO_SYNC_STATE", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "litecode-auto-sync-"));
+  try {
+    const state = await loadAutoSyncState(dir, "does-not-exist.json");
+    expect(state).toEqual(EMPTY_AUTO_SYNC_STATE);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("loadAutoSyncState: round-trips a saved state", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "litecode-auto-sync-"));
+  try {
+    const state = { lastAttemptAt: "2026-01-01T00:00:00.000Z", blockers: {} };
+    await saveAutoSyncState(dir, "state.json", state);
+    const loaded = await loadAutoSyncState(dir, "state.json");
+    expect(loaded).toEqual(state);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("loadAutoSyncState: a truncated/corrupted file reads as EMPTY_AUTO_SYNC_STATE instead of throwing", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "litecode-auto-sync-"));
+  try {
+    await Bun.write(join(dir, "corrupt.json"), "{ this is not valid json");
+    const state = await loadAutoSyncState(dir, "corrupt.json");
+    expect(state).toEqual(EMPTY_AUTO_SYNC_STATE);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 });
