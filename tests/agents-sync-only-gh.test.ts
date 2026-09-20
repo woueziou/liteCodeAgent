@@ -20,23 +20,23 @@ const PACKS = join(import.meta.dir, "..", "packs");
  * pull request, not a board mutation) are out of scope; `implementer` legitimately does
  * both as part of implementing a ticket.
  *
- * `gh project item-edit` for the Status field specifically is NOT yet enforced here:
- * `dispatcher`/`implementer` moving a board item's Status still goes through a direct
- * `item-edit` today, because making that push-only-through-`sync` requires extending
- * `litecode ticket sync`'s push step to cover Status past creation — which conflicts with
- * ADR 0001's explicit "Status/Priority/Size are pull-only past creation" decision, marked
- * there as already decided by the project owner and not to be re-litigated casually. That
- * extension is proposed in ADR 0010, pending approval; once it lands, `dispatcher.md` and
- * `implementer.md` should be removed from `ITEM_EDIT_ALLOWED` below and this comment
- * updated.
+ * Per ADR 0010 (approved), `gh project item-add`/`gh project item-edit` — any direct
+ * mutation of the GitHub Project board — are now enforced down to `sync.md` alone. No
+ * other agent prompt may mention either literally, including in a negated "you never call
+ * X" sentence: that's why `dispatcher.md`/`implementer.md`/`triage.md`/`reviewer.md`/
+ * `tracker.md` describe the invariant without the literal command text. `Status` moves
+ * that used to be a direct `item-edit` from `dispatcher`/`implementer`/`triage` are now a
+ * local ticket-file write (`status` field + `synced: false`) that `sync`'s push step turns
+ * into the board mutation on its next run — see `planTicketSync`'s `statusEdit` in
+ * `src/tickets/sync.ts` and the module doc comment there.
  */
 
 type Forbidden = { pattern: RegExp; allow: string[] };
 
 const ISSUE_CREATE_ALLOWED = ["sync.md", "tracker.md"];
 const ISSUE_COMMENT_ALLOWED = ["sync.md", "implementer.md", "reviewer.md", "triage.md"];
-const ITEM_ADD_ALLOWED = ["sync.md", "tracker.md"];
-const ITEM_EDIT_ALLOWED = ["sync.md", "reviewer.md", "tracker.md"]; // see module doc comment re: ADR 0010
+const ITEM_ADD_ALLOWED = ["sync.md"];
+const ITEM_EDIT_ALLOWED = ["sync.md"];
 
 const FORBIDDEN: Record<string, Forbidden> = {
   "gh issue create": { pattern: /gh issue create/, allow: ISSUE_CREATE_ALLOWED },

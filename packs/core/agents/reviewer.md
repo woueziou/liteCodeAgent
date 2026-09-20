@@ -44,7 +44,7 @@ Load only what the diff actually touches — don't load all of these reflexively
 
 ## When you find a bug
 
-You never fix it and you never mutate the board yourself — no `gh project item-edit`, no Status change. Instead:
+You never fix it and you never mutate the board yourself — no direct GitHub Project edit of any kind, no Status change (per ADR 0010, `sync` is the only agent that touches the board). Instead:
 
 1. Classify severity: **blocking** (breaks correctness, data integrity, auth, or contract for existing consumers — must not merge as-is) vs **non-blocking** (style, minor edge case, follow-up-able).
 2. Describe it precisely enough that `implementer` could pick it up without re-reading your whole review: file, line, what's wrong, what "fixed" looks like.

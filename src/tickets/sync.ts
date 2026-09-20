@@ -1,15 +1,25 @@
 /**
  * Push the ticket buffer to GitHub, and pull the board back into it.
  *
- * Push only ever writes Status/Priority/Size to the board **once, at creation** — the
- * board does not know about the item yet, so there is nothing to conflict with. After
- * creation those three fields are pull-only: GitHub, not a ticket file, is the source of
- * truth for pipeline state, so every push after the first only ever touches title, body,
- * and comments. See ADR 0001.
+ * Push writes Priority/Size/Assigned Agent to the board **once, at creation** — the board
+ * does not know about the item yet, so there is nothing to conflict with. After creation
+ * those three stay pull-only forever: they're human-curated, and GitHub, not a ticket
+ * file, is the source of truth for them. See ADR 0001.
  *
- * Pull exists precisely because of that: anything a human (or another agent) moved on the
- * board wins over what a ticket file remembers, and `ticket sync` runs pull before push by
- * default so a push never overwrites board state the file hasn't seen yet.
+ * `Status` is different, per ADR 0010: it's the one field the pipeline itself drives
+ * (`dispatcher`/`implementer` handing a ticket between `Planned`/`In Progress`/`Review`/
+ * `Ready to Merge`), so a dirty local file's `status` is allowed to push past creation too
+ * — this is also the *only* way any agent moves a board item's Status now; no agent calls
+ * `gh project item-edit` directly for it any more, they write the local file and `sync`
+ * turns that into the board mutation. The project owner accepted, in writing (see ADR
+ * 0010), the same overwrite risk this already carried for title/body: if a human moves the
+ * card on the board and an agent independently dirties the same ticket with a different
+ * Status inside one `sync` cycle, the agent's write wins.
+ *
+ * Pull runs first regardless: anything a human (or another agent) moved on the board is
+ * read back before push decides what, if anything, still disagrees with it, and `ticket
+ * sync` runs pull before push by default so a push never overwrites board state the file
+ * hasn't seen yet this run.
  */
 
 import { join } from "node:path";
@@ -31,7 +41,7 @@ export type FieldEdit = {
 
 export type TicketAction =
   | { kind: "create"; ticket: Ticket; edits: FieldEdit[]; comments: string[] }
-  | { kind: "update"; ticket: Ticket; issue: number; comments: string[] };
+  | { kind: "update"; ticket: Ticket; issue: number; edits: FieldEdit[]; comments: string[] };
 
 export type SyncPlan = {
   actions: TicketAction[];
@@ -80,7 +90,32 @@ function creationEdits(board: BoardData, ticket: Ticket): FieldEdit[] {
   return edits;
 }
 
-export function planTicketSync(tickets: Ticket[], board: BoardData): SyncPlan {
+/**
+ * Per ADR 0010: `Status` is the one field a dirty local file is allowed to push past
+ * creation — it's the field the pipeline itself drives (`dispatcher`/`implementer`
+ * handing a ticket between `Planned`/`In Progress`/`Review`/`Ready to Merge`), unlike
+ * `Priority`/`Size`/`Assigned Agent`, which stay human-curated and pull-only forever. An
+ * agent never calls `gh project item-edit` itself for any of these — it writes the local
+ * file and dirties it; this is the one place that write turns into a board mutation, and
+ * only `sync` (via `applyTicketSync`) ever executes it.
+ *
+ * Only produces an edit when `remote` actually has an entry for the ticket's issue and
+ * that entry's Status disagrees with what the local file now says — no remote data means
+ * nothing to diff against, so no edit is pushed blind.
+ */
+function statusEdit(board: BoardData, ticket: Ticket, remote: Map<number, RemoteItem>): FieldEdit[] {
+  if (ticket.issue === undefined) return [];
+  const remoteItem = remote.get(ticket.issue);
+  if (!remoteItem) return [];
+  const remoteStatus = remoteItem.fields.get("Status");
+  if (remoteStatus === undefined) return [];
+  const desired = board.statusRoles[ticket.status];
+  if (!desired) return [];
+  if (remoteStatus === desired.label) return [];
+  return [{ field: "Status", fieldId: field(board, "Status").id, from: remoteStatus, to: desired.label, optionId: desired.optionId }];
+}
+
+export function planTicketSync(tickets: Ticket[], board: BoardData, remote: Map<number, RemoteItem>): SyncPlan {
   const plan: SyncPlan = { actions: [], skipped: [], blockers: [] };
 
   for (const ticket of tickets) {
@@ -105,9 +140,17 @@ export function planTicketSync(tickets: Ticket[], board: BoardData): SyncPlan {
       continue;
     }
 
-    // Existing issue: title/body/comments only. Status/Priority/Size are pull-only past
-    // creation, so there is nothing left to diff against the board here.
-    plan.actions.push({ kind: "update", ticket, issue: ticket.issue, comments: ticket.pendingComments });
+    // Existing issue: title/body/comments, plus a Status edit if the local file (the
+    // pipeline's own hand-off) disagrees with what `remote` just read off the board.
+    // Priority/Size/Assigned Agent stay pull-only, per ADR 0001/0010 — nothing else is
+    // diffed here.
+    plan.actions.push({
+      kind: "update",
+      ticket,
+      issue: ticket.issue,
+      edits: statusEdit(board, ticket, remote),
+      comments: ticket.pendingComments,
+    });
   }
   return plan;
 }
@@ -196,6 +239,7 @@ export async function applyTicketSync(
   root: string,
   plan: SyncPlan,
   board: BoardData,
+  remote: Map<number, RemoteItem>,
   opts: SyncOptions,
 ): Promise<PerTicketResult[]> {
   const results: PerTicketResult[] = [];
@@ -256,6 +300,21 @@ export async function applyTicketSync(
       detail = `updated #${action.issue} from ${ticket.path}`;
       emit(detail);
       await throttle(opts);
+
+      if (action.edits.length > 0) {
+        const itemId = remote.get(action.issue)?.itemId;
+        if (!itemId) {
+          throw new Error(
+            `#${action.issue} has a Status edit to push but no board item id in \`remote\` — ` +
+              `the board fetch this run started from should already have it for any issue it diffed against`,
+          );
+        }
+        for (const edit of action.edits) {
+          await editField(itemId, board.projectId, edit);
+          emit(`  ${edit.field} = ${edit.to}`);
+          await throttle(opts);
+        }
+      }
     }
 
     const issueNumber = ticket.issue!;

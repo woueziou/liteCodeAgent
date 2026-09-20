@@ -688,7 +688,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     const pulledById = new Map(pullChanges.map((p) => [p.ticket.id, p.ticket]));
     const afterPull = allTickets.map((t) => pulledById.get(t.id) ?? t);
 
-    const plan = planTicketSync(afterPull, board);
+    const plan = planTicketSync(afterPull, board, remote);
     for (const a of plan.actions) {
       console.log(`  ${a.kind === "create" ? c.green("create") : c.yellow("update")} ${a.ticket.path}`);
     }
@@ -731,7 +731,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     }
 
     if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
-    const results = await applyTicketSync(root, plan, board, {
+    const results = await applyTicketSync(root, plan, board, remote, {
       repo: config.project.repo,
       owner: config.project.board.owner,
       number,
