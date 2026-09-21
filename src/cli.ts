@@ -6,7 +6,7 @@ import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, typ
 import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
-import { ensureAuth, onGhRetry, RateLimitError } from "./board/gh.ts";
+import { ensureAuth, onGhRetry, RateLimitError } from "./gh.ts";
 import { fetchProject, fetchOptionUsage } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";

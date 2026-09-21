@@ -23,7 +23,7 @@
  */
 
 import { join } from "node:path";
-import { gh } from "../board/gh.ts";
+import { gh } from "../gh.ts";
 import type { BoardData } from "../board/spec.ts";
 import { fetchTicketItems, type RemoteItem } from "./remote.ts";
 import { priorityOption, sizeOption, slugify, type Ticket, type TicketMeta } from "./spec.ts";
@@ -238,7 +238,7 @@ export type SyncOptions = {
   /**
    * Proactive delay between mutating `gh` calls within a batch, in ms. A single ticket
    * create fires 3+ serial mutations (issue create, item-add, up to four field edits, N
-   * comments); `board/gh.ts` only backs off *after* a failure, so a batch of several dirty
+   * comments); `gh.ts` only backs off *after* a failure, so a batch of several dirty
    * tickets can still burst past GitHub's secondary rate limit before any retry ever
    * triggers. Overridable per ADR 0001 via `LITECODE_TICKET_SYNC_DELAY_MS`, falling back
    * to this option, falling back to a conservative default.
