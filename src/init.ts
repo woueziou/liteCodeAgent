@@ -2,7 +2,7 @@ import { resolve, join } from "node:path";
 import { CONFIG_FILENAME, TARGETS, TARGET_INFO, type InstallTarget } from "./config.ts";
 import { detect, extractConventions, type Detected } from "./detect.ts";
 import { listPacks, loadPack } from "./packs.ts";
-import { gh } from "./board/gh.ts";
+import { gh } from "./gh.ts";
 import { ask, askList, confirm, heading, isInteractive, multiSelect, note, select, color } from "./prompt.ts";
 
 type Angle = {

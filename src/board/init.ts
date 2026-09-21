@@ -1,7 +1,7 @@
 import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 import type { Config } from "../config.ts";
-import { graphql, gh } from "./gh.ts";
+import { graphql, gh } from "../gh.ts";
 import {
   fetchProject,
   fetchItems,

@@ -7,7 +7,7 @@
  * GitHub call there is.
  */
 
-import { graphql } from "../board/gh.ts";
+import { graphql } from "../gh.ts";
 
 const ITEMS_QUERY = `
 query($projectId: ID!, $cursor: String) {

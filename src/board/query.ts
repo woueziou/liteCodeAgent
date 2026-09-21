@@ -1,4 +1,4 @@
-import { graphql } from "./gh.ts";
+import { graphql } from "../gh.ts";
 
 export type RemoteField = {
   id: string;

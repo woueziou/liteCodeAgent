@@ -2,7 +2,7 @@ import { expect, test, afterEach } from "bun:test";
 import { mkdtemp, writeFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { graphql, RateLimitError, onGhRetry } from "../src/board/gh.ts";
+import { graphql, RateLimitError, onGhRetry } from "../src/gh.ts";
 
 const realBin = process.env.LITECODE_GH_BIN;
 

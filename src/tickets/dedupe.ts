@@ -17,7 +17,7 @@
  * fixtures — no ML, no external service.
  */
 
-import { gh } from "../board/gh.ts";
+import { gh } from "../gh.ts";
 
 export type DedupeSource = "local" | "issue";
 
