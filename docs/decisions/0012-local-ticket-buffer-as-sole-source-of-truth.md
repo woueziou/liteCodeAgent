@@ -44,13 +44,19 @@ is no board to pull from or defer to. They are simply local state now, the same 
 
 ### 2. Epics are nested directories under `docs/tickets/`, explicitly ordered
 
-A ticket lives at `docs/tickets/<NN-epic>/<ticket-id>-<slug>.md`. The `NN-` prefix on
-each epic directory is an explicit reading/execution order, not an accident of
-alphabetization: `01-ticket-buffer`, `02-local-first-tickets`,
-`03-pipeline-fiabilite`, `04-install-config`, `05-board-legacy`. Five epics, 29
-tickets total. This replaces the earlier flat `docs/tickets/*.md` layout ADR 0001
+A ticket lives at `docs/tickets/<epic>/<ticket-id>-<slug>.md`. As shipped on `main`
+as of this writing, the five epic directories are `ticket-buffer`,
+`local-first-tickets`, `pipeline-fiabilite`, `install-config`, `board-legacy` — five
+epics, 29 tickets total. This replaces the earlier flat `docs/tickets/*.md` layout
+ADR 0001
 introduced — migrating the pre-existing flat tickets into this structure was itself
 one of the epic's own lots (`0024-chore-tickets-migrer-les-20-tickets...`).
+
+A separate, still-open PR (#59) proposes prefixing each epic directory with an
+explicit `NN-` reading/execution order (`01-ticket-buffer`, `02-local-first-tickets`,
+`03-pipeline-fiabilite`, `04-install-config`, `05-board-legacy`). That renaming is
+proposed, not yet merged, as of this writing — this ADR records the directory
+structure as it actually exists on `main` today, not the pending rename.
 
 ### 3. The dashboard builds only on explicit command, and its output is committed
 
