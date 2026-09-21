@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0015-fix-agents-le-verdict-du-reviewer-n-atteint-jama
 title: fix(agents): le verdict du reviewer n'atteint jamais la PR sur le chemin Ready to Merge
 label: bug
-status: review
+status: done
 priority: high
 size: small
 assignedAgent: implementer

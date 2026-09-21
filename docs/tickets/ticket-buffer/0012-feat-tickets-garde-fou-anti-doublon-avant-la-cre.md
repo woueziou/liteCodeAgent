@@ -15,7 +15,7 @@ syncedAt: 2026-09-18T17:34:39.809Z
 
 ## Problème (incident réel, survenu dans cette session)
 
-Les tickets locaux `docs/tickets/0004` et `0005` décrivaient un travail déjà tracké par les issues GitHub #18 et #19, mais ne portaient aucun champ `issue:`. `litecode ticket sync --apply` les a donc traités comme des créations et a ouvert **#21 et #22 en doublon** — mêmes titres, mêmes champs que #18/#19. Les doublons ont dû être fermés à la main et les fichiers locaux repointés vers les issues d'origine.
+Les tickets locaux `docs/tickets/install-config/0004` et `0005` décrivaient un travail déjà tracké par les issues GitHub #18 et #19, mais ne portaient aucun champ `issue:`. `litecode ticket sync --apply` les a donc traités comme des créations et a ouvert **#21 et #22 en doublon** — mêmes titres, mêmes champs que #18/#19. Les doublons ont dû être fermés à la main et les fichiers locaux repointés vers les issues d'origine.
 
 Cause: rien, ni dans `tracker` ni dans `ticket new` ni dans `planTicketSync` (`src/tickets/sync.ts:87`, où `dirty = !ticket.synced || ticket.pendingComments.length > 0`), ne vérifie qu'un sujet est déjà couvert. Un ticket sans `issue:` est *par définition* une création.
 
