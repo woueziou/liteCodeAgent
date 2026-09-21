@@ -10,6 +10,7 @@ import { ensureAuth, onGhRetry, RateLimitError } from "./gh.ts";
 import { fetchProject, fetchOptionUsage } from "./board/query.ts";
 import { planBoard, applyBoardPlan } from "./board/init.ts";
 import { doctor } from "./board/doctor.ts";
+import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import type { BoardData } from "./board/spec.ts";
 import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
@@ -88,6 +89,7 @@ function usage(): void {
                                      issues for a likely duplicate first (read-only GitHub call) and blocks if one
                                      is found — pass --force to create anyway
   ${c.bold("bunx litecodeagent ticket list")}              list local ticket files and their dirty state
+  ${c.bold("bunx litecodeagent ticket doctor")}            check the local ticket buffer for malformed/misplaced/duplicate files
   ${c.bold("bunx litecodeagent ticket sync")} [--apply|--auto]    pull the board into dirty tickets, then push the batch
                                      ${c.dim("(dry-run by default; --apply writes)")}
                                      ${c.dim("--auto: for unattended callers — implies --apply, skips the run if the last")}
@@ -608,6 +610,18 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(c.dim(`No tickets in ${dir}. Create one with \`litecode ticket new\`.`));
     }
     return errors.length > 0 ? 1 : 0;
+  }
+
+  if (sub === "doctor") {
+    const findings = await ticketDoctor(root, dir);
+    if (findings.length === 0) {
+      console.log(c.green(`${dir} is consistent — no malformed, misplaced, or duplicate ticket files.`));
+      return 0;
+    }
+    for (const f of findings) {
+      console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
+    }
+    return findings.some((f) => f.severity === "error") ? 1 : 0;
   }
 
   if (sub === "sync") {
