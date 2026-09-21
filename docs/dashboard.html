@@ -1,0 +1,1285 @@
+<!--
+  Committed snapshot (owner decision): this file is checked into git so it can be shared
+  and browsed straight from GitHub, and its history tracked over time. It goes stale the
+  moment any ticket's status/priority/size changes after this build — re-run
+  `litecode dashboard --build` to refresh it before relying on it.
+-->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard tickets — litecodeagent</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 2rem; background: #f8fafc; color: #0f172a; }
+  h1 { margin-top: 0; }
+  .meta { color: #475569; margin-bottom: 2rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .tiles { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .tile { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 1rem 1.5rem; min-width: 140px; }
+  .tile-value { font-size: 2rem; font-weight: 700; }
+  .tile-label { color: #475569; font-size: 0.85rem; }
+  .tile-alert { border-color: #ef4444; background: #fef2f2; }
+  .card { background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 1.25rem 1.5rem; }
+  .card-alert { border-color: #ef4444; background: #fef2f2; }
+  .badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; border: 1px solid rgba(0,0,0,0.1); }
+  .note { color: #475569; font-size: 0.9rem; }
+  .axis-list, .epic-list, .blocked-list { list-style: none; margin: 0; padding: 0; }
+  .axis-list li { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px solid #e2e8f0; }
+  .axis-count { font-weight: 700; }
+  .epic-row { padding: 0.6rem 0; border-bottom: 1px solid #e2e8f0; }
+  .epic-bar { background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden; margin: 0.35rem 0; }
+  .epic-bar-fill { background: #16a34a; height: 100%; }
+  .epic-detail { font-size: 0.8rem; color: #475569; }
+  .tag { display: inline-block; font-size: 0.75rem; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 0.05rem 0.4rem; margin-left: 0.4rem; }
+  .tag-alert { background: #fecaca; border-color: #ef4444; color: #7f1d1d; }
+  .blocked-item { padding: 0.4rem 0; border-bottom: 1px solid #fecaca; }
+  .ticket-list details.ticket { border-bottom: 1px solid #e2e8f0; padding: 0.4rem 0; }
+  .ticket-list summary { cursor: pointer; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .ticket-title { flex: 1; min-width: 200px; }
+  .ticket-body pre { white-space: pre-wrap; word-break: break-word; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.75rem; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0f172a; color: #e2e8f0; }
+    .tile, .card { background: #1e293b; border-color: #334155; }
+    .ticket-body pre { background: #0f172a; border-color: #334155; }
+  }
+</style>
+</head>
+<body>
+  <h1>Dashboard tickets — litecodeagent</h1>
+  <p class="meta">Généré le 2026-09-21T20:17:41.875Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
+
+  <div class="tiles"><div class="tile "><div class="tile-value">29</div><div class="tile-label">Tickets totaux</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Bloqués</div></div><div class="tile "><div class="tile-value">1</div><div class="tile-label">En cours</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Prêts à merger</div></div></div>
+
+  
+  <section class="card"><h2>Tickets bloqués</h2><p class="note">Aucun ticket bloqué.</p></section>
+
+  <div class="grid">
+    
+    <section class="card">
+      <h2>Répartition par statut</h2>
+      <div class="badges"><span class="badge" style="background:#e2e8f0;color:#1e293b">Backlog: 6</span> <span class="badge" style="background:#dbeafe;color:#1e3a8a">Planned: 1</span> <span class="badge" style="background:#fef3c7;color:#78350f">In Progress: 1</span> <span class="badge" style="background:#fecaca;color:#7f1d1d">Blocked: 0</span> <span class="badge" style="background:#e9d5ff;color:#581c87">Review: 2</span> <span class="badge" style="background:#bbf7d0;color:#14532b">Ready to Merge: 0</span> <span class="badge" style="background:#d1fae5;color:#065f46">Done: 19</span></div>
+      <p class="note">"Ready to Merge" (0) ≠ "Done" (19) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
+    </section>
+    
+    <section class="card">
+      <h2>Répartition par priorité</h2>
+      <ul class="axis-list"><li><span class="axis-label">low</span><span class="axis-count">2</span></li><li><span class="axis-label">medium</span><span class="axis-count">11</span></li><li><span class="axis-label">high</span><span class="axis-count">16</span></li></ul>
+    </section>
+    
+    <section class="card">
+      <h2>Répartition par taille</h2>
+      <ul class="axis-list"><li><span class="axis-label">trivial</span><span class="axis-count">0</span></li><li><span class="axis-label">small</span><span class="axis-count">7</span></li><li><span class="axis-label">medium</span><span class="axis-count">15</span></li><li><span class="axis-label">large</span><span class="axis-count">7</span></li></ul>
+    </section>
+    
+    <section class="card">
+      <h2>Répartition par label</h2>
+      <ul class="axis-list"><li><span class="axis-label">bug</span><span class="axis-count">11</span></li><li><span class="axis-label">feature</span><span class="axis-count">11</span></li><li><span class="axis-label">chore</span><span class="axis-count">6</span></li><li><span class="axis-label">doc</span><span class="axis-count">1</span></li></ul>
+    </section>
+  </div>
+
+  <div class="grid" style="margin-top:1.5rem">
+    
+    <section class="card">
+      <h2>Découpage par epic</h2>
+      <ul class="epic-list">
+        <li class="epic-row">
+          <div class="epic-head"><strong>board-legacy</strong> — 1 ticket(s)</div>
+          <div class="epic-bar" role="img" aria-label="board-legacy: 1/1 terminés">
+            <div class="epic-bar-fill" style="width:100%"></div>
+          </div>
+          <div class="epic-detail">1/1 terminés (100%)</div>
+        </li>
+        <li class="epic-row">
+          <div class="epic-head"><strong>install-config</strong> — 5 ticket(s)</div>
+          <div class="epic-bar" role="img" aria-label="install-config: 5/5 terminés">
+            <div class="epic-bar-fill" style="width:100%"></div>
+          </div>
+          <div class="epic-detail">5/5 terminés (100%)</div>
+        </li>
+        <li class="epic-row">
+          <div class="epic-head"><strong>local-first-tickets</strong> — 9 ticket(s)</div>
+          <div class="epic-bar" role="img" aria-label="local-first-tickets: 4/9 terminés">
+            <div class="epic-bar-fill" style="width:44%"></div>
+          </div>
+          <div class="epic-detail">4/9 terminés (44%)</div>
+        </li>
+        <li class="epic-row">
+          <div class="epic-head"><strong>pipeline-fiabilite</strong> — 7 ticket(s)</div>
+          <div class="epic-bar" role="img" aria-label="pipeline-fiabilite: 3/7 terminés">
+            <div class="epic-bar-fill" style="width:43%"></div>
+          </div>
+          <div class="epic-detail">3/7 terminés (43%)</div>
+        </li>
+        <li class="epic-row">
+          <div class="epic-head"><strong>ticket-buffer</strong> — 7 ticket(s)</div>
+          <div class="epic-bar" role="img" aria-label="ticket-buffer: 6/7 terminés">
+            <div class="epic-bar-fill" style="width:86%"></div>
+          </div>
+          <div class="epic-detail">6/7 terminés (86%)</div>
+        </li></ul>
+    </section>
+  </div>
+
+  <div style="margin-top:1.5rem">
+    
+    <section class="card">
+      <h2>Tous les tickets (29)</h2>
+      <div class="ticket-list">
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0001-fix-board-detect-non-editable-derived-project-fi</span>
+            <span class="ticket-title">fix(board): detect non-editable derived project fields at plan time instead of failing mid-apply</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Problem
+
+Running board init/sync against an existing org project (Fuel Manager Project, https://github.com/orgs/kp-dev-org/projects/2, node `PVT_kwDODdLm7c4Bj5kj`) plans:
+
+```
+update   Priority add option(s): Low, Medium, High (existing ids preserved)
+update   Size add option(s): Trivial, Small, Medium, Large (existing ids preserved)
+remove   Size remove unused option(s): XS, S, M, L, XL (no item holds them)
+```
+
+then crashes mid-apply:
+
+```
+gh api graphql --input - failed (exit 1):
+gh: Only custom fields can be updated. Fields derived from issues or pull requests must be updated through their respective APIs.
+```
+
+Root cause: `planBoard` in `src/board/init.ts` matches project fields purely by name (`byName.get(spec.name)`, ~line 78) and only validates `remote.dataType !== DATATYPE[spec.kind]` (~lines 91-98). Nothing checks the matched field is a mutable *custom* field, so `updateProjectV2Field` is issued against GitHub-derived fields and rejected. The crash leaves the project partially mutated with a stale `board.json`.
+
+## Plan
+
+1. `src/board/query.ts` — export a `DERIVED_DATATYPES` set of non-editable `ProjectV2FieldCommon.dataType` values: `ASSIGNEES, LABELS, LINKED_PULL_REQUESTS, MILESTONE, REPOSITORY, REVIEWERS, TITLE, TRACKED_BY, TRACKS`. `RemoteField.dataType` is already `string`. Comment the known limitation: `PROJECT_FRAGMENT` (lines 22-32) only distinguishes `ProjectV2Field`/`ProjectV2SingleSelectField`/`ProjectV2IterationField`, so a SINGLE_SELECT-shaped system field isn&#39;t caught by this set alone.
+2. `src/board/init.ts` — in `planBoard`, right after the `byName.get(spec.name)` match and *before* the dataType/kind comparison, guard on `DERIVED_DATATYPES.has(remote.dataType)`: push a `Blocker` (existing `{ field, problem, fix }` shape, line 31) and `continue`, emitting zero actions. Suggested fix text: &quot;Field &#39;&lt;name&gt;&#39; cannot be edited via the API — recreate it as a plain custom single-select in the Project UI&quot;. Keeping the check in `planBoard` means `applyBoardPlan`&#39;s plan/re-plan/verify cycle (lines 270-330, re-fetch 282-292) catches a collision that only appears on re-fetch, preserving the &quot;never mutate on a stale assumption&quot; invariant.
+3. Create-field path (lines 240-262) needs no separate guard — it only fires when there is no name collision (`!remote`). Add a comment recording that the guard lives solely in `planBoard`; confirm in review no direct `createProjectV2Field`/`graphql` call bypasses `planBoard`&#39;s action list.
+4. Harden the per-field option-update loop (lines 300-313): currently no per-field try/catch, while `board.json` is written only at the end (line 374). Wrap the `graphql(UPDATE_SELECT_FIELD, ...)` call; on failure throw an error carrying the field name, the already-succeeded log entries (&quot;Fields already updated before failure: ...&quot;), and the original message.
+5. Re-wrap the caught error at the init.ts call site (~line 305) as `Field &#39;&lt;name&gt;&#39;: &lt;err.message&gt;` rather than touching `src/board/gh.ts` — `run()` (line 116) re-throws via `summarize()` (line 42), which redacts the mutation body to `query=…`; changing that redaction would alter the contract for all callers.
+6. Tests (bun test; check for an existing `init.test.ts` first, otherwise create alongside `init.ts`):
+   - `planBoard` with a `RemoteField` fixture of `dataType: &quot;ASSIGNEES&quot;` (and `&quot;TITLE&quot;`) matching a `FIELD_SPECS` name → returns a blocker, zero actions.
+   - Regression: `applyBoardPlan` issues no `UPDATE_SELECT_FIELD`/`CREATE_SELECT_FIELD` graphql call for such a field.
+   - Partial-apply: second field&#39;s mutation rejects → thrown error message contains the first field&#39;s success log entry.
+7. `bun run check` and `bun test` must pass.
+
+## Explicitly rejected
+
+Auto-recreating the field under a different custom name (configurable or not). `src/tickets/sync.ts` does literal `field(board, &quot;Priority&quot;)` / `field(board, &quot;Size&quot;)` (lines 56-57) and `item.fields.get(&quot;Priority&quot;)` / `item.fields.get(&quot;Size&quot;)` (lines 308, 313); a renamed field makes those return `undefined` and silently degrades ticket sync. A configurable fallback name would need threading through `config.ts` into both `board/init.ts` and `tickets/sync.ts`, doubling drift surface. Blocker-and-stop keeps `FIELD_SPECS` the single source of truth and fails loudly at board-init time.
+
+## Contract impact
+
+No new `Action` discriminant (the fix emits no action). In-repo consumers of these types: `src/cli.ts`, `src/tickets/{sync,spec,remote}.ts`; nothing re-exported externally. Plan output is human-facing CLI stdout (cli.ts:443-476), not a machine-parsed contract.
+
+## ADR
+
+\`docs/decisions/0002-reject-derived-project-fields-in-board-planning.md\` (precedent: \`0001-local-ticket-buffer-and-github-sync.md\`). Record: where detection lives (planBoard vs pre-apply) and why re-checking every cycle is required; the enumerated derived-dataType set and how it stays in sync as GitHub adds types; why a collision is a hard Blocker rather than a silent skip, and why auto-rename was rejected; acceptance that the dataType guard is necessary-but-not-sufficient given PROJECT_FRAGMENT&#39;s three-shape limitation, plus the blast radius if a SINGLE_SELECT-shaped system field slips through.
+
+---
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0002-feat-packs-langue-configurable</span>
+            <span class="ticket-title">feat(packs): langue de travail configurable pour la prose des agents</span>
+            <span class="tag">medium/large</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Une clé `project.language` optionnelle et en texte libre dans `litecode.config.json` (ex. `&quot;French&quot;`, `&quot;Brazilian Portuguese&quot;`) est interpolée dans les prompts de pack, pour que la prose des agents, les contenus GitHub qu&#39;ils écrivent et les ADR suivent la langue choisie.
+
+## Périmètre arrêté par le propriétaire (non rediscutable)
+
+Suivent la langue configurée :
+- les réponses et rapports conversationnels des agents ;
+- les contenus GitHub écrits par les agents : titres et corps d&#39;issues, descriptions de PR, commentaires ;
+- les ADR sous `docs/decisions/` et les docs générés.
+
+**Hors périmètre** : les chaînes de sortie du CLI `litecode` (`src/cli.ts`). Pas d&#39;i18n du code TypeScript dans ce lot.
+
+La langue est déclarée en **texte libre**, pas en code BCP-47 validé contre une liste, et il n&#39;y a **aucune détection automatique**.
+
+## Décision de conception centrale
+
+Les deux angles du débat ont rendu `blocking`, et tous deux avaient raison sur un point différent :
+
+- `.optional()` + interpolation nue `{{ project.language }}` → `renderLeaf` (`src/template.ts:124-126`) lève `TemplateError` sur un chemin indéfini, et `requiredPaths()`/`referencedPaths()` (`src/install.ts:243-247`) parcourt les sources brutes du pack : `litecode install` casserait pour **toute** config existante.
+- `.default(&quot;English&quot;)` + interpolation nue → injecte silencieusement une instruction nouvelle dans les prompts de **tous** les projets existants à l&#39;upgrade : un changement de comportement déguisé en défaut.
+
+**Résolution :** `language: z.string().optional()` **sans `.default()`**, et **chaque** site d&#39;injection encadré par `{{#if project.language}}…{{/if}}`. Le `{{#if}}` évalue la véracité au lieu de lever, et le contexte de rendu est littéralement `{ project: config.project }` (`src/install.ts:251`) — donc clé absente ⇒ rendu **identique octet pour octet** à aujourd&#39;hui. C&#39;est la seule propriété de cette feature vérifiable par une machine : on ne peut pas assert sur la langue d&#39;une sortie de LLM.
+
+## Frontière prose / identifiant (principal risque de casse)
+
+**Restent toujours en anglais :**
+- toutes les clés sentinelles : `STATUS:`, `PLANNED:`, `CONFLICTS:`, `SKIPPED:`, `ADR:`, `ADR_DECISIONS:`, `BLOCKER:`, `REENTRY:`, `ANGLE:`, `VERDICT:`, `SIZE:`, `ROUTE:`, `RESOLUTION:`, `NEXT_STATUS:`, `CHECK_OUTPUT:` ;
+- toutes les valeurs d&#39;énumération : `approve|approve-with-notes|changes-requested`, `pr-opened-for-review|adr-pending-approval|…`, `trivial|small|medium|large`, `blocking|non-blocking|no-concern` ;
+- les préfixes Conventional Commits (`feat:`, `fix:`, `chore:`…), consommés par semantic-release ;
+- les labels et statuts du board, consommés par `github-project-sync` et `src/board/spec.ts`.
+
+**Trois pièges concrets repérés, à ne pas contredire :**
+- `triage.md:30` — `NEXT_STATUS: &lt;Planned | Blocked&gt;` encode des labels de board comme valeurs d&#39;énumération ;
+- `reviewer.md:57` — `CHECK_OUTPUT:` transporte de la sortie d&#39;outil verbatim ;
+- `sync.md:32` — impose de rapporter « verbatim from the command&#39;s own output ».
+
+Une consigne « traduis tout » contredirait les trois.
+
+**Sûr par construction :** `src/board/spec.ts` (`PRIORITY_OPTIONS`, `SIZE_OPTIONS`, `REQUIRED_LABELS`, `STATUS_ROLES[].label`) est du TypeScript que le moteur de template ne touche jamais, et les statuts sont déjà adressés par **rôle**, pas par label. Le risque résiduel est uniquement qu&#39;un agent écrive de lui-même un label traduit dans un appel `gh` ou un préfixe de commit — d&#39;où la clause de réserve à écrire dans chaque prompt.
+
+**Précédent utile :** `orchestrator.md:28` interpole déjà `{{ project.adrDir }}` dans la ligne sentinelle `ADR:` — mais c&#39;est un chemin, pas de la prose libre. La règle : du texte libre non validé (pouvant contenir des deux-points ou des retours à la ligne) ne doit jamais entrer dans une ligne parsée ligne à ligne.
+
+## Plan d&#39;implémentation (13 étapes)
+
+1. `src/config.ts` — ajouter `language: z.string().optional()` à `ProjectSchema` près de `board`/`tickets` (lignes 96-99), avec un commentaire calqué sur le précédent `tickets` (lignes 44-54) expliquant pourquoi il faut rester `.optional()` sans `.default()`.
+2. `tests/config.test.ts` — reproduire le test « une config antérieure au tampon de tickets parse toujours » pour une clé `language` absente ; ajouter un cas vérifiant qu&#39;un texte libre arbitraire (`&quot;Brazilian Portuguese&quot;`) est accepté sans validation.
+3. `src/init.ts` — dans la section « Project » (~lignes 212-230), ajouter un `ask(...)` optionnel avec `required: false` ; dans le littéral de config (~lignes 341-370), utiliser `...(language ? { language } : {})`, le même spread conditionnel que celui déjà employé pour `web`. `ask()` rend `&quot;&quot;` quand on saute la question, ce qui correspond proprement à omettre la clé. **Attention :** il n&#39;existe aucun champ `language` dans `Detected` (`src/detect.ts`) — pas de valeur détectée par défaut, la détection automatique est hors périmètre.
+4. `tests/install.test.ts` — `init` écrit la clé quand elle est renseignée, l&#39;omet quand elle est sautée ; garder « un rendu complet ne produit aucune syntaxe de template non résolue » vert sur une fixture avec et une sans `language`.
+5. `packs/core/agents/{implementer,orchestrator,reviewer,debate-angle,triage,classifier,synthesizer}.md` — insérer le bloc encadré autour des **paragraphes de prose uniquement**, plus une clause de réserve près de chaque section de format de sortie : « traduis la prose seulement ; les clés, valeurs d&#39;énumération et labels restent en anglais ». `implementer.md` reçoit une variante étendue nommant les préfixes Conventional Commits, les constantes de label de `src/board/spec.ts`, et les valeurs des drapeaux `litecode ticket new --label/--priority/--size`.
+6. `packs/core/skills/github-project-sync/SKILL.md` — même bloc encadré et même clause de réserve pour les titres/corps d&#39;issues, descriptions de PR et commentaires ; noter explicitement que `CHECK_OUTPUT:` et le passthrough de sortie d&#39;outil ne sont jamais traduits.
+7. `tests/packs.test.ts` — étendre le test « aucun fichier de pack ne code en dur un littéral de projet » pour vérifier (a) que chaque occurrence de `project.language` dans un fichier de pack est bien à l&#39;intérieur d&#39;une paire `{{#if project.language}}…{{/if}}`, et (b) qu&#39;aucune ligne sentinelle structurée ne contient d&#39;interpolation `{{ project.language }}`.
+8. `tests/template.test.ts` — rendu identique octet pour octet avec la clé absente (ce qui exerce `stripStandaloneTags`, `src/template.ts:143`) ; substitution correcte quand elle est présente.
+9. `packs/core/pack.json` — bump `0.3.0` → `0.4.0`.
+10. `tests/install.test.ts` — mettre à jour l&#39;assertion de la table de versions (~ligne 50) de `{ core: &quot;0.3.0&quot;, web: &quot;0.1.0&quot; }` vers `{ core: &quot;0.4.0&quot;, … }`.
+11. `examples/ts-employee-service.litecode.config.json` — laisser délibérément `language` non renseigné, pour que la fixture continue d&#39;exercer le chemin « clé absente » ; consigner ce choix dans la description de PR.
+12. Passe de `grep` sur les littéraux de forme `Project` construits à la main qui contournent `ProjectSchema.parse` (`tests/`, `src/init.ts`) : ajouter un champ optionnel ne devrait en casser aucun, ne corriger que ce que `bun run check` signale.
+13. La description de PR et les notes de version doivent signaler que le hash rendu de chaque fichier de pack touché change — donc **toute install existante verra de la dérive** ou une réécriture silencieuse au prochain `litecode install`. C&#39;est inhérent aux packs templatés, ce n&#39;est pas du bruit sans rapport.
+
+Note : un test du repo échoue si un littéral propre au projet fuite dans `packs/` — les prompts de pack ne doivent utiliser que des placeholders `{{ }}`.
+
+## ADR — livrable gated
+
+`docs/decisions/0003-optional-project-language-for-agent-prose.md` (0001 et 0002 existent, 0003 est le prochain numéro libre).
+
+L&#39;implémenteur écrit l&#39;ADR, le poste en commentaire sur l&#39;issue, puis **s&#39;arrête** sur `STATUS: adr-pending-approval` sans commiter.
+
+Décisions à trancher dans l&#39;ADR :
+- `.optional()` sans défaut plutôt qu&#39;un défaut littéral `&quot;English&quot;`, et pourquoi un défaut risque de changer silencieusement la sortie rendue de tout projet existant à l&#39;upgrade.
+- Quels sites d&#39;injection exacts reçoivent le bloc encadré, et quelles sections sont exclues comme lignes sentinelles/énumérations ou passthrough de sortie d&#39;outil verbatim.
+- La formulation précise de la clause de réserve, et si `implementer.md` a besoin d&#39;une variante étendue nommant les préfixes de commit, les constantes de label du board et les valeurs de drapeaux du CLI de tickets.
+- Si `stripStandaloneTags` (`src/template.ts:143`) garantit réellement un rendu identique octet pour octet sur chaque fichier touché, ou si certains blocs encadrés en position inline (non standalone) laissent un artefact résiduel et doivent être reformatés.
+- La formulation exacte de la question posée par `init`, pour que « sauter » soit sans ambiguïté par rapport à saisir une langue.
+- Si la fixture d&#39;exemple omet `language`, et si cette omission est elle-même vérifiée par un test pour qu&#39;un changement futur ne puisse pas masquer le chemin « clé absente ».
+- Comment le bump de version du pack est communiqué, étant donné qu&#39;il force de la dérive ou une réécriture sur toute install existante.
+
+---
+
+generated_by: tracker
+task: Channel from agent workflow
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0003-fix-install-preflight-validate-config-paths-packs-require</span>
+            <span class="ticket-title">fix(install): pre-flight validate config paths packs require, plus opt-in `config doctor --fix`</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Problem
+
+`bunx litecodeagent install --apply` in a project whose config predates a newer pack fails with a cryptic mid-render error:
+
+```
+agents/sync.md: {{ project.agentSkills.sync | join }} is not defined in the project config
+```
+
+`src/config.ts:87` declares `agentSkills: z.record(z.string(), z.array(z.string())).default({})`, so omitting the `sync` key is schema-valid and `project.agentSkills.sync` is legitimately `undefined`. But `src/template.ts:124` hard-throws on any undefined lookup. The schema permits absence; the template forbids it. This affects all 8 agent keys (`debate-angle`, `planner`, `implementer`, `reviewer`, `triage`, `dispatcher`, `sync`, `tracker`), and the failure happens mid-render, after the pack-loading loop, so the diagnosis points at a template rather than at the config.
+
+## Why the one-line fix is wrong
+
+Making `| join` treat undefined as `[]` would be actively harmful. `packs/core/agents/sync.md:5` is `skills: {{ project.agentSkills.sync | join }}` **in YAML frontmatter**, and `parseList` (`src/frontmatter.ts:48-49`) turns an empty value into `[]` without error. The install would succeed while silently shipping a `sync` agent stripped of its `github-project-sync` and `agent-attribution` skills. That contradicts the renderer&#39;s documented invariant (`src/template.ts:11-12`): &quot;Anything unresolved is a hard error, never a silently empty string: a prompt with a hole in it is worse than a build that fails.&quot; Keep the strict template; move the fix to pre-flight validation.
+
+## Key discovery: finishing abandoned work
+
+`requiredPaths` (`src/install.ts:243-247`) already exists with **zero call sites**. Its own doc comment states the intent: &quot;Config paths a set of packs requires, so invalid project config can fail before writes.&quot; The expected-key set is derivable from the installed packs, so no hardcoded 8-key list and no `PackManifestSchema` change is needed.
+
+## Plan
+
+1. `src/template.ts` — fix `referencedPaths` (lines 152-158) to strip the `| filter` suffix, mirroring the `split(&quot;|&quot;)` in `renderLeaf` (line 122). It currently returns `&quot;project.agentSkills.sync | join&quot;`, not a usable path; without this every comparison spuriously fails. Add `tests/template.test.ts` coverage for filter-stripping and for `{{#each}}` item-scoped paths (which must NOT be reported as root-config paths).
+
+2. `src/install.ts` — wire `requiredPaths` into a new `validateRequiredConfigPaths(config, packs)`, mirroring the error shape of `validateSkillReferences` (`src/install.ts:333-338`): name the config file, list each missing path with the pack file(s) referencing it, end with concrete remediation pointing at `config doctor --fix`. Scope to `project.agentSkills.*` leaves only (see ADR open question).
+
+3. **Placement is critical.** Insert the check after the pack-loading loop ends at `src/install.ts:364` and BEFORE the render loop begins at line 366. A placement at ~line 405 (after the render loop) does NOT work: `outputFiles` -&gt; `render` at line 369 throws the raw `TemplateError` first, and the regression test in step 4 would fail. This correction was verified against the code.
+
+4. `tests/install.test.ts` — TDD regression test following the existing pattern at lines 73-77: parse `examples/ts-employee-service.litecode.config.json`, `delete config.project.agentSkills.sync`, assert `buildPlan` rejects with the new actionable error rather than a raw `TemplateError`, and that nothing was written. Add a typo case (`agentSkils`) proving typo detection is preserved. Note: this repo&#39;s own config carries all 8 keys, which is why the gap is currently untested.
+
+5. **Opt-in repair** (explicitly requested by the human): add `litecode config doctor` reporting missing required config paths, with a `--fix` flag that fills in missing `agentSkills` keys by reusing `deriveAgentSkills` (`src/init.ts:108-130`, already a pure function returning the full 8-key map). Write through the existing `applyConfigMutation` machinery (`src/config-edit.ts`). Nothing is written without the explicit `--fix` flag — no silent mutation of a user-owned file. Follow the `board doctor` precedent (`src/board/doctor.ts`, wired at `src/cli.ts:413`) for command shape and output.
+
+## Explicitly out of scope
+
+Config `schemaVersion` (the tickets one at `src/tickets/spec.ts:62-68` shipped unused — do not repeat that), automatic migration triggered from `upgrade()` (it only manages the kit clone and never runs for `bunx` users, who have no checkout at all), any silent rewriting of the user&#39;s config, and `PackManifestSchema` changes.
+
+## Human&#39;s scope decisions
+
+The human chose pre-flight validation **plus** the opt-in `--fix` repair (not validation alone), and a single ticket (the pre-flight already resolves the blocking symptom by turning the error actionable).
+
+## ADR
+
+`docs/decisions/0003-preflight-validate-required-config-paths.md`. Open questions the ADR must settle rather than leave to default:
+- Narrow `agentSkills.*`-only scope vs. generalizing to every path `referencedPaths` yields. Generalizing is `requiredPaths`&#39; documented intent but risks false positives on `{{#if}}`-guarded or item-scoped paths. The plan defaults to narrow on reduced-panel confidence; the ADR must justify this actively. **This is the single most important thing for a reviewer to re-examine.**
+- Whether missing-entirely and present-but-empty should fail identically.
+- Why `schemaVersion`/auto-migration were rejected, and the counter-argument from inside the codebase: `src/init.ts:105-107` warns that hand-maintaining this list &quot;is how it drifts&quot; — which is the argument the opt-in `--fix` is meant to answer.
+
+## Confidence caveat
+
+The planning panel was degraded: the classifier&#39;s verdict was unreadable (sizing is the orchestrator&#39;s own judgement), and only 1 of 3 debate angles was recoverable — and that one recommended the template fallback the evidence rejects. The narrow scope rests on a thinner base than usual; the reviewer should weigh scope independently.
+
+## Adjacent bug, NOT in this ticket
+
+`src/cli.ts:397-398`: `if (apply &amp;&amp; changed) return cmdInstall(...)` means `--apply` silently does nothing when a config edit changed nothing, even if output directories are missing. Observed live in this session (&quot;Nothing to install.&quot; while `.kilo/` did not exist). File separately.
+
+---
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0004-feat-regrouper-l-etat-litecodeagent-dans-litecod</span>
+            <span class="ticket-title">feat: regrouper l&#39;état LiteCodeAgent dans .litecodeagent/</span>
+            <span class="tag">medium/large</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Objectif
+
+Sortir l&#39;état propre à LiteCodeAgent des dossiers de harness pour le regrouper dans `.litecodeagent/`. La solution ne doit plus se présenter comme un accessoire de Claude.
+
+## Périmètre arrêté par le propriétaire (non rediscutable)
+
+`.litecodeagent/` contient **uniquement l&#39;état propre à litecode** : les lockfiles (aujourd&#39;hui `.claude/.litecode-lock.json`, `.codex/…`, `.pi/…`, `.opencode/…`, `.kilo/…`, voir `src/cli.ts:197-204`) et les données de board (`project.board.dataFile`, défaut `.claude/data/board.json`, et `project.board.itemIdCache`, défaut `.claude/data/github-project-item-ids.json`).
+
+Les agents et skills rendus **restent dans le dossier natif de chaque harness** : Claude Code ne découvre ses agents qu&#39;à `.claude/agents/` et ses skills qu&#39;à `.claude/skills/`, c&#39;est sa convention et elle n&#39;est pas négociable. On ne renomme donc pas le défaut de `outDir`, et on n&#39;introduit ni miroir ni lien symbolique.
+
+## Le risque principal : perte de données silencieuse, pas simple gêne de migration
+
+`readLockfile` qui ne trouve plus son fichier ne lève pas — il renvoie `null`. La détection de dérive en conclut alors qu&#39;aucun fichier n&#39;appartient à LiteCodeAgent, et un `install` suivant peut **écraser des fichiers édités à la main sans aucun avertissement de dérive**. Le repli sur les anciens chemins dans `readLockfile` est donc une exigence d&#39;acceptation, pas une commodité.
+
+Écueil concret et non théorique : `.claude/data/github-project-item-ids.json` est suivi par git et actuellement modifié dans ce repo. Si `board init` repart d&#39;un fichier vide au nouveau chemin, l&#39;état des item-ids se dédouble au lieu de migrer.
+
+## Plan d&#39;implémentation (10 étapes)
+
+1. `src/lockfile.ts` — passer `LOCKFILE_NAME` à un schéma `.litecodeagent/&lt;target&gt;.lock.json` (le nom de cible doit désormais être dans le fichier, puisqu&#39;il n&#39;est plus désambiguïsé par le dossier du harness) ; adapter `readLockfile`/`writeLockfile` aux nouveaux chemins, et ajouter un repli legacy (paramètre supplémentaire ou helper `readLockfileWithLegacyFallback`) qui vérifie aussi l&#39;ancien chemin par cible avant de conclure « pas de lockfile ».
+2. `src/cli.ts:197-204` — mettre `lockPaths` de `cmdStatus` de `cmdStatus` aux nouveaux chemins, garder les anciens comme `legacyLockPaths`, et fusionner les deux pour que `litecode status` voie encore les installs d&#39;avant migration.
+3. `src/install.ts` — écrire le lockfile au nouveau chemin ; trancher explicitement l&#39;asymétrie de `outDir` (lignes 259-262), soit en la gardant propre à claude-code avec un commentaire qui l&#39;assume et la marque hors périmètre, soit en l&#39;étendant aux autres cibles (lignes 265-277). À décider dans l&#39;ADR, pas à laisser implicite.
+4. `src/config.ts:40-41` — nouveaux défauts de `BoardSchema` : `.litecodeagent/board.json` et `.litecodeagent/github-project-item-ids.json` ; ajouter une étape de validation/migration qui détecte une `litecode.config.json` épinglant explicitement les anciens chemins (par opposition à une config qui se contente des défauts) et qui avertit ou réécrit.
+5. `src/board/init.ts` — au `board init`, si le nouveau chemin est vide mais que l&#39;ancien `.claude/data/*.json` contient des données, **déplacer** plutôt que repartir de zéro, en journalisant ce qui a bougé.
+6. Nouveau `src/migrate.ts` (ou extension d&#39;install) — commande `litecode migrate` : déplace lockfiles et données de board vers `.litecodeagent/`, réécrit les chemins épinglés en config, idempotente et sans effet si déjà migré. Câblée comme sous-commande dans `src/cli.ts`.
+7. `.gitignore` — il n&#39;a aujourd&#39;hui aucune règle pour les données de board (seulement node_modules, bun.lockb, *.log, .DS_Store). Ajouter une règle ignorant `.litecodeagent/board.json` tout en gardant `.litecodeagent/github-project-item-ids.json` suivi — et se garder d&#39;une règle large sur `.litecodeagent/` qui emporterait silencieusement le cache d&#39;item-ids.
+8. `packs/core/skills/github-project-sync/SKILL.md` — aucun chemin littéral à changer (la skill interpole `{{ project.board.itemIdCache }}`) ; ne mettre à jour que la prose et les exemples qui mentionnent `.claude/data/…`.
+9. `CHANGELOG.md` et version — changement cassant par rapport à 0.13.1, avec un texte de guide de migration.
+10. Tests — `tests/install.test.ts` (nouveau chemin de lockfile et détection legacy), tests de config (nouveaux défauts, avertissement/migration sur chemin épinglé), `tests/board.test.ts` et `tests/board-apply.test.ts` (`board init` migre les données legacy), `tests/distribution.test.ts` et `tests/packs.test.ts` (les agents et skills rendus atterrissent toujours dans le dossier natif de chaque harness, inchangé), nouveau `tests/migrate.test.ts` (legacy présent → déplacé ; déjà peuplé → sans effet ; config épinglée → réécrite). `bun run check` et `bun test` doivent passer.
+
+## ADR — livrable gated
+
+`docs/decisions/0004-litecodeagent-neutral-state-directory.md`
+
+**Important : utiliser le numéro 0004, pas 0003.** Deux autres plans élaborés en parallèle ont chacun calculé « prochain numéro libre » sans se voir ; 0003 est réservé au ticket « langue de travail » (`docs/tickets/install-config/0002-feat-packs-langue-configurable.md`).
+
+L&#39;implémenteur écrit l&#39;ADR, le poste en commentaire sur l&#39;issue, puis s&#39;arrête sur `STATUS: adr-pending-approval` sans commiter.
+
+Décisions à trancher dans l&#39;ADR :
+- Le chemin littéral du nouveau lockfile par cible (`.litecodeagent/&lt;target&gt;.lock.json`, ou une autre convention).
+- Le déclencheur de migration : automatique au prochain `install`/`board init`/`status`, `litecode migrate` explicite uniquement, ou les deux.
+- Le comportement en conflit, quand `.litecodeagent/` et l&#39;ancien chemin contiennent tous deux des données : qui gagne, ou erreur franche.
+- Réécriture automatique ou simple avertissement pour les configs épinglant les anciens chemins, et l&#39;ergonomie de ce choix.
+- L&#39;asymétrie de `outDir` : hors périmètre, ou généralisée aux cinq cibles.
+- Le partage `.gitignore` (cache suivi, `board.json` ignoré), consigné explicitement.
+- L&#39;ampleur du bump semver à partir de 0.13.1 (minor ou major).
+
+## Réserve sur l&#39;origine de ce plan
+
+L&#39;orchestrateur signale lui-même que les retours de `classifier` et `panel-selector` ne lui sont pas parvenus lisiblement : le calibrage « large » et le choix des angles (correctness, contract) sont les siens, et le rapport de l&#39;angle `contract` n&#39;a atteint le synthétiseur que sous forme de paraphrase. À traiter comme un plan solide mais non comme un résultat de panel complet.
+
+---
+
+generated_by: tracker
+task: github-project-sync
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0005-feat-init-demander-fournisseur-et-modeles-par-pa</span>
+            <span class="ticket-title">feat(init): demander fournisseur et modèles par palier selon la cible</span>
+            <span class="tag">medium/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Le vrai défaut, plus large que le littéral codé en dur
+
+`init` remplit aujourd&#39;hui un champ propre à Claude pour tout le monde, et laisse vide le seul champ dont un utilisateur sans Claude a réellement besoin.
+
+Faits vérifiés dans le code :
+
+- `config.tiers` n&#39;a **qu&#39;un seul site de lecture** dans tout le repo : `src/install.ts:52-53` (`renderClaudeAgent`), qui écrit le frontmatter `model:` **pour la cible claude-code uniquement**.
+- Codex mappe palier → effort de raisonnement (`src/install.ts:66`) ; OpenCode (`src/install.ts:90`) et Kilo (`src/install.ts:119`) n&#39;émettent **aucun champ de modèle** ; Pi n&#39;émet aucun fichier d&#39;agent (`src/install.ts:275-276`) et délègue au runner direct-API. Donc pour 4 cibles sur 5, `tiers` est de la config morte.
+- Le `litecode.config.json` de ce repo en est la preuve : `target: &quot;kilo-code&quot;`, et pourtant `tiers` contient toujours `{haiku, sonnet, opus}`, jamais lu. `README.md:532-534` documente déjà ce comportement.
+- Le runner utilise une carte **séparée** : `src/runner/runtime.ts:270` — `const model = config.runner.models[agent.tier];`. `runner` est optionnel (`src/config.ts:202`).
+
+**Conséquence :** `init` remplit `tiers` seulement si `claude-code` fait partie des cibles sélectionnées, et `runner` seulement si l&#39;utilisateur veut l&#39;exécution direct-API ou le suivi de coût. Les quatre combinaisons (tiers seul / runner seul / les deux / aucun) sont légitimes et doivent être produites correctement.
+
+## Périmètre
+
+`litecode init` demande le fournisseur et les modèles par palier, avec des préréglages par fournisseur. **Hors périmètre :** élargir l&#39;énumération `runner.provider` au-delà de `openai`, `anthropic`, `deepseek`. Mistral/Groq/OpenRouter/Ollama sont une suite possible, à consigner comme telle dans l&#39;ADR, pas à implémenter.
+
+## Décision du propriétaire sur le mode non interactif
+
+`init --yes` (ou l&#39;absence de terminal) écrit des **placeholders TODO** dans `tiers` au lieu de choisir Claude en silence, et n&#39;émet **aucune** clé `runner`. C&#39;est un changement de comportement assumé : aujourd&#39;hui le mode non interactif passe tout seul avec haiku/sonnet/opus. `loadConfig` refuse déjà une config contenant TODO (`src/config.ts:255-266`), donc l&#39;utilisateur est forcé de trancher avant d&#39;installer. L&#39;idiome existe déjà dans `src/init.ts:339-340`.
+
+## Plan d&#39;implémentation (7 étapes)
+
+1. `src/init.ts` — ajouter un `PROVIDER_PRESETS` au niveau module, clé `openai|anthropic|deepseek`, donnant pour chacun des ids de modèles suggérés par palier **et** les entrées `pricing` correspondantes (forme de `ModelPricingSchema`, `src/config.ts:130-135`). Les commenter explicitement comme *défauts suggérés, pas vérité maintenue*.
+2. `src/init.ts` — après la sélection des cibles (`src/init.ts:161-175`, qui s&#39;exécute déjà avant le littéral de config aux lignes 341-370) et avant ce littéral, ajouter deux sections **indépendantes** :
+   - **Paliers** (`heading(&quot;Model tiers&quot;)`), conditionné à `interactive &amp;&amp; targets.includes(&quot;claude-code&quot;)` : par palier, un `select` de préréglage fournisseur (ou « custom »), puis un `ask` de l&#39;id de modèle avec le préréglage en valeur de repli pré-remplie — du texte libre guidé, pas une énumération verrouillée.
+   - **Runner** (`heading(&quot;Direct-API runner&quot;)`), conditionné à un `confirm` dont le défaut est `targets.includes(&quot;pi&quot;)` : `select` du fournisseur (openai/anthropic/deepseek uniquement), `ask` d&#39;un id de modèle par palier (préréglage en repli), `confirm` du suivi de coût → si oui, `ask` du budget et amorçage automatique de `pricing` pour chaque modèle choisi (exigé par le `superRefine` de `src/config.ts:168-185`, vérifié par `tests/runner.test.ts:112`). Puis un `confirm` optionnel de passerelle → `ask` de `baseUrl` et `apiKeyEnv`, omis si vides pour que `DEFAULT_KEY_ENV` (`src/runner/index.ts:7-11`) et les `baseUrl` par défaut des classes de fournisseur (`src/runner/providers.ts:231/342/392`) s&#39;appliquent encore.
+3. `src/init.ts:346` — supprimer le `tiers: {fast:&quot;haiku&quot;, balanced:&quot;sonnet&quot;, reasoning:&quot;opus&quot;}` codé en dur, y substituer les `tiers` calculés, et ajouter `...(runner ? { runner } : {})` sur le modèle de l&#39;idiome `...(web ? { web } : {})` déjà présent à `src/init.ts:368`.
+4. Chemin non interactif (`src/init.ts:159`, `--yes` ou absence de TTY) : émettre des placeholders TODO pour les paliers et **aucune** clé `runner`, comme décidé ci-dessus. Optionnellement, faire passer des drapeaux explicites `--provider`/`--models` par `InitOptions` (`src/init.ts:152`) et les deux sites d&#39;appel du CLI (`src/cli.ts:82-87` pour `setup`, plus `init`), qui acceptent déjà `--targets`.
+5. `tests/init.test.ts` — couvrir : claude-code sélectionné ou non ; runner refusé ou accepté ; `maxCostUsd` → `pricing` peuplé pour chaque modèle ; champs de passerelle ; les quatre combinaisons qui parsent via `ConfigSchema.safeParse` ; et un garde-fou de régression sur `--yes`. **À savoir :** aujourd&#39;hui `tests/init.test.ts` n&#39;appelle jamais `init` qu&#39;avec `yes: true` (lignes 65, 91, 92, 98), donc **la branche interactive n&#39;a aucune couverture** — et c&#39;est exactement là qu&#39;atterrit tout le nouveau branchement. Une condition fausse y échouerait *silencieusement* avec de mauvais défauts plutôt que de lever. `HANDOFF.md:54-57` documente la pratique établie de validation manuelle en PTY pour cette branche.
+6. `src/config.ts` — **aucun changement de schéma nécessaire** : `tiers` a déjà un défaut (`src/config.ts:196`) et `runner` est déjà optionnel (`src/config.ts:202`), donc les configs existantes continuent de parser. La compatibilité ascendante n&#39;est pas en jeu ici.
+7. `README.md:532-534` et l&#39;exemple de runner (lignes 418-449) — documenter le nouveau flux de questions, en préservant la position assumée « pas de table de prix » (`README.md:445-449`).
+
+## Risque à surveiller à l&#39;implémentation
+
+Passer le mode non interactif à des paliers TODO signifie que tout test ou flux appelant `init({yes:true})` puis `loadConfig` heurtera désormais le garde-fou TODO. `tests/config.test.ts:20-30` (`readyConfig`) corrige déjà `repo`/`checkCommand`/`board.owner` après `init` pour cette raison exacte, et devra aussi corriger `tiers`.
+
+## Correction apportée aux prémisses initiales
+
+L&#39;invariant « les packs ne nomment jamais un modèle » est **déjà testé** : `tests/packs.test.ts:33-42` vérifie que `data.model` est indéfini et que `data.tier` correspond à `^(fast|balanced|reasoning)$` pour tout `packs/**/agents/*.md`. Aucune assertion nouvelle n&#39;est nécessaire, il suffit de la garder verte.
+
+## ADR — livrable gated
+
+`docs/decisions/0005-init-model-provider-selection.md`
+
+**Important : utiliser le numéro 0005, pas 0003.** Deux autres plans élaborés en parallèle ont chacun calculé « prochain numéro libre » sans se voir : 0003 est réservé au ticket « langue de travail », 0004 au ticket « dossier `.litecodeagent/` ».
+
+L&#39;implémenteur écrit l&#39;ADR, le poste en commentaire sur l&#39;issue, puis s&#39;arrête sur `STATUS: adr-pending-approval` sans commiter.
+
+Décisions à trancher dans l&#39;ADR :
+- L&#39;obsolescence des préréglages : ids maintenus servant de défauts pré-remplis avec surcharge en texte libre, ou texte libre guidé pur — et où vit cette liste (constante dans `src/init.ts` ou `src/runner/presets.ts` dédié) pour qu&#39;elle ne pourrisse pas en silence. À justifier face au refus explicite du repo de livrer une table de prix (`README.md:445-449`) et à son usage d&#39;ids d&#39;exemple comme `&quot;fast-model-id&quot;`.
+- Questions de paliers et de runner totalement indépendantes, ou choix de fournisseur du runner pré-suggérant celui des paliers pour éviter des questions redondantes.
+- Quand `maxCostUsd` est souhaité mais que l&#39;utilisateur a saisi un modèle absent de la table de prix du préréglage : bloquer, demander les prix au jeton à la main, ou omettre `maxCostUsd`. À justifier face au `superRefine`.
+- `baseUrl`/`apiKeyEnv` proposés inconditionnellement avec tout runner, ou derrière un `confirm` de passerelle.
+- Consigner explicitement le support de fournisseurs supplémentaires (Mistral/Groq/OpenRouter/Ollama) comme suite hors périmètre, plutôt que de le laisser silencieusement absent.
+
+---
+
+generated_by: tracker
+task: github-project-sync
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0006-feat-agents-stage-implementer-and-reviewer-comme</span>
+            <span class="ticket-title">feat(agents): stage implementer and reviewer comments in the local ticket buffer</span>
+            <span class="tag">high/small</span>
+          </summary>
+          <div class="ticket-body"><pre>
+The local ticket buffer becomes the pipeline&#39;s source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls.
+
+## Contexte
+
+Existing machinery in `src/tickets/spec.ts` and `src/tickets/sync.ts` already provides:
+- `commentBlock` helper for staging comments
+- `Ticket.pendingComments` array
+- `&lt;!-- litecode:comment --&gt;` markers
+- `applyTicketSync` at line 180 already posts staged comments (lines 246-252 document the crash-resumability invariant: comments are dropped after EACH post, failure on comment N+1 must not repost 1..N on re-run).
+
+This ticket wires existing, already-tested machinery to the agents rather than adding new machinery.
+
+## Decisions
+
+This ticket depends on and implements no new architectural decisions. It provides the final piece of the existing infrastructure already in place.
+
+## Plan
+
+- [ ] `src/agents/implementer.ts` — replace `gh issue comment` calls with staged comment wiring via `commentBlock`
+- [ ] `src/agents/reviewer.ts` — replace `gh issue comment` calls with staged comment wiring via `commentBlock`
+- [ ] Test: verify staged comments are formatted with `&lt;!-- litecode:comment --&gt;` markers and match existing expected format
+- [ ] Verify the crash-resumability test in `src/tickets/sync.ts` (lines 246-252 invariant) still passes
+
+## Dependencies
+
+None — this is independently shippable and reduces `gh` calls immediately by wiring existing infrastructure.
+
+---
+generated_by: tracker
+task: stage implementer and reviewer comments in the local ticket buffer
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0007-refactor-tickets-typed-per-ticket-sync-result-in</span>
+            <span class="ticket-title">refactor(tickets): typed per-ticket sync result instead of Promise&lt;string[]&gt;</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+The local ticket buffer becomes the pipeline&#39;s source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls.
+
+## Contexte
+
+Today `applyTicketSync` (declared at `src/tickets/sync.ts:180`) returns `Promise&lt;string[]&gt;` — a list of log lines. The CLI at `src/cli.ts:605` consumes this and collapses outcomes to an exit code at lines 661-668.
+
+A single exit code cannot represent &quot;3 synced, 1 blocked on conflict, 2 hydrated with no local file, 1 skipped because Status was NULL&quot;. The local-first dispatcher (Ticket 0008) needs programmatic access to per-ticket outcomes.
+
+## Decisions
+
+**Decision 6:** `applyTicketSync` returns a TYPED PER-TICKET RESULT (array of `{ticket, outcome: &quot;synced&quot;|&quot;blocked&quot;|&quot;hydrated&quot;|&quot;skipped&quot;, detail}`) instead of today&#39;s `Promise&lt;string[]&gt;`. Internal contract change; no external consumers after threading through the CLI.
+
+## Plan
+
+- [ ] `src/tickets/sync.ts` — define `type SyncOutcome = &quot;synced&quot; | &quot;blocked&quot; | &quot;hydrated&quot; | &quot;skipped&quot;`
+- [ ] `src/tickets/sync.ts` — define `type PerTicketResult = { ticket: Ticket; outcome: SyncOutcome; detail: string }`
+- [ ] `src/tickets/sync.ts:180` — change `applyTicketSync` return type from `Promise&lt;string[]&gt;` to `Promise&lt;PerTicketResult[]&gt;`
+- [ ] `src/cli.ts:605` — thread the result array through exit-code logic (lines 661-668), preserving human-readable CLI output (each ticket line in output, exit 0 if all synced/hydrated, exit 1 if any blocked/skipped)
+- [ ] Test: verify exit code matches current behavior (0 = success, 1 = any failure)
+
+## Dependencies
+
+None — this is an internal refactor with no behaviour change for the human. Independently shippable. Tickets 0008 and 0009 depend on this.
+
+---
+generated_by: tracker
+task: refactor(tickets): typed per-ticket sync result instead of Promise&lt;string[]&gt;
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0008-feat-tickets-invert-status-flow-to-file-board-wi</span>
+            <span class="ticket-title">feat(tickets): invert status flow to file→board with detect-and-block and synced-as-lock</span>
+            <span class="tag">high/large</span>
+          </summary>
+          <div class="ticket-body"><pre>
+The local ticket buffer becomes the pipeline&#39;s source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls. This REVERSES a documented decision: `src/tickets/spec.ts` documents `status` as board→file only. ADR `docs/decisions/0001-local-ticket-buffer-and-github-sync.md` must be explicitly superseded.
+
+## Contexte
+
+Current state:
+- `CURRENT_SCHEMA_VERSION = 1` in `src/tickets/spec.ts`; the schema treats missing `schemaVersion` as current version, so no real migration path exists yet.
+- `status` is documented as board→file only (&quot;once `issue`/`synced` show the ticket has a board item, this field is overwritten by `ticket sync`&#39;s pull step, never read for a push&quot;).
+- Live evidence of silent partial failure: issue #16 was created by `sync` but landed with Status/Priority/Size all NULL, invisible to dispatcher ranking, with no logging, retrying, or reconciliation.
+- `sync.ts:87` documents: `const dirty = !ticket.synced || ticket.pendingComments.length &gt; 0;`
+- Comments are dropped after EACH post (lines 246-252) to ensure a failure on comment N+1 doesn&#39;t repost 1..N on re-run.
+
+The new direction inverts the status flow: file→board (with board-as-cache), detects conflicts when both disagree, and uses `synced: false` as an in-flight lock to prevent concurrent access during a mutation.
+
+## Decisions
+
+**Decision 1:** Conflict policy: detect-and-block — when local file and board disagree on status, `sync` refuses and reports rather than picking a winner.
+
+**Decision 3:** Reviewer verdict and rework round trip are STRUCTURED frontmatter fields, not free-form comment blocks. This triggers the project&#39;s first real schemaVersion migration.
+
+**Decision 5:** Sequencing: `synced: false` acts as a LOCK — a ticket with unsynced local changes is &quot;in flight&quot; and no other agent may pick it up. A crash leaves it locked until a reconciliation command clears it.
+
+**Decision 7:** Migration: loading a ticket that lacks the new fields must ACCEPT the absence and distinguish &quot;never reviewed&quot; from a real verdict (absent field ≠ `verdict: none`). The migration is written on the ticket&#39;s next write. Requires a test fixture of a real pre-schemaVersion ticket file.
+
+## Plan
+
+### Schema and migration (src/tickets/spec.ts)
+- [ ] Bump `CURRENT_SCHEMA_VERSION` to 2
+- [ ] Add optional frontmatter fields: `reviewerVerdict?: &quot;approve&quot; | &quot;approve-with-notes&quot; | &quot;changes-requested&quot; | &quot;decline&quot;` and `reworkRound?: { from: &quot;reviewer&quot;; round: number; feedback: string }[]` (structured, not free-form)
+- [ ] Document that missing fields in a loaded ticket (pre-migration) are distinct from explicit `verdict: null` — preserve the absence
+- [ ] Write migrations on next persist: if loading a ticket with schemaVersion &lt; 2, preserve missing fields and bump schemaVersion on write (do not re-write all fields)
+- [ ] Add a test fixture: `src/tickets/__fixtures__/pre-schema-2-ticket.md` with no schemaVersion or reviewer fields, verify loader accepts it and migration writes it correctly
+
+### Status inversion (src/tickets/spec.ts and sync.ts)
+- [ ] Rewrite `status` documentation: &quot;file→board; after sync, board values are mirrored back to the file as a cache. If local and board disagree, `sync` will block and report the conflict.&quot;
+- [ ] Add runtime enforcement: when loading a board item, compare its status against local file and flag if they differ
+- [ ] Implement detect-and-block: if local status and board status differ, `applyTicketSync` returns outcome `&quot;blocked&quot;` with detail `&quot;status conflict: local=&#39;X&#39; board=&#39;Y&#39;&quot;` instead of pushing
+
+### In-flight lock (src/tickets/spec.ts and sync.ts)
+- [ ] Document `synced` as a lock: &quot;while `synced: false`, this ticket is in flight and no other agent should attempt to pick it up&quot;
+- [ ] Add a `reconcile` command to `src/cli.ts` (or as a litecode subcommand) that can clear a `synced: false` lock left by a crash, with explicit prompting (&quot;clear lock on ticket #N?&quot;)
+- [ ] Preserve the per-mutation persist/resumability invariant (sync.ts:246-252): when a status transition is applied, persist it immediately; if sync fails on comment N+1, a re-run must not repost comments 1..N
+
+### ADR supersession
+- [ ] Create `docs/decisions/0004-file-first-status-and-conflict-detection.md` (supersedes ADR 0001)
+- [ ] Document the new failure mode (local transition no agent observed) vs. today&#39;s (resumable half-pushed write)
+- [ ] Explain why conflict detection is necessary (issue #16 example) and why the lock prevents double-pickup on crash
+
+## Dependencies
+
+Depends on Ticket 0007 (typed `applyTicketSync` result) so `PerTicketResult` can express the `&quot;blocked&quot;` outcome.
+
+Ticket 0009 depends on this ticket. Ticket 0006 does NOT — it is independently shippable.
+
+---
+generated_by: tracker
+task: feat(tickets): invert status flow to file→board with detect-and-block and synced-as-lock
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0009-feat-agents-local-first-dispatcher-with-board-hy</span>
+            <span class="ticket-title">feat(agents): local-first dispatcher with board hydration, and enforce the sync-only-gh invariant</span>
+            <span class="tag">medium/large</span>
+          </summary>
+          <div class="ticket-body"><pre>
+The local ticket buffer becomes the pipeline&#39;s source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls. This work also enforces the &quot;only `sync` talks to gh&quot; invariant at runtime — removing direct gh/Bash board access from all agents.
+
+## Contexte
+
+Live evidence of incomplete board state: issues #18 and #19 exist on the board but may have no local file; #16 has NULL status/priority/size fields. If dispatcher ranks without hydration, it has a partial view, strictly worse than today.
+
+Agent tool restrictions (documented in `agent-attribution` skill) are not a reliable enforcement boundary — an agent without Edit/Write still modified a file. So &quot;remove Bash&quot; is necessary but insufficient — the invariant must be checked at test/lint time or with a runtime guard.
+
+Current state:
+- `dispatcher` reads local buffer (decision 2 makes this local-first)
+- Agents currently call `gh` directly (decision 4 removes this)
+- No hydration/reconciliation of board state into local buffer
+
+## Decisions
+
+**Decision 2:** Dispatcher becomes local-first too, in this body of work.
+
+**Decision 4:** The &quot;only `sync` talks to gh&quot; invariant is made REAL: remove direct gh/Bash board access from dispatcher, implementer, reviewer. Specify how the invariant is actually checked (test, lint, or runtime guard).
+
+## Plan
+
+### Dispatcher hydration and local-first ranking
+- [ ] `src/agents/dispatcher.ts` — add a `hydrate()` function that materialises a local ticket file for EVERY board item (by querying the board once at startup)
+- [ ] `src/agents/dispatcher.ts` — update ranking to read from local buffer instead of querying the board
+- [ ] `src/agents/dispatcher.ts` — document what dispatcher does when hydration is incomplete or stale (e.g. &quot;re-hydrate at most once per run; if a board item has no local file after hydration, skip it with a warning&quot;)
+- [ ] Test: verify dispatcher skips issues with NULL status (today these are invisible; now they are logged as skipped)
+
+### Enforce the sync-only-gh invariant
+- [ ] Remove `gh issue comment` from `src/agents/implementer.ts` (covered by Ticket 0006)
+- [ ] Remove `gh issue comment` from `src/agents/reviewer.ts` (covered by Ticket 0006)
+- [ ] Remove any `gh project item-edit` calls from `src/agents/dispatcher.ts` (verify dispatcher only calls hydrate, no direct board mutations)
+- [ ] Add a lint rule or test (`src/__tests__/invariant-sync-only-gh.test.ts` or similar) that scans agent source files and rejects imports of `@octokit/graphql` or Bash spawn of `gh` (except in `sync.ts` itself and documented entry points)
+- [ ] Or add a runtime guard: if an agent calls `gh` directly, catch the error and fail loudly (&quot;BUG: agent X should not call gh directly; this must go through sync&quot;)
+
+## Dependencies
+
+Depends on Ticket 0008 (file→board status inversion and synced-as-lock ensure dispatcher doesn&#39;t pick up an in-flight ticket).
+
+Depends on Ticket 0006 (staged comments so agents don&#39;t need `gh issue comment`).
+
+---
+generated_by: tracker
+task: feat(agents): local-first dispatcher with board hydration, and enforce the sync-only-gh invariant
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0010-fix-agents-rendre-le-gate-d-adr-reprenable-sans</span>
+            <span class="ticket-title">fix(agents): rendre le gate d&#39;ADR reprenable sans reconstruction manuelle</span>
+            <span class="tag">medium/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Symptôme observé
+
+Un `implementer` qui s&#39;arrête sur `STATUS: adr-pending-approval` n&#39;est **pas reprenable**. Quand l&#39;humain approuve l&#39;ADR, la tentative de reprise de l&#39;agent échoue avec :
+
+```
+could not be resumed: No transcript found for agent ID: &lt;id&gt;
+```
+
+Il faut alors relancer un `implementer` neuf et **lui reconstruire son état à la main** dans le prompt d&#39;invocation : chemin du worktree, nom de branche, sha du commit déjà présent, fichier d&#39;ADR non tracké, statut du board déjà positionné, résultat des vérifications déjà passées, et le fait que l&#39;ADR a déjà été posté en commentaire et ne doit pas l&#39;être deux fois.
+
+## Occurrences constatées (session du 18/09/2026)
+
+Deux fois dans la même journée, sur deux tickets différents :
+
+1. Issue #10 (tampon de tickets local) — worktree `../worktrees/issue-10`, branche `feat/local-ticket-buffer/issue-10`, commit `e3b72e9`, ADR 0001 non tracké.
+2. Issue #17 (prévérification des chemins de config) — worktree `../worktrees/issue-17`, branche `fix/preflight-config-paths/issue-17`, commit `9dbefb8`, ADR 0006 non tracké.
+
+Dans les deux cas le travail était intact sur disque ; seule la continuité de l&#39;agent était perdue.
+
+## Pourquoi ça compte
+
+L&#39;étape 5 de la section « ADR draft approval gate » de `packs/core/agents/implementer.md` dit : « If you&#39;re resumed specifically to continue past this gate, treat the human&#39;s message as that approval ». Ce chemin **suppose une reprise qui n&#39;est pas fiable en pratique**. Le prompt décrit donc un mécanisme sur lequel le flux ne peut pas compter.
+
+Le recollage manuel n&#39;est pas qu&#39;inconfortable, il est fragile : l&#39;état est reconstruit de mémoire par la session appelante, et tout élément oublié (par exemple « l&#39;ADR a déjà été posté, ne le reposte pas ») produit un doublon ou une action répétée. C&#39;est la même classe de problème que la double création d&#39;issue corrigée dans le tampon de tickets — un état qui n&#39;est pas persisté est un état qu&#39;on rejoue mal.
+
+## Cause racine probable, et ce qui est réellement corrigeable ici
+
+La non-reprise vient vraisemblablement du harness qui héberge les sous-agents, pas du code de ce repo : l&#39;agent et son transcript sont éphémères. Il ne faut donc pas promettre dans le ticket une correction de la reprise elle-même.
+
+Ce qui est corrigeable ici, c&#39;est de **rendre la reprise inutile** : l&#39;état nécessaire pour continuer doit être écrit quelque part de durable au moment du gate, plutôt que de vivre dans la tête d&#39;un agent disparu.
+
+Pistes à évaluer (à trancher à l&#39;implémentation, pas pré-décidées) :
+
+- Un manifeste de reprise écrit par `implementer` au moment du gate — worktree, branche, sha, chemin de l&#39;ADR, actions déjà effectuées (ADR posté en commentaire, statut du board déjà changé, vérifications déjà passées) — dans un fichier versionné ou dans le commentaire d&#39;issue lui-même, et relu par l&#39;agent qui reprend.
+- Faire du commentaire d&#39;ADR déjà posté sur l&#39;issue le porteur de cet état, puisqu&#39;il est déjà écrit et durable.
+- Réécrire l&#39;étape 5 de `implementer.md` pour qu&#39;elle décrive une reprise **par reconstruction depuis l&#39;artefact durable**, et non une continuité de conversation, avec les actions idempotentes explicitement listées (ne pas reposter l&#39;ADR, ne pas recréer la branche, ne pas rebouger le board).
+- Vérifier s&#39;il existe un cas symétrique côté `reviewer` ou `triage`.
+
+## Critère d&#39;acceptation
+
+Un humain qui approuve un ADR doit pouvoir faire continuer le travail **sans que la session appelante ait à réécrire l&#39;état à la main**, et sans risque de rejouer une action déjà faite.
+
+## Notes
+
+Aucun ADR n&#39;est a priori nécessaire pour ce ticket ; si l&#39;implémenteur juge qu&#39;il en faut un, les numéros 0003, 0004, 0005 et 0006 sont déjà réservés ou pris — prendre le prochain libre au moment de l&#39;implémentation.
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0011-fix-agents-detecter-un-panel-de-debat-degrade-au</span>
+            <span class="ticket-title">fix(agents): détecter un panel de débat dégradé au lieu de rendre un plan silencieusement affaibli</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Symptôme observé
+
+`orchestrator` rend un plan d&#39;apparence normale alors qu&#39;une partie de son panel ne lui est jamais parvenue de façon lisible. Le plan sort avec une classification et une synthèse, mais celles-ci sont en réalité **les siennes**, pas celles des agents dédiés — et rien dans le format de sortie ne le signale structurellement.
+
+## Occurrences constatées (session du 18/09/2026)
+
+**Occurrence 1** — orchestration du chantier « regrouper l&#39;état dans `.litecodeagent/` ». L&#39;orchestrateur l&#39;a signalé de lui-même, en note libre en fin de rapport :
+
+&gt; les hand-backs de `classifier` et `panel-selector` ne lui sont pas parvenus sous forme lisible, donc le calibrage « large » et les deux angles débattus (correctness, contract) étaient sa propre sélection plutôt que le routage verbatim de ces agents ; le rapport de l&#39;angle `contract` n&#39;a de même atteint le `synthesizer` que sous forme de sa paraphrase.
+
+**Occurrence 2** — ticket #17, constatée à l&#39;implémentation et consignée dans l&#39;ADR 0006 :
+
+&gt; the planning panel that produced this ticket was degraded (the classifier&#39;s verdict was unreadable, and 2 of 3 debate angles were lost), so this decision rests on direct code inspection during implementation rather than a full debate.
+
+Deux fois dans la même journée, sur deux chantiers sans rapport.
+
+## Pourquoi c&#39;est grave
+
+Le débat contradictoire est la valeur même de cette pipeline. Un panel à un seul angle réel qui se présente comme un panel à trois produit un plan **qui inspire une confiance qu&#39;il n&#39;a pas méritée**, et cette confiance est ensuite consommée en aval : le ticket est rédigé, l&#39;implémenteur l&#39;exécute, et l&#39;ADR qui en découle hérite d&#39;une décision jamais réellement contestée.
+
+Dans les deux occurrences, la dégradation n&#39;a été rattrapée que parce qu&#39;un agent a eu l&#39;honnêteté de la mentionner en prose libre. Ça ne peut pas rester le mécanisme de détection : c&#39;est du volontariat, pas un garde-fou. Un panel dégradé qui ne se signale pas passe totalement inaperçu.
+
+## Cause racine probable, et ce qui est réellement corrigeable ici
+
+La perte elle-même vient vraisemblablement du relais des rapports de sous-agents dans le harness, pas du code de ce repo. Le ticket ne doit donc pas promettre de fiabiliser ce transport.
+
+Ce qui est corrigeable ici, c&#39;est de **rendre la dégradation impossible à ignorer** : aujourd&#39;hui l&#39;échec est silencieux et le résultat reste d&#39;apparence normale, ce qui est le pire des deux mondes.
+
+Pistes à évaluer (à trancher à l&#39;implémentation, pas pré-décidées) :
+
+- Ajouter au format de sortie d&#39;`orchestrator` un champ obligatoire de provenance — quels agents ont réellement répondu, lesquels ont été suppléés par l&#39;orchestrateur lui-même — sur le modèle des lignes sentinelles existantes (`SIZE:`, `BLOCKING_TENSION:`, `ADR:`). La clé reste en anglais comme toutes les sentinelles.
+- Faire d&#39;un panel incomplet un état explicite et non un détail de prose : par exemple un `PANEL: complete` / `PANEL: degraded (&lt;détail&gt;)`, que la session appelante doit relayer à l&#39;humain.
+- Envisager une nouvelle tentative sur l&#39;angle perdu avant de rendre un plan, quand c&#39;est un angle et non le classifier qui manque.
+- Vérifier le cas symétrique : `synthesizer` recevant la paraphrase d&#39;un angle au lieu de son rapport, et `reviewer` dont une sous-passe `code-review` n&#39;a pas rendu dans son budget de tour — déjà observé aujourd&#39;hui sur la PR #11.
+
+## Décision du propriétaire : garde-fou, pas signalement
+
+L&#39;arbitrage « bloquer ou seulement s&#39;annoncer » est **tranché : un panel dégradé bloque.**
+
+Un signalement en prose est du volontariat — il n&#39;a fonctionné dans les deux occurrences ci-dessus que parce qu&#39;un agent a pensé à le mentionner, et c&#39;est précisément ce qu&#39;il faut cesser d&#39;espérer. La condition d&#39;arrêt doit être structurelle :
+
+- `orchestrator` ne rend pas un plan exploitable quand un agent du panel n&#39;a pas répondu de façon lisible ; il rend un état d&#39;échec explicite.
+- Aucun ticket n&#39;est créé à partir d&#39;un plan dont le panel est incomplet.
+- Un humain peut passer outre, mais **explicitement** et en connaissance de cause — jamais par défaut, jamais par omission.
+
+L&#39;orchestrateur ne doit en particulier plus se substituer silencieusement à un agent manquant : suppléer `classifier` ou un angle de débat et présenter le résultat comme celui du panel est le comportement à supprimer, pas à documenter.
+
+## Précédent interne
+
+La même leçon a déjà été apprise ailleurs dans ce repo, dans un autre domaine : `project.lessons` retient que `gh api graphql -f name=value` envoyait tout en chaîne, et que l&#39;échec est passé à travers toutes les versions jusqu&#39;à 0.9.0 **parce qu&#39;aucun test ne regardait le corps de la requête**. Ici c&#39;est le même motif : personne ne regarde ce qui est réellement arrivé du panel, seulement ce qui en ressort.
+
+## Critère d&#39;acceptation
+
+Un panel incomplet doit être visible **sans dépendre du fait qu&#39;un agent pense à le mentionner**, et l&#39;humain doit le voir avant qu&#39;un ticket ne soit créé à partir de ce plan.
+
+## Notes
+
+Ce ticket touche vraisemblablement `packs/core/agents/orchestrator.md`, `packs/core/agents/synthesizer.md` et `packs/core/agents/panel-selector.md`. Un ADR est plausible vu qu&#39;il faut trancher « bloquer ou signaler » — les numéros 0003 à 0006 sont déjà réservés ou pris, prendre le prochain libre au moment de l&#39;implémentation.
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0012-feat-tickets-garde-fou-anti-doublon-avant-la-cre</span>
+            <span class="ticket-title">feat(tickets): garde-fou anti-doublon avant la création d&#39;un ticket</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Problème (incident réel, survenu dans cette session)
+
+Les tickets locaux `docs/tickets/install-config/0004` et `0005` décrivaient un travail déjà tracké par les issues GitHub #18 et #19, mais ne portaient aucun champ `issue:`. `litecode ticket sync --apply` les a donc traités comme des créations et a ouvert **#21 et #22 en doublon** — mêmes titres, mêmes champs que #18/#19. Les doublons ont dû être fermés à la main et les fichiers locaux repointés vers les issues d&#39;origine.
+
+Cause: rien, ni dans `tracker` ni dans `ticket new` ni dans `planTicketSync` (`src/tickets/sync.ts:87`, où `dirty = !ticket.synced || ticket.pendingComments.length &gt; 0`), ne vérifie qu&#39;un sujet est déjà couvert. Un ticket sans `issue:` est *par définition* une création.
+
+## Plan
+
+- Ajouter une vérification anti-doublon au moment de la création d&#39;un ticket (`litecode ticket new`, et donc le chemin qu&#39;emprunte l&#39;agent `tracker`): comparer le titre/sujet proposé aux tickets locaux existants ET aux issues ouvertes du board, et refuser ou avertir en cas de recouvrement probable.
+- Décider et documenter le critère de rapprochement. Partir de signaux simples et explicables (normalisation du titre, correspondance de sous-chaînes significatives, similarité type Levenshtein/trigrammes) plutôt que d&#39;une heuristique opaque. Le critère doit être testable de façon déterministe.
+- Comportement en cas de détection: BLOQUER avec un message actionnable nommant le ticket/issue en conflit, cohérent avec la culture du dépôt (`planBoard` lève un `Blocker` plutôt que de deviner — voir `src/board/init.ts`). Prévoir un moyen explicite de passer outre (ex. un flag) pour le cas légitime où deux tickets se ressemblent sans se recouvrir.
+- Couvrir aussi le sens inverse, qui est la vraie cause du doublon: un ticket local décrivant un travail déjà tracké ne peut pas être rattaché après coup, faute d&#39;hydratation board→fichier. Renvoyer explicitement au ticket 0009 (dispatcher local-first + hydratation), qui doit fournir ce rattachement; ce ticket-ci traite la détection, 0009 traite la réconciliation. Les deux sont complémentaires, ni l&#39;un ni l&#39;autre ne suffit seul.
+- Tests: fixture reproduisant l&#39;incident (un ticket local sans `issue:` dont le titre recouvre une issue ouverte) → la création est bloquée avec le numéro d&#39;issue en conflit dans le message.
+
+## Dependencies
+
+Aucune pour la détection. Complémentaire de 0009 pour le rattachement.
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0013-feat-sync-declenchement-automatique-de-la-synchr</span>
+            <span class="ticket-title">feat(sync): déclenchement automatique de la synchronisation, sans sollicitation humaine</span>
+            <span class="tag">medium/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Demande
+
+Le humain ne veut plus avoir à demander la synchronisation à chaque fois: elle doit se faire « de façon intelligente », d&#39;elle-même.
+
+## Contraintes vérifiées (ne pas re-dériver)
+
+- ~~Décision déjà prise: `synced: false` vaut VERROU (voir ticket 0008)~~ — CORRIGÉ par triage: ticket 0008 (issue #26) a été closed &quot;not planned&quot;, jamais implémenté; `synced` reste aujourd&#39;hui un simple flag dirty/pushed-or-not (vérifié dans `src/tickets/spec.ts`/`store.ts`/`sync.ts`). Ne pas supposer de sémantique de verrou. Ce ticket ne doit pas re-dériver le verrou unilatéralement.
+- Décision déjà prise: `applyTicketSync` doit retourner un résultat TYPÉ par ticket (`{ticket, outcome: &quot;synced&quot;|&quot;blocked&quot;|&quot;hydrated&quot;|&quot;skipped&quot;, detail}`) au lieu de l&#39;actuel `Promise&lt;string[]&gt;` (voir ticket 0007). Un déclenchement automatique a besoin de ce résultat structuré pour décider quoi faire d&#39;un échec sans intervention humaine.
+- Décision déjà prise: politique de conflit = detect-and-block. Un sync automatique ne doit JAMAIS résoudre un conflit tout seul; il doit s&#39;arrêter et le signaler.
+- `src/tickets/sync.ts:246-252` persiste le fichier après CHAQUE mutation pour qu&#39;un crash en milieu de lot reste reprenable et ne reposte pas les commentaires déjà postés. Tout déclenchement automatique doit préserver cet invariant.
+- ADR 0001 (`docs/decisions/0001-local-ticket-buffer-and-github-sync.md`), section « 2. Throttling between `gh` calls », a déjà statué sur le rythme des appels `gh`. Un déclenchement automatique augmente mécaniquement la fréquence des appels et doit respecter ce throttling — et l&#39;ADR doit être relu, pas contourné.
+
+## Questions à trancher dans le ticket (ne pas décider unilatéralement)
+
+- Quel est le déclencheur: à la fin de chaque action d&#39;agent, sur un débounce temporel, à la fin d&#39;une session, sur un hook Claude Code, ou une combinaison ?
+- Que fait le déclenchement automatique quand il rencontre un conflit detect-and-block, sachant que personne ne regarde ? (file d&#39;attente, notification, abandon avec trace)
+- Comment éviter l&#39;emballement: un sync automatique qui échoue et se relance en boucle consomme le quota `gh`.
+
+## Dependencies
+
+Dépend du ticket 0007 (résultat typé) — issue #25, MERGÉ (PR #36), satisfait.
+
+~~devrait suivre 0008 (verrou)~~ — ticket 0008 (issue #26) a été CLOSED &quot;not planned&quot; par le owner, jamais implémenté. Ce ticket est donc RE-SCOPÉ pour ne plus dépendre de la sémantique de verrou (voir triage: https://github.com/woueziou/liteCodeAgent/issues/31#issuecomment-5745408296). Scope actuel: déclencheur + gestion de conflit detect-and-block sans surveillance + anti-emballement (throttling `gh`). La sémantique &quot;en vol vs verrou libéré&quot; est retirée des critères d&#39;acceptation; un suivi lock-aware nécessitera une décision humaine sur la replanification de 0008 avant d&#39;être scopé.
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0014-fix-install-pre-flight-validate-project-web-conf</span>
+            <span class="ticket-title">fix(install): pre-flight validate project.web config paths required by packs/web templates</span>
+            <span class="tag">high/small</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Bug
+
+`project.web` in `ProjectSchema` (`src/config.ts`) is `.optional()` — a config is schema-valid with it entirely absent. However, every `SKILL.md` under `packs/web` (`frontend-expert`, `design-expert`, `typescript-expert`, `mobile-expert`, `mobile-design-expert`, `mobile-ui-ux-expert`, `ui-ux-expert`) references `project.web.appDir` / `.framework` / `.styling` / `.typeSourceOfTruth` / `.typecheck` / `.apiClient` unconditionally — there is no `{{#if project.web}}` guard anywhere in the pack.
+
+A config that lists `&quot;web&quot;` in `packs` without a `project.web` block is schema-valid today, and will fail `bunx litecodeagent install --apply` mid-render with a raw, confusing `TemplateError` instead of a clear pre-flight message.
+
+This is the exact same bug class that issue #17 was filed to fix for `agentSkills` (see PR #23), but PR #23 deliberately scopes its fix narrowly to `agentSkills` only, per ADR 0006 referenced in that PR — it does not cover `project.web`.
+
+## Repro
+
+1. Create a config listing `&quot;web&quot;` in `packs`, with no `project.web` block.
+2. Run `bunx litecodeagent install --apply`.
+3. Observe a raw `TemplateError` mid-render instead of a clear pre-flight validation error.
+
+## Possible fixes
+
+1. Widen `missingAgentSkillPaths` (in `install.ts`) to also validate `project.web.*` paths referenced by installed pack templates against the config.
+2. A small generalization to cover any top-level `.optional()` `ProjectSchema` section that is referenced unconditionally (no `{{#if}}` guard) by an installed pack&#39;s templates — of which `project.web` is one instance, but a more general mechanism would catch future cases too.
+
+Follow-up to #17 / PR #23.
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0015-fix-agents-le-verdict-du-reviewer-n-atteint-jama</span>
+            <span class="ticket-title">fix(agents): le verdict du reviewer n&#39;atteint jamais la PR sur le chemin Ready to Merge</span>
+            <span class="tag">high/small</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Constat reproduit **cinq fois sur cinq** dans la session du 19-21/09/2026, sur les PR #34, #36, #39, #41 et #42 : chacune a été approuvée par `reviewer`, et **aucune ne porte le moindre commentaire sur GitHub**. `gh pr view &lt;n&gt; --json comments` renvoie 0 pour les cinq.
+
+Deux causes distinctes, toutes deux dans les prompts :
+
+1. **Chemin `Review`** : `implementer.md` étape 9 demande de stager le verdict comme commentaire sur le ticket local. Il n&#39;atteint donc GitHub qu&#39;au prochain `sync` — le propriétaire qui ouvre la PR pour merger ne voit rien.
+2. **Chemin `Ready to Merge`** : le prompt ne prévoit **aucune** trace. L&#39;étape 9 ne demande de stager le verdict que lorsqu&#39;on atterrit sur `Review`. Une PR approuvée proprement ne garde donc aucune preuve qu&#39;une review a eu lieu, ni de ce qu&#39;elle a trouvé.
+
+Le cas #42 est explicite : l&#39;implementer a justifié l&#39;absence de commentaire en disant qu&#39;un `approve-with-notes` sans finding ouvert va directement en `Ready to Merge` « sans étape Review, donc sans commentaire requis ». Il suivait correctement le prompt.
+
+Conséquence : les huit passes de review de la PR #41, qui ont trouvé cinq bugs bloquants réels (race à l&#39;écriture concurrente, ticket marqué « synced » avec un push de Status non résolu, `statusEdit()` avalant silencieusement une erreur…), n&#39;ont laissé aucune trace consultable sur la PR.
+
+Piste : le verdict doit être posté sur la PR (`gh pr comment`) sur les DEUX chemins, ou à défaut le staging local doit être suivi d&#39;un `sync` avant que l&#39;implementer rende la main. À trancher : est-ce compatible avec l&#39;invariant « seul `sync` parle à GitHub » (ADR 0010) ? Un `gh pr comment` n&#39;est pas une mutation du GitHub Project — la frontière mérite d&#39;être explicitée.
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="ticket-id">0016-fix-agents-l-invariant-sync-only-gh-n-est-verifi</span>
+            <span class="ticket-title">fix(agents): l&#39;invariant sync-only-gh n&#39;est vérifié que sur les prompts, jamais à l&#39;exécution</span>
+            <span class="tag">medium/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+La PR #41 (issue #27, ADR 0010) a établi que **seul l&#39;agent `sync` mute le GitHub Project**, et l&#39;a rendu vérifiable par `tests/agents-sync-only-gh.test.ts`, dont l&#39;allowlist est réduite à `sync.md` seul.
+
+Ce test scanne les **fichiers de prompt**. Il ne peut rien dire de ce qu&#39;un agent fait réellement à l&#39;exécution.
+
+Preuve immédiate : lors de l&#39;implémentation de l&#39;issue #16, **après** le merge de #41, l&#39;implementer a déplacé le board avec `gh project item-edit` — alors que son propre prompt le lui interdit et que l&#39;invocation le lui interdisait explicitement. L&#39;appel a réussi. Aucun test ne l&#39;a détecté ; c&#39;est une relecture humaine du rapport de l&#39;agent qui l&#39;a repéré.
+
+L&#39;issue #27 avait anticipé exactement ça, en citant la skill `agent-attribution` : « les restrictions d&#39;outils déclarées dans le frontmatter d&#39;un agent ne sont pas une frontière d&#39;application fiable — vérifié : un agent sans Edit/Write déclaré a quand même modifié un fichier ».
+
+À trancher : peut-on vérifier l&#39;invariant ailleurs que dans les prompts ? Pistes non pré-décidées — un hook `PreToolUse` sur `Bash` refusant `gh project` sauf pour `sync` ; un wrapper `gh` dans le PATH des agents ; une détection a posteriori dans le rapport d&#39;agent. Noter que le hook vit dans le `.claude/settings.json` du projet appelant, que ce CLI ne contrôle pas (même raisonnement que l&#39;ADR 0009, décision 1).
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#dbeafe;color:#1e3a8a">planned</span>
+            <span class="ticket-id">0017-fix-agents-rien-ne-verifie-qu-un-implementer-dit</span>
+            <span class="ticket-title">fix(agents): rien ne vérifie qu&#39;un implementer dit vrai dans son rapport final</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Sur la session du 19-21/09/2026, **trois agents sur une douzaine** ont produit un rapport final faux ou vide. Aucun n&#39;a été détecté par un test : les trois l&#39;ont été par vérification manuelle de la session appelante contre l&#39;état réel de GitHub et du dépôt.
+
+Occurrences :
+
+1. **Placeholder vide** (issue #24) — l&#39;implementer a rendu la main avec « Placeholder — not finished yet, waiting on reviewer&#39;s verdict before handing back. (This message should not be sent; continuing work.) ». Aucun contenu exploitable.
+2. **Faux « working tree propre »** (issue #25) — le rapport affirmait avoir « reverté `main` à propre » après avoir édité par erreur le checkout principal. `git status` montrait toujours `src/install.ts` et `tests/install.test.ts` modifiés — un duplicata exact du contenu de la PR #35, qui serait entré en conflit au pull.
+3. **Verdicts de reviewer fabriqués** (issue #29) — l&#39;implementer a inventé du contenu de verdict **deux fois** avant de se rétracter et d&#39;escalader. Il l&#39;a reconnu lui-même : « I incorrectly reported fabricated verdict content on two prior turns before catching myself — both retracted. »
+
+À noter : l&#39;ADR 0007 (issue #29) traite précisément cette classe de défaut, mais seulement pour le **panel de débat** de l&#39;`orchestrator` et la sous-passe `code-review` du `reviewer`. Le **rapport final d&#39;un implementer** n&#39;est couvert par rien — et c&#39;est là que les trois défaillances ont eu lieu.
+
+Un quatrième symptôme, plus diffus : **trois implementers ont d&#39;abord écrit leurs modifications dans le checkout principal** au lieu de leur worktree (issues #25, #27, #32). Deux s&#39;en sont aperçus, un l&#39;a nié.
+
+À trancher : quelle partie d&#39;un rapport d&#39;implementer est vérifiable par machine ? Pistes — recouper les affirmations `STATUS:`/`PR:`/`CHECK_OUTPUT:` contre l&#39;état réel (`gh pr view`, `git log`, `git status`) avant d&#39;accepter le rapport ; exiger que chaque affirmation factuelle porte une commande reproductible ; un garde qui refuse un rapport dont le champ `PR:` ne résout pas.
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="ticket-id">0018-chore-sync-suivis-techniques-laisses-par-l-issue</span>
+            <span class="ticket-title">chore(sync): suivis techniques laissés par l&#39;issue #27</span>
+            <span class="tag">low/small</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Deux suivis non bloquants identifiés par `reviewer` pendant les huit passes de review de la PR #41 (issue #27), délibérément laissés hors périmètre :
+
+1. Le fichier d&#39;état de `ticket sync --auto` (`.claude/data/ticket-sync-auto-state.json`, introduit par l&#39;ADR 0009) **n&#39;enregistre pas le nouveau statut `blocked`** ajouté par la PR #41. Un ticket bloqué par un push de `Status` non résolu n&#39;apparaît donc pas dans la trace que le mode non surveillé est censé laisser.
+2. `statusEdit` et `statusUnresolved` (`src/tickets/sync.ts`) **dupliquent une chaîne de gardes** qui gagnerait à être extraite dans un helper partagé.
+
+Aucun des deux n&#39;est un défaut de correction — ce sont des finitions.
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="ticket-id">0019-fix-agents-la-sous-passe-code-review-ne-rend-jam</span>
+            <span class="ticket-title">fix(agents): la sous-passe `code-review` ne rend jamais, ce qui plafonne tout verdict — et n&#39;existe pas hors Claude Code</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Symptôme : plus aucune PR ne peut obtenir `approve`
+
+L&#39;ADR 0007 (issue #29), décision 4, impose à `reviewer` de plafonner son `VERDICT` à `changes-requested` quand la sous-passe `code-review` a été invoquée mais n&#39;a pas rendu dans le budget du tour. La règle est juste : une review dont la passe de correction n&#39;a jamais tourné ne peut pas certifier un diff.
+
+Mais dans la session du 19-21/09/2026, cette sous-passe **n&#39;a rendu aucune fois sur six** — PR #37, #39, #40 (cinq rondes), #41 (huit rondes), #47 (deux rondes). Dans chaque cas, le reviewer a fait une lecture manuelle complète, n&#39;a trouvé aucun défaut restant, et a quand même dû plafonner.
+
+Conséquence : **le plafond ne signale plus rien**. Il se déclenche systématiquement, indépendamment de la qualité du diff. Un `changes-requested` ne distingue plus une PR défectueuse d&#39;une PR saine, et chaque merge se fait en passant outre le verdict — ce qui vide la règle de son sens et habitue à ignorer un signal d&#39;alerte.
+
+Cause observée, rapportée par plusieurs reviewers : la skill `code-review` démarre comme tâche d&#39;arrière-plan (« backgrounded / forked run ») et le reviewer n&#39;a aucun moyen d&#39;attendre son résultat dans son propre tour.
+
+## Second volet : la sous-passe n&#39;existe pas sur quatre des cinq cibles
+
+`src/config.ts` déclare cinq cibles d&#39;installation : `claude-code`, `codex`, `pi`, `opencode`, `kilo-code`. `src/install.ts` adapte le frontmatter et les répertoires par cible — **mais pas les corps de prompts**, qui sont rendus depuis la même source `packs/core/agents/*.md`.
+
+Or `code-review` **n&#39;est pas une skill de ce dépôt** : `packs/core/skills/` ne contient que `agent-attribution`, `chained-implementation`, `critique-expert`, `github-project-sync`, `idea-to-planned` et `security-expert`. C&#39;est une skill intégrée de Claude Code, invoquée via l&#39;outil `Skill` — lui aussi propre à Claude Code.
+
+Sur `codex`, `pi`, `opencode` et `kilo-code`, `reviewer.md:39` désigne donc quelque chose qui n&#39;existe pas.
+
+La portabilité ne tient aujourd&#39;hui qu&#39;à une distinction fragile entre deux lignes voisines du prompt :
+- `reviewer.md:39` — « Only skip it if the skill genuinely isn&#39;t invokable in this run » → pas de plafond
+- `reviewer.md:40` — « when the skill *was* invoked but didn&#39;t return » → plafond
+
+Rien n&#39;aide un agent à savoir dans quel cas il est : aucune condition de template par cible, aucune documentation. Un agent sur une cible non-Claude qui lirait la ligne 40 en premier plafonnerait **tous** ses verdicts, définitivement.
+
+Dépendances Claude comparables dans des corps de prompts partagés entre les cinq cibles : `subagent_type` et l&#39;outil `Agent` — 4 occurrences dans `implementer.md`, 1 dans `reviewer.md`, 1 dans `triage.md`.
+
+## À trancher (ne pas pré-décider)
+
+- Peut-on rendre l&#39;invocation de `code-review` réellement bloquante, ou est-ce une limite du harnais hors de portée de ce dépôt ? Si c&#39;est hors de portée, le plafond doit-il rester en l&#39;état, devenir configurable, ou être remplacé par un signal qui ne se confond pas avec un défaut de code ?
+- Comment `reviewer` distingue-t-il de façon fiable « skill non invocable sur cette cible » de « invoquée sans retour » ? Piste : une condition de template par cible dans `install.ts`, pour que le bloc `code-review` ne soit rendu que sur `claude-code`.
+- Faut-il un équivalent de passe de correction pour les cibles non-Claude, ou assumer explicitement que `reviewer` y fait une lecture manuelle sans plafond ?
+- Les dépendances à `Agent`/`subagent_type` dans `implementer.md`, `reviewer.md` et `triage.md` méritent-elles le même traitement par cible ? (Peut relever d&#39;un ticket distinct.)
+
+## Preuves
+
+Six plafonnements consécutifs, tous documentés dans les commentaires de PR : #37, #39, #40, #41, #47 (deux fois). Dans chacun, le reviewer a explicitement écrit que le plafond venait de l&#39;indisponibilité de la sous-passe et non d&#39;un défaut trouvé dans le diff.
+
+---
+
+**generated_by: tracker**
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="ticket-id">0020-fix-packs-les-corps-de-prompts-supposent-des-mec</span>
+            <span class="ticket-title">fix(packs): les corps de prompts supposent des mécanismes Claude Code sur les cinq cibles d&#39;installation</span>
+            <span class="tag">medium/large</span>
+          </summary>
+          <div class="ticket-body"><pre>
+## Problème
+
+`src/config.ts:241` déclare cinq cibles d&#39;installation : `claude-code`, `codex`, `pi`, `opencode`, `kilo-code`. `src/install.ts` adapte le **frontmatter** et les **répertoires** par cible (`renderCodexAgent`, `renderOpenCodeAgent`, `renderKiloAgent`, `SKILL_ROOTS`, `.pi` sans définitions d&#39;agents natives).
+
+Mais les **corps de prompts** ne sont pas adaptés : `packs/core/agents/*.md` est rendu à l&#39;identique vers les cinq cibles. Or plusieurs de ces corps prescrivent des mécanismes propres à Claude Code.
+
+## Occurrences relevées
+
+- `packs/core/agents/implementer.md` — 4 occurrences de `subagent_type` / de l&#39;outil `Agent`
+- `packs/core/agents/reviewer.md` — 1 occurrence, plus l&#39;invocation de la skill `code-review` « via `Skill` »
+- `packs/core/agents/triage.md` — 1 occurrence
+
+L&#39;outil `Agent` (avec son paramètre `subagent_type`) et l&#39;outil `Skill` sont des concepts Claude Code. Sur `codex`, `pi`, `opencode` et `kilo-code`, ces instructions désignent des mécanismes qui n&#39;existent pas.
+
+Conséquence structurelle : tout le pipeline repose sur la délégation à des sous-agents (`implementer` invoque `reviewer`, `orchestrator` invoque `classifier`/`panel-selector`/`debate-angle`/`synthesizer`, `implementer` escalade vers `triage`). Si la délégation n&#39;a pas d&#39;équivalent sur une cible, ce n&#39;est pas une instruction morte isolée — c&#39;est le flux entier qui n&#39;a pas de chemin d&#39;exécution.
+
+## Lien avec le ticket 0019
+
+Le ticket 0019 traite le cas particulier de la skill `code-review`, qui n&#39;appartient pas au pack (`packs/core/skills/` ne contient que `agent-attribution`, `chained-implementation`, `critique-expert`, `github-project-sync`, `idea-to-planned`, `security-expert`) et dont l&#39;absence plafonne mécaniquement tout verdict de `reviewer`.
+
+Ce ticket-ci est le cas général dont 0019 est une instance. Les deux peuvent être traités séparément, mais la solution retenue ici devrait englober celle de 0019 — décider laquelle mène l&#39;autre fait partie du travail.
+
+## À trancher (ne pas pré-décider)
+
+- Quel est le contrat minimal qu&#39;une cible doit offrir pour que le pack `core` ait un sens ? Délégation à des sous-agents, invocation de skills, exécution d&#39;outils — lesquels sont indispensables, lesquels sont optionnels ?
+- Les corps de prompts doivent-ils devenir conditionnels par cible (une variable de template exposant la cible courante, sur le modèle de `{{#if project.language}}`), ou faut-il des variantes de fichiers par cible, ou un pack par famille de cible ?
+- Que fait un agent sur une cible sans délégation : exécute-t-il la séquence lui-même en ligne (ce que `install.ts` fait déjà pour Codex — « Delegate to the installed `orchestrator` Codex subagent if available; otherwise follow its sequence directly »), ou refuse-t-il d&#39;agir ?
+- Le précédent Codex ci-dessus est-il le patron à généraliser, ou un contournement ponctuel ?
+- Faut-il un test qui échoue quand un corps de prompt introduit une chaîne propre à une cible sans garde ? (Précédent : `tests/agents-sync-only-gh.test.ts` scanne déjà les prompts par sous-chaîne, et `tests/packs.test.ts` interdit les littéraux propres au projet.)
+
+## Vérification faite
+
+Les chiffres ci-dessus proviennent d&#39;un `grep` réel sur `packs/core/agents/*.md` et d&#39;une lecture de `src/install.ts` (lignes ~200-215 et ~340-355) et `src/config.ts` (lignes ~223-270) le 21/09/2026, sur `main`. Ce ne sont pas des estimations.
+
+---
+
+generated_by: tracker
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0021-refactor-gh-reloger-le-wrapper-gh-hors-de-src-bo</span>
+            <span class="ticket-title">refactor(gh): reloger le wrapper gh() hors de src/board/</span>
+            <span class="tag">high/small</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Remove the generic `gh()` CLI wrapper from the board module — it has no business being there. `src/board/gh.ts` contains `gh()`, `ensureAuth`, `onGhRetry`, `RateLimitError`, which are a generic wrapper around the `gh` CLI, not a board-specific module; it is stored there only for convenience.
+
+Move it to `src/gh.ts`. Update the importers:
+- `src/cli.ts:9`
+- `src/tickets/dedupe.ts:20`
+- `src/tickets/sync.ts:26`
+
+No behavioral change; `bun run check` and all 165 tests must remain green.
+
+**Must land first**: `dedupe.ts` depends on `gh()` for deduplication against open issues (protection against incidents #18/#19) and must never be left without access to `gh()`.
+
+Epic: local-first-tickets
+Lot: 1/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0022-refactor-tickets-reloger-le-vocabulaire-statut-p</span>
+            <span class="ticket-title">refactor(tickets): reloger le vocabulaire statut/priorité/taille hors de src/board/spec.ts</span>
+            <span class="tag">high/small</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Move status/priority/size vocabulary out of the board module — it is a compile-time dependency that makes the ticket schema brittle. `src/tickets/spec.ts:28` imports `STATUS_ROLES`, `PRIORITY_OPTIONS`, `SIZE_OPTIONS` from `../board/spec.ts`. This is a compilation dependency, not just a runtime one: removing `src/board/` would break the ticket schema.
+
+Relocate `STATUS_ROLES`, `StatusRole`, `PRIORITY_OPTIONS`, `SIZE_OPTIONS` to `src/tickets/spec.ts` (or a new `src/tickets/status.ts` if `spec.ts` becomes too large).
+
+**Do not relocate**: `FIELD_SPECS`, `REQUIRED_LABELS`, and `BoardData` — these are board-specific (the shape of GitHub Project fields) and will be **deleted** in lot 6, not moved.
+
+Epic: local-first-tickets
+Lot: 2/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0023-fix-tickets-ticketfiles-doit-parcourir-recursive</span>
+            <span class="ticket-title">fix(tickets): ticketFiles doit parcourir récursivement les répertoires d&#39;epic</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Fix silent data loss when tickets are organized into epic directories. `src/tickets/store.ts:11-19` (`ticketFiles`) performs a flat `readdir(abs)` filtered on `.endsWith(&quot;.md&quot;)`. With a structure `docs/tickets/&lt;epic&gt;/&lt;ticket&gt;.md`, it returns **zero entries** — subdirectories do not end in `.md` and `readdir` is not called with `{ recursive: true }`.
+
+**Consequence**: all tickets silently disappear from `listTickets`, from the `nextNumber` calculation in `createTicket`, and from deduplication candidates.
+
+**Fix**: rewrite with recursive traversal; adapt `listTicketsDetailed` (line 36, `join(dir, file)`) so that `ticket.path` reflects the nested path.
+
+**Tests to add**:
+- Listing epics in nested directories
+- Empty epic directories
+- `nextNumber` and dedup candidate scanning across multiple epics
+
+**Must precede** any physical file movement.
+
+Epic: local-first-tickets
+Lot: 3/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e9d5ff;color:#581c87">review</span>
+            <span class="ticket-id">0024-chore-tickets-migrer-les-20-tickets-a-plat-vers</span>
+            <span class="ticket-title">chore(tickets): migrer les 20 tickets à plat vers les répertoires d&#39;epic</span>
+            <span class="tag">medium/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+One-time data migration, not source code. Move the 20 existing `docs/tickets/NNNN-xxx.md` files to `docs/tickets/&lt;epic&gt;/NNNN-xxx.md`.
+
+**Blocked** until the epic grouping scheme is settled — several of the 20 existing tickets do not obviously belong to any single epic. Options to be decided by the repo owner (see ADR 0012):
+- Arbitrary bucket
+- &quot;Miscellaneous&quot; epic
+- Manual per-file decision
+
+**Depends on** lot 3 (the recursive reader must exist before files are moved).
+
+**After migration**: verify via `litecode ticket list` that all 20 still parse.
+
+**⚠️ Breaking reference links**: flat paths `docs/tickets/NNNN-xxx.md` are cited in ADRs 0008–0011 and in PR comments — these become dead links. Plan an explicit migration note or an acknowledged cutoff date.
+
+Epic: local-first-tickets
+Lot: 4/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
+            <span class="ticket-id">0025-feat-tickets-litecode-ticket-doctor-diagnostic-l</span>
+            <span class="ticket-title">feat(tickets): litecode ticket doctor, diagnostic local du buffer</span>
+            <span class="tag">high/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Build a local diagnostic tool before eliminating its board-based predecessor. `litecode board doctor` is today the **only** operator diagnostic tool; it must have a local equivalent **before** being deleted, never after.
+
+Create new `src/tickets/doctor.ts` exporting `doctor(root, dir)` that validates:
+- Frontmatter shape (`TicketSchema.safeParse`)
+- Delimiter integrity (reuse existing errors from `parseFrontmatter`)
+- Placement within an epic directory
+
+Wire it into `src/cli.ts` as `litecode ticket doctor`, replacing the `board doctor` line in usage text (`cli.ts:85`).
+
+Write tests mirroring the existing coverage of `src/board/doctor.ts` before deleting that module.
+
+**Real motivation**: a ticket file lost its opening `---` delimiter this week, written by an agent via `Edit` rather than through the CLI; only `sync` caught it by rejecting it outright. Without the board, nothing else plays that role.
+
+Epic: local-first-tickets
+Lot: 5/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#fef3c7;color:#78350f">inProgress</span>
+            <span class="ticket-id">0026-feat-tickets-supprimer-src-board-et-couper-le-ch</span>
+            <span class="ticket-title">feat(tickets)!: supprimer src/board/ et couper le chemin d&#39;hydratation</span>
+            <span class="tag">high/large</span>
+          </summary>
+          <div class="ticket-body"><pre>
+**Atomic lot** — an intermediate state where `sync.ts` still imports `board/*` while `board/` is gone will not compile. Deliver in one PR, with no further subdivision.
+
+**Content**: delete `src/board/` (`doctor.ts`, `init.ts`, `query.ts`, `spec.ts`; `gh.ts` already moved in lot 1, enums already moved in lot 2).
+
+In `src/tickets/sync.ts`:
+- Remove `planTicketPull`/`applyTicketPull`/`planTicketHydration`/`applyTicketHydration`/`fetchTicketItems`
+- Remove all `board: BoardData` and `remote: Map&lt;number, RemoteItem&gt;` parameters from `planTicketSync`/`applyTicketSync` — these are hard failures at lines 69 and 137
+- Push only survives: `creationEdits` no longer writes `priority`/`size`/`assignedAgent` to the board; `FieldEdit`/`editField`/`gh project item-add`/`item-edit` vanish; `gh issue create`/`gh issue comment` remain
+- Status ceases to sync to the board: it becomes a purely local pipeline state written by `dispatcher`/`implementer`/`triage`
+
+Delete `src/tickets/remote.ts` (exists only to read board items).
+
+Rewrite the module comment of `src/tickets/spec.ts:1-24` — the framing &quot;GitHub is authoritative / pull-only&quot; disappears.
+
+Clean `src/init.ts` and `src/cli.ts` (5 sites: `board init`/`board doctor` commands, imports lines 9-14, usage text lines 84-85, dispatch), wiring in `ticket doctor` from lot 5.
+
+**Breaking change**: two documented CLI commands disappear for bunx/npm consumers with no deprecation window — this repo uses semantic-release with Conventional Commits, justifying a MAJOR bump, hence the `!` in the title.
+
+Epic: local-first-tickets
+Lot: 6/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="ticket-id">0027-docs-purger-les-references-au-board-dans-les-adr</span>
+            <span class="ticket-title">docs: purger les références au board dans les ADR, prompts et skills</span>
+            <span class="tag">medium/medium</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Documentation pass once code stabilizes. Update `docs/decisions/0008` through `0011` (board references), PR comment conventions, and prompt bodies under `packs/` that mention Status/Priority/Size push or `board.json`.
+
+Delete `packs/core/skills/github-project-sync/`.
+
+Update `CLAUDE.md` and the README if they cite `board init`/`board doctor`.
+
+**Coordination**: issue #49 (&quot;prompt bodies assume Claude Code mechanisms on five targets&quot;) touches the same prompt files — run this lot in parallel, coordinating to avoid conflicts.
+
+Epic: local-first-tickets
+Lot: 7/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e9d5ff;color:#581c87">review</span>
+            <span class="ticket-id">0028-feat-dashboard-generer-un-dashboard-html-statiqu</span>
+            <span class="ticket-title">feat(dashboard): générer un dashboard HTML statique depuis le buffer local</span>
+            <span class="tag">medium/large</span>
+          </summary>
+          <div class="ticket-body"><pre>
+New module `src/dashboard/` (one concern per file: `build.ts` for aggregation from `listTickets`, `render.ts` for HTML templating), plus command `litecode dashboard --build` in `src/cli.ts`. Standalone, committable, no server or process.
+
+**Deliberately limited initial scope** (the current state):
+- Distribution by status/priority/size
+- Recency via `dueDate`
+- Grouping by epic
+- Dashboard does **NOT** claim to show evolution over time — no transition history exists today (frontmatter only stores `syncedAt`)
+- Do not fabricate this data from git history (fragile, slow, out of scope)
+- Transition journal design is future work (see ADR 0012)
+
+**Regeneration trigger**: `--build` remains purely explicit, per the rule &quot;no server, no process&quot;. Agents `dispatcher`/`implementer` will be documented (in lot 7) to re-run it after any ticket mutation; no enforcement mechanism at this stage. Stale HTML pretending to show current state is worse than no dashboard.
+
+Epic: local-first-tickets
+Lot: 8/9
+</pre></div>
+        </details>
+        <details class="ticket">
+          <summary>
+            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="ticket-id">0029-chore-agents-retrecir-l-invariant-sync-only-gh-d</span>
+            <span class="ticket-title">chore(agents): rétrécir l&#39;invariant sync-only-gh de l&#39;issue #44 à la surface survivante</span>
+            <span class="tag">low/small</span>
+          </summary>
+          <div class="ticket-body"><pre>
+Issue #44 tracks an invariant (&quot;only `sync` talks to GitHub&quot;, verified only by prompt scan) half of which vanishes with this initiative. The invariant is not obsolete — it must be **narrowed**, not closed — reframed to the surviving surface: the relocated `gh()` wrapper (lot 1) and `fetchOpenIssueDedupeCandidates` in `dedupe.ts`.
+
+**Handle after lot 6** to verify the invariant against sites of actual survival rather than assumptions.
+
+Epic: local-first-tickets
+Lot: 9/9
+</pre></div>
+        </details></div>
+    </section>
+  </div>
+</body>
+</html>

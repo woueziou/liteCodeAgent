@@ -194,7 +194,13 @@ export function renderDashboard(data: DashboardData): string {
     statTile("Prêts à merger", data.byStatus.find((s) => s.role === "readyToMerge")?.count ?? 0),
   ].join("");
 
-  return `<!doctype html>
+  return `<!--
+  Committed snapshot (owner decision): this file is checked into git so it can be shared
+  and browsed straight from GitHub, and its history tracked over time. It goes stale the
+  moment any ticket's status/priority/size changes after this build — re-run
+  \`litecode dashboard --build\` to refresh it before relying on it.
+-->
+<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
