@@ -1,3 +1,28 @@
+# [0.14.0](https://github.com/woueziou/liteCodeAgent/compare/v0.13.1...v0.14.0) (2026-09-21)
+
+
+### Bug Fixes
+
+* **agents:** clarify ADR-approval status when the comment was staged, not posted ([7594d75](https://github.com/woueziou/liteCodeAgent/commit/7594d75c2535cbeee9806e4757f0bf45a9bb7799)), closes [#24](https://github.com/woueziou/liteCodeAgent/issues/24)
+* **agents:** document resume-manifest fallback for missing/ambiguous state ([3e59238](https://github.com/woueziou/liteCodeAgent/commit/3e59238788afcef631595b74f5c62771b7ba94c1)), closes [#28](https://github.com/woueziou/liteCodeAgent/issues/28)
+* **agents:** fix resume-manifest fence nesting and commit:none escalation bug ([77fa799](https://github.com/woueziou/liteCodeAgent/commit/77fa7992b123cc7d0083e263ac70d2a52ef89b58)), closes [#28](https://github.com/woueziou/liteCodeAgent/issues/28)
+* **agents:** make a degraded debate panel a structural stop condition ([5a0107f](https://github.com/woueziou/liteCodeAgent/commit/5a0107f3d3cb9076846cdbf95783d6624314348c)), closes [#29](https://github.com/woueziou/liteCodeAgent/issues/29)
+* **agents:** make the ADR draft approval gate resumable from a durable comment manifest ([9f0d150](https://github.com/woueziou/liteCodeAgent/commit/9f0d150fb555f972dd089969abc58b7a62dd10f4)), closes [#10](https://github.com/woueziou/liteCodeAgent/issues/10) [#17](https://github.com/woueziou/liteCodeAgent/issues/17) [#29](https://github.com/woueziou/liteCodeAgent/issues/29) [#28](https://github.com/woueziou/liteCodeAgent/issues/28)
+* **install:** pre-flight validate agentSkills config paths, plus opt-in config doctor --fix ([9dbefb8](https://github.com/woueziou/liteCodeAgent/commit/9dbefb8b07dd48a791671d4fe7fe5bebabd633d0)), closes [#17](https://github.com/woueziou/liteCodeAgent/issues/17)
+* **install:** pre-flight validate project.web config paths required by packs/web ([8f8767f](https://github.com/woueziou/liteCodeAgent/commit/8f8767feb7d33699fe3d09dcc0549484b7d20327)), closes [#23](https://github.com/woueziou/liteCodeAgent/issues/23) [#32](https://github.com/woueziou/liteCodeAgent/issues/32)
+* **sync:** auto-sync state resilience and reviewer follow-up fixes ([11ad5c5](https://github.com/woueziou/liteCodeAgent/commit/11ad5c5f813bf5d7b3afb65bd40dddce08999b11)), closes [#31](https://github.com/woueziou/liteCodeAgent/issues/31)
+* **sync:** fail closed on corrupted auto-sync state, not open ([1b401ce](https://github.com/woueziou/liteCodeAgent/commit/1b401ce9b6ba001be044ff0fef6e91744dcefc35)), closes [#31](https://github.com/woueziou/liteCodeAgent/issues/31)
+* **sync:** implement documented LITECODE_TICKET_AUTO_SYNC_MIN_INTERVAL_MS override ([a0113de](https://github.com/woueziou/liteCodeAgent/commit/a0113def83bedcfefee3d7b73f0cb30396f7ca04)), closes [#40](https://github.com/woueziou/liteCodeAgent/issues/40) [#31](https://github.com/woueziou/liteCodeAgent/issues/31)
+* **tickets:** record actual commit sha in staged ADR resume manifest ([43a2883](https://github.com/woueziou/liteCodeAgent/commit/43a28834c0b72e736d47f83cc04650defcc14943)), closes [#28](https://github.com/woueziou/liteCodeAgent/issues/28)
+
+
+### Features
+
+* **agents:** stage implementer and reviewer comments in the local ticket buffer ([b94f7fc](https://github.com/woueziou/liteCodeAgent/commit/b94f7fcbf0423855dcba10d8c8f669eaf3326fe3)), closes [#24](https://github.com/woueziou/liteCodeAgent/issues/24)
+* **security-expert:** add security review guidelines for application changes ([be98e08](https://github.com/woueziou/liteCodeAgent/commit/be98e085900ee723179eccbbada9a8437912af73))
+* **sync:** add ticket sync --auto with cooldown and blocker trace ([990f028](https://github.com/woueziou/liteCodeAgent/commit/990f02804f67e8c84e24f01c8c65636ae5cdcde6)), closes [#31](https://github.com/woueziou/liteCodeAgent/issues/31) [#31](https://github.com/woueziou/liteCodeAgent/issues/31)
+* **tickets:** block `ticket new` on a likely duplicate title ([43ef203](https://github.com/woueziou/liteCodeAgent/commit/43ef2034ff73e7d5db1e50b2cbecd8316c8d9e5d)), closes [18/#19](https://github.com/woueziou/liteCodeAgent/issues/19) [#30](https://github.com/woueziou/liteCodeAgent/issues/30)
+
 ## [0.13.1](https://github.com/woueziou/liteCodeAgent/compare/v0.13.0...v0.13.1) (2026-09-18)
 
 
