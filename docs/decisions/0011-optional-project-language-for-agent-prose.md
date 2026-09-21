@@ -83,7 +83,7 @@ instruction would contradict three concrete existing prompts:
 Excluded from framing, everywhere, because they are sentinel keys, enum values, or
 verbatim passthrough rather than free prose:
 
-- Every sentinel key across all seven agents (`STATUS:`, `ISSUE:`, `BRANCH:`, `PR:`,
+- Every sentinel key across all eight agents (`STATUS:`, `ISSUE:`, `BRANCH:`, `PR:`,
   `BLOCKER:`, `CHECK_OUTPUT:`, `SIZE:`, `ROUTE:`, `ANGLE:`, `VERDICT:`,
   `NEXT_STATUS:`, `RESOLUTION:`, `PLAN:`'s own label) and their enum values
   (`approve|approve-with-notes|changes-requested`,
@@ -162,7 +162,7 @@ being caught by manual review.
 ### Pack version bump and its consequence
 
 `packs/core/pack.json` moves `0.3.0` → `0.4.0`. Every pack file touched by this PR
-(eight agent/skill files) has a different rendered hash after this change, even for a
+(nine agent/skill files) has a different rendered hash after this change, even for a
 project that never sets `language` — the added `{{#if}}`/`{{/if}}` lines themselves
 change the source template even though they render to nothing when the key is absent.
 Any existing install will see drift reported (or a silent rewrite, if the project runs
