@@ -13,7 +13,7 @@
 
 import { relative } from "node:path";
 import { listTicketsDetailed, type TicketLoadError } from "./store.ts";
-import { TicketSchema, type Ticket } from "./spec.ts";
+import type { Ticket } from "./spec.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
@@ -81,30 +81,19 @@ function reportLoadError(e: TicketLoadError): Finding {
 }
 
 /**
- * Sanity-checks a ticket file that DID parse against `TicketSchema` a second time, using
- * `safeParse` directly rather than the throwing `parseTicket` path, so a caller of
- * `doctor()` gets the same shape-validation vocabulary the ticket description calls for
- * without doctor needing its own bespoke schema errors. In practice this rarely finds
- * anything `listTicketsDetailed` didn't already catch (a ticket that made it into the
- * `tickets` array already passed this same schema) — it exists so the check is explicit
- * and named, not implicit in a shared helper, per the ticket's scope.
+ * Frontmatter-shape validation (`TicketSchema.safeParse`) happens inside `parseTicket`,
+ * which `listTicketsDetailed` already calls for every file: a ticket that made it into
+ * `tickets` already passed that schema, and a ticket that didn't is already reported via
+ * `errors`/`reportLoadError` above. A second `safeParse` here on an already-validated
+ * `Ticket` would be structurally unreachable dead code, not a real check, so this
+ * function deliberately reuses that pass rather than re-running it.
  */
-function checkFrontmatterShape(ticket: Ticket): Finding[] {
-  const parsed = TicketSchema.safeParse(ticket);
-  if (parsed.success) return [];
-  return parsed.error.issues.map((i) => ({
-    severity: "error" as const,
-    message: `${ticket.path}: ${i.path.join(".") || "(root)"}: ${i.message}`,
-  }));
-}
-
 export async function doctor(root: string, dir: string): Promise<Finding[]> {
   const findings: Finding[] = [];
   const { tickets, errors } = await listTicketsDetailed(root, dir);
 
   for (const e of errors) findings.push(reportLoadError(e));
   for (const t of tickets) {
-    findings.push(...checkFrontmatterShape(t));
     const placement = checkPlacement(t, dir);
     if (placement) findings.push(placement);
   }

@@ -143,4 +143,6 @@ test("a malformed file does not stop duplicate-number or placement checks on the
   const findings = await doctor(root, "docs/tickets");
   const messages = findings.map((f) => f.message);
   expect(messages.some((m) => m.includes("0003-broken.md") && m.includes("missing frontmatter"))).toBe(true);
+  expect(messages.some((m) => m.includes("doesn't match its own id"))).toBe(true);
+  expect(messages.some((m) => m.includes("duplicate ticket number '0001'"))).toBe(true);
 });
