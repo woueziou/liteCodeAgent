@@ -24,7 +24,11 @@ async function ticketFiles(abs: string): Promise<string[]> {
     return entries
       .filter((e) => e.isFile() && e.name.endsWith(".md") && e.name !== "README.md")
       .map((e) => join(relative(abs, e.parentPath), e.name))
-      .sort();
+      // Sort by filename (the ticket id), not by the full joined path: sorting on the
+      // path would put every flat ticket ahead of every nested epic ticket purely
+      // because "0" < a directory letter, scrambling numeric-by-id order during the
+      // flat/epic transition window even though ids themselves are unaffected.
+      .sort((a, b) => a.split("/").pop()!.localeCompare(b.split("/").pop()!));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw e;
