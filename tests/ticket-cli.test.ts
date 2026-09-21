@@ -47,7 +47,6 @@ async function project(): Promise<string> {
   const raw = ConfigSchema.parse(await Bun.file(path).json());
   raw.project.repo = "demo/demo";
   raw.project.checkCommand = "bun test";
-  raw.project.board.owner = "demo";
   await Bun.write(path, `${JSON.stringify(raw, null, 2)}\n`);
   return root;
 }
