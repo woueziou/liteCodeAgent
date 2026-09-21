@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ConfigSchema } from "../src/config.ts";
 import { planBoard, applyBoardPlan } from "../src/board/init.ts";
-import { FIELD_SPECS, STATUS_ROLES } from "../src/board/spec.ts";
+import { FIELD_SPECS } from "../src/board/spec.ts";
+import { STATUS_ROLES } from "../src/tickets/spec.ts";
 import type { RemoteProject } from "../src/board/query.ts";
 
 const EXAMPLE = join(import.meta.dir, "..", "examples", "ts-employee-service.litecode.config.json");

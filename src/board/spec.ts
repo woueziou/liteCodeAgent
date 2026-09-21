@@ -5,29 +5,13 @@
  * literal label, so a project is free to name them differently as long as every role
  * maps to something. `board init` provisions anything missing; `board doctor` checks
  * that the generated board.json still matches reality.
+ *
+ * Status/priority/size vocabulary (`STATUS_ROLES`, `StatusRole`, `PRIORITY_OPTIONS`,
+ * `SIZE_OPTIONS`) lives in `../tickets/spec.ts` — it's ticket vocabulary the ticket schema
+ * needs at compile time, not board shape, so it must not depend on this module.
  */
 
-export type StatusRole =
-  | "backlog"
-  | "planned"
-  | "inProgress"
-  | "blocked"
-  | "review"
-  | "readyToMerge"
-  | "done";
-
-export const STATUS_ROLES: { role: StatusRole; label: string; description: string }[] = [
-  { role: "backlog", label: "Backlog", description: "Tracked, not yet scheduled" },
-  { role: "planned", label: "Planned", description: "Scheduled by dispatcher, ready for implementer" },
-  { role: "inProgress", label: "In Progress", description: "Implementer is actively working it" },
-  { role: "blocked", label: "Blocked", description: "Escalated to triage or waiting on a human" },
-  { role: "review", label: "Review", description: "PR open, needs a human judgment call" },
-  { role: "readyToMerge", label: "Ready to Merge", description: "Reviewer approved, nothing left but merge" },
-  { role: "done", label: "Done", description: "Merged or closed as verified-no-change" },
-];
-
-export const PRIORITY_OPTIONS = ["Low", "Medium", "High"] as const;
-export const SIZE_OPTIONS = ["Trivial", "Small", "Medium", "Large"] as const;
+import { STATUS_ROLES, PRIORITY_OPTIONS, SIZE_OPTIONS, type StatusRole } from "../tickets/spec.ts";
 
 export type FieldSpec =
   | { name: string; kind: "single-select"; options: readonly string[] }

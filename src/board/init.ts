@@ -14,13 +14,8 @@ import {
   type ItemFieldValues,
   DERIVED_DATATYPES,
 } from "./query.ts";
-import {
-  FIELD_SPECS,
-  STATUS_ROLES,
-  REQUIRED_LABELS,
-  type BoardData,
-  type StatusRole,
-} from "./spec.ts";
+import { FIELD_SPECS, REQUIRED_LABELS, type BoardData } from "./spec.ts";
+import { STATUS_ROLES, type StatusRole } from "../tickets/spec.ts";
 
 export type Action =
   | { kind: "create-field"; field: string; detail: string }
