@@ -1,17 +1,34 @@
 /** Reading and writing the ticket buffer directory. No GitHub access lives here. */
 
 import { readdir, mkdir, open } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { parseTicket, serializeTicket, slugify, type Ticket, type TicketMeta } from "./spec.ts";
 
 export function ticketsDir(root: string, dir: string): string {
   return resolve(root, dir);
 }
 
+/**
+ * Returns ticket file paths relative to `abs`, whether they sit flat in the tickets
+ * directory (today's layout: `docs/tickets/NNNN-slug.md`) or nested under an epic
+ * directory (the layout the migration lot introduces: `docs/tickets/<epic>/NNNN-slug.md`)
+ * — both forms must be picked up simultaneously, since the migration to epics happens in
+ * a later lot and this fix cannot assume it's already done. `recursive: true` also
+ * tolerates deeper nesting harmlessly, though only one level is used today. An epic
+ * directory carrying its own `README.md` is excluded the same as the top-level one, and
+ * an empty epic directory simply contributes no entries rather than erroring.
+ */
 async function ticketFiles(abs: string): Promise<string[]> {
   try {
-    const entries = await readdir(abs);
-    return entries.filter((f) => f.endsWith(".md") && f !== "README.md").sort();
+    const entries = await readdir(abs, { recursive: true, withFileTypes: true });
+    return entries
+      .filter((e) => e.isFile() && e.name.endsWith(".md") && e.name !== "README.md")
+      .map((e) => join(relative(abs, e.parentPath), e.name))
+      // Sort by filename (the ticket id), not by the full joined path: sorting on the
+      // path would put every flat ticket ahead of every nested epic ticket purely
+      // because "0" < a directory letter, scrambling numeric-by-id order during the
+      // flat/epic transition window even though ids themselves are unaffected.
+      .sort((a, b) => a.split("/").pop()!.localeCompare(b.split("/").pop()!));
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw e;
