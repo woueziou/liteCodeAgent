@@ -61,3 +61,32 @@ $ tsc --noEmit
 - La ligne vide parasite avant `## Worktree isolation` est bien un artefact du moteur de rendu (`{{#if project.language}}...{{/if}}` avec `project.language` absent ne collabse pas complètement le bloc), reproductible sur un vrai `install --apply` — elle ne vient pas d'une édition manuelle et ne disparaît PAS d'elle-même. Corriger le moteur de rendu serait une décision de conception hors du périmètre mécanique de ce ticket ; la ligne vide est donc laissée telle quelle (non bloquant, déjà qualifié non-bloquant par le vrai verdict).
 - `bun run check` (tsc --noEmit) repasse sans erreur après régénération des lockfiles.
 <!-- /litecode:comment -->
+
+<!-- litecode:comment -->
+## Re-review verdict (post-fixup, commit e351b1e)
+
+**VERDICT: changes-requested**
+
+**CHECK_OUTPUT:**
+```
+$ tsc --noEmit
+(no errors)
+
+$ bun test
+165 pass
+0 fail
+878 expect() calls
+Ran 165 tests across 21 files. [15.13s]
+```
+`reviewer` also ran `bun run src/cli.ts install` (dry run) in a fresh worktree of the PR branch: both `.claude/agents/implementer.md` and `.kilo/agents/implementer.md` report `ok`, no DRIFT — confirms the lockfile fixup is effective.
+
+**FINDINGS:**
+- (informational, not a finding against this diff) The `code-review` sub-pass was invoked again and again only launched as a background task that did not return a result within the review turn's budget (no `Monitor` tool available to `reviewer` in this run to await it). Per policy the verdict stays capped at `changes-requested` on that basis alone — not because of any concrete bug found in the fixup.
+- Manual read of the diff (transparency only, not a substitute for code-review): commit `e351b1e` is exactly a 4-line hash+version bump in each `.litecode-lock.json` (implementer.md entries only, `0.3.0`→`0.4.0`), plus the docs/tickets comment replacement. No unrelated files touched, no other lock entries changed, no source/logic changes.
+- (non-blocking) Stray blank line before `## Worktree isolation` remains, confirmed genuine template-render artifact, correctly left as deferred/non-blocking.
+- Attribution check: commits `7adfa02` and `e351b1e` both carry `Agent: implementer` / `Task: #43`, no `Co-Authored-By:`. Compliant.
+
+**PLAN_FIDELITY:** matches — the fixup does exactly what the prior blocking finding asked, nothing more; the 24 unrelated pre-existing pack-vs-lock drift entries were correctly left untouched.
+
+**REENTRY:** the only remaining open item is that the `code-review` sub-pass has still not completed synchronously in any review pass on this PR — that is a tooling/infra limitation of the `reviewer` agent's environment, not a defect in this ticket's diff. Recommend a human accept the two independent manual verifications (this pass + the prior real verdict) as sufficient for this small, mechanical, prompt/lockfile-only change, or re-run review once a `Monitor`-capable environment is available to actually await `code-review`'s output.
+<!-- /litecode:comment -->
