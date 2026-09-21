@@ -93,16 +93,22 @@ title/body/comment state already been pushed to GitHub."
 
 ## Context that did not change
 
-- `project.board` remains in `ConfigSchema` (`src/config.ts`), `.optional()` with
-  every field defaulted, purely so a `litecode.config.json` committed before this
-  epic still parses without a migration step. `litecode init` no longer writes this
-  key for a fresh project, and no runtime code reads any field of it any more — it is
-  vestigial, kept only for backward config compatibility, not because any part of the
-  pipeline still consults it.
+- `project.board` remains in `ConfigSchema` (`src/config.ts`), `.default({...})`
+  (every field defaulted, so a config predating this key still parses without
+  needing to name it explicitly), purely so a `litecode.config.json` committed
+  before this epic still parses without a migration step. `litecode init` no longer
+  writes this key for a fresh project, and no runtime code reads any field of it any
+  more — it is vestigial, kept only for backward config compatibility, not because
+  any part of the pipeline still consults it.
 - `gh issue create`/`comment` (via `sync`) and `gh pr create`/`comment` (via
   `implementer`/`reviewer`) are the only GitHub surfaces this project still calls.
-  Everything board-specific — `gh project item-add`/`item-edit`, the whole
-  `src/board/` module, `.claude/data/board.json`, the item-id cache — is gone.
+  Every board-specific *code path* — `gh project item-add`/`item-edit`, the whole
+  `src/board/` module — is gone; nothing in the runtime issues those calls or
+  imports that module any more. The two data files those calls used to write,
+  `.claude/data/board.json` and the item-id cache
+  (`.claude/data/github-project-item-ids.json`), are still git-tracked in the repo
+  as of this writing — stale, unreferenced by any code, and not cleaned up by this
+  epic. Removing them is a leftover cleanup, not a decision this ADR makes.
 
 ## Consequences
 
