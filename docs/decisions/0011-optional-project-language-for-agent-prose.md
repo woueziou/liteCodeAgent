@@ -60,8 +60,15 @@ Framed with `{{#if project.language}}…{{/if}}`, one short "Working language" s
 placed near the top of each file's prose, immediately after its opening paragraph(s):
 
 - `packs/core/agents/implementer.md`, `orchestrator.md`, `reviewer.md`,
-  `debate-angle.md`, `triage.md`, `classifier.md`, `synthesizer.md`
+  `debate-angle.md`, `triage.md`, `classifier.md`, `synthesizer.md`, `planner.md`
 - `packs/core/skills/github-project-sync/SKILL.md`
+
+`planner.md` was missed in the PR's first pass — its `PLAN:` steps and `ADR_DECISIONS:`
+lines are exactly the same kind of free-text prose `orchestrator.md`'s `PLAN:`/
+`RECOMMENDATION:` fields were already framed for, and `reviewer` caught the omission
+before merge. `tracker.md` was checked and deliberately excluded: it only relays an
+already-approved title/body it receives as input, it never authors prose of its own, so
+there is nothing in it for `project.language` to translate.
 
 Each framed block states in its own reserve clause exactly which parts of that
 specific agent's output format stay in English, rather than a single generic
