@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0029-chore-agents-retrecir-l-invariant-sync-only-gh-d
 title: chore(agents): rétrécir l'invariant sync-only-gh de l'issue #44 à la surface survivante
 label: chore
-status: backlog
+status: inProgress
 priority: low
 size: small
 assignedAgent: human
