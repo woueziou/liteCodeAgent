@@ -100,9 +100,10 @@ title/body/comment state already been pushed to GitHub."
   writes this key for a fresh project, and no runtime code reads any field of it any
   more — it is vestigial, kept only for backward config compatibility, not because
   any part of the pipeline still consults it.
-- `gh issue create`/`comment` (via `sync`) and `gh pr create`/`comment` (via
-  `implementer`/`reviewer`) are the only GitHub surfaces this project still calls.
-  Every board-specific *code path* — `gh project item-add`/`item-edit`, the whole
+- `gh issue create`/`comment`/`edit` and `gh issue list` (via `sync` — the latter is
+  `src/tickets/dedupe.ts`'s `fetchOpenIssueDedupeCandidates`, wired into `ticket new`'s
+  duplicate check) and `gh pr create`/`comment` (via `implementer`/`reviewer`) are the
+  only GitHub surfaces this project still calls. Every board-specific *code path* — `gh project item-add`/`item-edit`, the whole
   `src/board/` module — is gone; nothing in the runtime issues those calls or
   imports that module any more. The two data files those calls used to write,
   `.claude/data/board.json` and the item-id cache
@@ -114,7 +115,9 @@ title/body/comment state already been pushed to GitHub."
 
 - **Public contract break.** `litecode board init` and `litecode board doctor` no
   longer exist as commands. Any script, CI job, or onboarding doc that invoked them
-  directly breaks. This shipped as a major version bump.
+  directly breaks. This shipped as `0.14.0` — a minor version bump per `CHANGELOG.md`,
+  not a major one; this project has never cut a 1.x release and does not follow strict
+  major-bump-on-breaking-change semantics.
 - **`project.board` is now dead weight in the schema**, kept solely for old-config
   compatibility (see above) — a maintenance note for anyone tempted to "clean up" the
   schema: removing it outright would break parsing of configs written before this
