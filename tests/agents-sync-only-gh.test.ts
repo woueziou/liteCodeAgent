@@ -5,38 +5,38 @@ import { listPacks, loadPack } from "../src/packs.ts";
 const PACKS = join(import.meta.dir, "..", "packs");
 
 /**
- * Enforces (part of) the "only `sync` talks to gh" invariant: agent tool restrictions
- * declared in frontmatter are not a reliable enforcement boundary on their own (see the
- * `agent-attribution` skill — an agent without Edit/Write still modified a file once), so
- * the invariant needs a check that doesn't depend on an agent's own self-restraint. This
- * mirrors `tests/packs.test.ts`'s "no pack file hardcodes a project literal" test: a plain
- * substring scan over every agent prompt, with an explicit, named allowlist for the
- * handful of documented exceptions — anything not on that list is a regression, not a
- * judgment call.
+ * Enforces (part of) the "only `sync` talks to gh" invariant from issue #27: agent tool
+ * restrictions declared in frontmatter are not a reliable enforcement boundary on their
+ * own (see the `agent-attribution` skill and issue #27's Context section — an agent
+ * without Edit/Write still modified a file once), so the invariant needs a check that
+ * doesn't depend on an agent's own self-restraint. This mirrors `tests/packs.test.ts`'s
+ * "no pack file hardcodes a project literal" test: a plain substring scan over every
+ * agent prompt, with an explicit, named allowlist for the handful of documented
+ * exceptions — anything not on that list is a regression, not a judgment call.
  *
- * This only covers the gh calls that mutate GitHub *issue* state directly (issue
- * creation, issue comments) — not every `gh` invocation. `gh issue view` (read-only) and
- * `gh pr create`/`gh pr comment` (opening/commenting on a pull request) are out of scope;
- * `implementer` legitimately does both as part of implementing a ticket.
+ * This only covers the gh calls that mutate GitHub *board/issue state* directly
+ * (issue creation, issue comments, project item add/edit) — not every `gh` invocation.
+ * `gh issue view` (read-only) and `gh pr create`/`gh pr comment` (opening/commenting on a
+ * pull request, not a board mutation) are out of scope; `implementer` legitimately does
+ * both as part of implementing a ticket.
  *
- * `gh project item-add`/`gh project item-edit` no longer name a real capability: the
- * GitHub Project board itself was removed (`src/board/` deleted, no `gh project` call
- * left anywhere in `src/` — `src/tickets/sync.ts` only ever shells out to `gh issue
- * create`/`edit`/`comment` now). So unlike the other two patterns, these two have **no**
- * allowlist at all, `sync.md` included: nothing needs to call them because nothing left
- * for them to mutate. If either literal reappears in any agent prompt, that's a
- * regression to a capability that no longer exists, not a documented exception. The
- * surviving `gh` surface for the whole pipeline is `gh issue`/`gh pr`, routed through the
- * relocated wrapper in `src/gh.ts`, plus the read-only `fetchOpenIssueDedupeCandidates` in
- * `src/tickets/dedupe.ts`.
+ * Per ADR 0010 (approved), `gh project item-add`/`gh project item-edit` — any direct
+ * mutation of the GitHub Project board — are now enforced down to `sync.md` alone. No
+ * other agent prompt may mention either literally, including in a negated "you never call
+ * X" sentence: that's why `dispatcher.md`/`implementer.md`/`triage.md`/`reviewer.md`/
+ * `tracker.md` describe the invariant without the literal command text. `Status` moves
+ * that used to be a direct `item-edit` from `dispatcher`/`implementer`/`triage` are now a
+ * local ticket-file write (`status` field + `synced: false`) that `sync`'s push step turns
+ * into the board mutation on its next run — see `planTicketSync`'s `statusEdit` in
+ * `src/tickets/sync.ts` and the module doc comment there.
  */
 
 type Forbidden = { pattern: RegExp; allow: string[] };
 
 const ISSUE_CREATE_ALLOWED = ["sync.md", "tracker.md"];
 const ISSUE_COMMENT_ALLOWED = ["sync.md", "implementer.md", "reviewer.md", "triage.md"];
-const ITEM_ADD_ALLOWED: string[] = [];
-const ITEM_EDIT_ALLOWED: string[] = [];
+const ITEM_ADD_ALLOWED = ["sync.md"];
+const ITEM_EDIT_ALLOWED = ["sync.md"];
 
 const FORBIDDEN: Record<string, Forbidden> = {
   "gh issue create": { pattern: /gh issue create/, allow: ISSUE_CREATE_ALLOWED },
@@ -73,14 +73,6 @@ test("only documented entry points mention a gh board/issue mutation in an agent
  * mentioning them to explicitly scope that mention to `sync`, via `SKILL_ITEM_MUTATION_ALLOWED`.
  * Anything not on that list is a skill an agent other than `sync` could read as license to
  * call the GitHub Project directly.
- *
- * Note: `sync`'s own implementation no longer runs those commands either (see the note
- * above the agent-prompt test) — `github-project-sync/SKILL.md` documenting them is stale
- * now that the board is gone. Purging that skill doc is out of this test's scope (it
- * belongs to the same follow-up that clears the leftover `board init`/`board doctor`
- * references from `sync.md`/`dispatcher.md`), so this test still tolerates the skill doc
- * mentioning them for now — it only guards that no *other* skill picks up the same stale
- * pattern in the meantime.
  */
 const SKILL_ITEM_MUTATION_ALLOWED = ["github-project-sync"];
 
