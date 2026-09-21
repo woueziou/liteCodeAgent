@@ -75,7 +75,6 @@ test("setup reuses a config and keeps install dry-run semantics", async () => {
     const configPath = join(project, "litecode.config.json");
     const config = await Bun.file(configPath).json();
     config.project.repo = "demo/demo";
-    config.project.board.owner = "demo";
     await Bun.write(configPath, `${JSON.stringify(config, null, 2)}\n`);
 
     const preview = await run(["bun", join(ROOT, "src/cli.ts"), "setup", "--project", project]);

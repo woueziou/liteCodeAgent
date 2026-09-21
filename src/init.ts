@@ -2,8 +2,7 @@ import { resolve, join } from "node:path";
 import { CONFIG_FILENAME, TARGETS, TARGET_INFO, type InstallTarget } from "./config.ts";
 import { detect, extractConventions, type Detected } from "./detect.ts";
 import { listPacks, loadPack } from "./packs.ts";
-import { gh } from "./gh.ts";
-import { ask, askList, confirm, heading, isInteractive, multiSelect, note, select, color } from "./prompt.ts";
+import { ask, askList, confirm, heading, isInteractive, multiSelect, note, color } from "./prompt.ts";
 
 type Angle = {
   name: string;
@@ -127,26 +126,6 @@ export function deriveAgentSkills(
     tracker: [...board, ...attribution],
     sync: [...board, ...attribution],
   };
-}
-
-async function pickBoard(owner: string): Promise<number | undefined> {
-  try {
-    const out = await gh(["project", "list", "--owner", owner, "--format", "json"]);
-    const projects = (JSON.parse(out).projects ?? []) as { number: number; title: string }[];
-    if (projects.length === 0) {
-      note(`  No GitHub Project found under '${owner}'.`);
-      note("  Create one (org → Projects → New project → Table), then run `bunx litecodeagent board init`.");
-      return undefined;
-    }
-    return await select(
-      "Which project board should the pipeline use?",
-      projects.map((p) => ({ label: p.title, value: p.number, hint: `#${p.number}` })),
-    );
-  } catch {
-    note(`  Could not list projects for '${owner}' (is \`gh\` authenticated?).`);
-    note("  Set it later with `bunx litecodeagent board init --owner <owner> --number <n>`.");
-    return undefined;
-  }
 }
 
 export type InitOptions = { packs?: string[]; targets?: InstallTarget[]; yes: boolean; packsRoot: string };
@@ -289,15 +268,6 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
   const domains = candidateDomains(d, available);
   const agentSkills = deriveAgentSkills(angles, domains, available);
 
-  // --- board -------------------------------------------------------------------------
-  const boardOwner = d.owner ?? repo.split("/")[0] ?? "";
-  let boardNumber: number | undefined;
-  if (interactive) {
-    heading("Board");
-    note("The pipeline tracks state in a GitHub Project, not in issue comments.");
-    boardNumber = await pickBoard(await ask("Board owner (org or user)", boardOwner, { required: true }));
-  }
-
   // --- web pack ----------------------------------------------------------------------
   let web: {
     appDir: string;
@@ -366,13 +336,6 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
       angles,
       domains,
       agentSkills,
-      board: {
-        enabled: true,
-        owner: boardOwner || "TODO-owner",
-        ...(boardNumber ? { number: boardNumber } : {}),
-        dataFile: ".claude/data/board.json",
-        itemIdCache: ".claude/data/github-project-item-ids.json",
-      },
       ...(language ? { language } : {}),
       ...(web ? { web } : {}),
     },
