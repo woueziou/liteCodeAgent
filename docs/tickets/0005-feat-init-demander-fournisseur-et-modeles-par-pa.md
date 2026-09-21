@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0005-feat-init-demander-fournisseur-et-modeles-par-pa
 title: feat(init): demander fournisseur et modèles par palier selon la cible
 label: feature
-status: backlog
+status: done
 priority: medium
 size: medium
 assignedAgent: implementer

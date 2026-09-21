@@ -3,10 +3,10 @@ schemaVersion: 1
 id: 0006-feat-agents-stage-implementer-and-reviewer-comme
 title: feat(agents): stage implementer and reviewer comments in the local ticket buffer
 label: feature
-status: backlog
+status: done
 priority: high
 size: small
-assignedAgent: human
+assignedAgent: implementer
 dueDate: 
 issue: 24
 synced: true

@@ -8,9 +8,9 @@ priority: high
 size: small
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
+issue: 43
+synced: true
+syncedAt: 2026-09-21T15:36:02.564Z
 ---
 
 Constat reproduit **cinq fois sur cinq** dans la session du 19-21/09/2026, sur les PR #34, #36, #39, #41 et #42 : chacune a été approuvée par `reviewer`, et **aucune ne porte le moindre commentaire sur GitHub**. `gh pr view <n> --json comments` renvoie 0 pour les cinq.

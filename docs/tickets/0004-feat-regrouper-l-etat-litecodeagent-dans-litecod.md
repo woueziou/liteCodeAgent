@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0004-feat-regrouper-l-etat-litecodeagent-dans-litecod
 title: feat: regrouper l'état LiteCodeAgent dans .litecodeagent/
 label: feature
-status: backlog
+status: done
 priority: medium
 size: large
 assignedAgent: implementer

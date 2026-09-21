@@ -3,10 +3,10 @@ schemaVersion: 1
 id: 0007-refactor-tickets-typed-per-ticket-sync-result-in
 title: refactor(tickets): typed per-ticket sync result instead of Promise<string[]>
 label: chore
-status: backlog
+status: done
 priority: high
 size: medium
-assignedAgent: human
+assignedAgent: implementer
 dueDate: 
 issue: 25
 synced: true

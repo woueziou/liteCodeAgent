@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0008-feat-tickets-invert-status-flow-to-file-board-wi
 title: feat(tickets): invert status flow to file→board with detect-and-block and synced-as-lock
 label: feature
-status: backlog
+status: done
 priority: high
 size: large
 assignedAgent: human

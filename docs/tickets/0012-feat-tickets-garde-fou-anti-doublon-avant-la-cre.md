@@ -3,10 +3,10 @@ schemaVersion: 1
 id: 0012-feat-tickets-garde-fou-anti-doublon-avant-la-cre
 title: feat(tickets): garde-fou anti-doublon avant la création d'un ticket
 label: feature
-status: backlog
+status: done
 priority: high
 size: medium
-assignedAgent: human
+assignedAgent: implementer
 dueDate: 
 issue: 30
 synced: true

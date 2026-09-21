@@ -10,7 +10,7 @@ assignedAgent: implementer
 dueDate: 
 issue: 28
 synced: true
-syncedAt: 2026-09-18T17:34:18.974Z
+syncedAt: 2026-09-21T15:35:43.433Z
 ---
 
 ## Symptôme observé
@@ -58,19 +58,3 @@ Un humain qui approuve un ADR doit pouvoir faire continuer le travail **sans que
 ## Notes
 
 Aucun ADR n'est a priori nécessaire pour ce ticket ; si l'implémenteur juge qu'il en faut un, les numéros 0003, 0004, 0005 et 0006 sont déjà réservés ou pris — prendre le prochain libre au moment de l'implémentation.
-
-<!-- litecode:comment -->
-PR #39 (https://github.com/woueziou/liteCodeAgent/pull/39) implements this ticket: `packs/core/agents/implementer.md`'s ADR draft approval gate now writes a durable `resume-manifest` fenced block into the same ADR-draft comment, and step 5 reconstructs mechanically from that artifact on resume instead of relying on session memory. ADR 0008 documents the decision. Rendered `.claude/`/`.kilo/` copies and lock files updated via `bun run src/cli.ts install --apply`.
-
-`reviewer` ran three passes on this PR across the implementation run:
-
-1. Pass 1: `changes-requested` — flagged that step 5 never said what to do if the resume-manifest comment is missing/malformed/ambiguous, or if its `commit` sha can't be found in `git log`. Fixed same-PR (commit 3e59238): added explicit escalate-to-`triage` guidance for those cases.
-2. Pass 2: `changes-requested` — found two bugs in that fix: (a) the resume-manifest markdown example used an invalid nested 3-backtick fence that a literal-minded implementer could reproduce, corrupting the artifact; (b) the new "commit not found → escalate" rule contradicted the manifest's own valid `commit: none` state (nothing committed yet, e.g. an ADR-only ticket), which would misfire as a false escalation. Fixed same-PR (commit 77fa799): widened the outer fence to 4 backticks, added an explicit `commit: none` carve-out.
-3. Pass 3 (final, on commit 77fa799): manually confirmed both fixes are correct (fence nesting verified against CommonMark rules, `commit: none` carve-out text present and unambiguous, rendered copies match source) and found no new issues. **Verdict capped at `changes-requested` solely because the `code-review` correctness/simplification sub-pass it launches did not return within the turn budget on all three passes** — reviewer's own protocol treats a sub-pass that doesn't come back as incomplete rather than substituting a manual read in its place, so it would not issue `approve`/`approve-with-notes` without that sub-pass actually completing.
-
-REENTRY per reviewer pass 3: no manual findings remain outstanding; re-run `reviewer` (or invoke the `code-review` skill directly and wait for it to actually complete) before merging — if it comes back clean this should convert straight to `approve`/`approve-with-notes` with no further code changes expected.
-
-`bun run check` (tsc --noEmit) and `bun test` (119 pass / 0 fail) both pass as of the latest commit (77fa799).
-
-Moving this to `Review` rather than `Ready to Merge` since the verdict in hand is `changes-requested`, even though the blocking factor is a reviewer-side sub-pass availability issue rather than a defect in this diff.
-<!-- /litecode:comment -->

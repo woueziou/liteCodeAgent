@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0003-fix-install-preflight-validate-config-paths-packs-require
 title: fix(install): pre-flight validate config paths packs require, plus opt-in `config doctor --fix`
 label: bug
-status: inProgress
+status: done
 priority: high
 size: medium
 assignedAgent: implementer
