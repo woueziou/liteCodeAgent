@@ -5,7 +5,7 @@ task: "#27"
 
 # 0010. Agent-initiated Status push through `sync`
 
-Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)
+Status: superseded by ADR 0012 (local-first tickets, lot 7/9)
 Date: 2026-09-20
 
 > **Note (2026-09-21):** the `Status` push-through-`sync` mechanism this ADR describes

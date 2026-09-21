@@ -5,7 +5,7 @@ task: "#13"
 
 # 0002. Reject derived project fields in board planning
 
-Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)
+Status: superseded by ADR 0012 (local-first tickets, lot 7/9)
 Date: 2026-09-18
 
 > **Note (2026-09-21):** `src/board/init.ts` and the whole `litecode board` command

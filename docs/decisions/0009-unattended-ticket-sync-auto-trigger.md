@@ -5,7 +5,7 @@ task: "#31"
 
 # 0009. Unattended `ticket sync --auto`: trigger, conflict handling, anti-runaway
 
-Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)
+Status: superseded by ADR 0012 (local-first tickets, lot 7/9)
 Date: 2026-09-19
 
 > **Note (2026-09-21):** parts of this ADR (the `--auto` trigger and anti-runaway

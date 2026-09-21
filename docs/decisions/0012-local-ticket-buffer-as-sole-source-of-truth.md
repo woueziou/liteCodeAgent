@@ -117,9 +117,13 @@ title/body/comment state already been pushed to GitHub."
 
 - **Public contract break.** `litecode board init` and `litecode board doctor` no
   longer exist as commands. Any script, CI job, or onboarding doc that invoked them
-  directly breaks. This shipped as `0.14.0` — a minor version bump per `CHANGELOG.md`,
-  not a major one; this project has never cut a 1.x release and does not follow strict
-  major-bump-on-breaking-change semantics.
+  directly breaks. The commit that actually removes them (`f8941d9`,
+  `feat(tickets)!: supprimer src/board/...`, carrying its own `BREAKING CHANGE:`
+  footer) is not yet released as of this writing — `package.json` is still `0.14.0`
+  with further unreleased commits on top, and `f8941d9` postdates the `v0.14.0` tag.
+  Under this project's semantic-release/Angular-convention tagging, a `feat!:`/
+  `BREAKING CHANGE:` commit drives a major version bump once it does ship — so this
+  should land as a 1.0.0, not another `0.x.0` minor.
 - **`project.board` is now dead weight in the schema**, kept solely for old-config
   compatibility (see above) — a maintenance note for anyone tempted to "clean up" the
   schema: removing it outright would break parsing of configs written before this
