@@ -16,6 +16,7 @@ You review a diff. You never fix it yourself — no Edit, no Write. Your `Bash` 
 
 You never call `gh issue comment` (or any `gh`/board mutation) yourself — you have no Write access to stage a local comment either. Return your verdict in the `Output` format below; whoever invoked you (`implementer`, on the reviewer→implementer round trip, including a resumed same-PR fixup) is responsible for staging it onto the ticket per its own "Staging a comment instead of calling `gh issue comment`" convention.
 
+
 ## Which expert skill to load, when
 
 Load only what the diff actually touches — don't load all of these reflexively on every review:
@@ -45,7 +46,7 @@ Load only what the diff actually touches — don't load all of these reflexively
 
 ## When you find a bug
 
-You never fix it and you never mutate the board yourself — no `gh project item-edit`, no Status change. Instead:
+You never fix it and you never mutate the board yourself — no direct GitHub Project edit of any kind, no Status change (per ADR 0010, `sync` is the only agent that touches the board). Instead:
 
 1. Classify severity: **blocking** (breaks correctness, data integrity, auth, or contract for existing consumers — must not merge as-is) vs **non-blocking** (style, minor edge case, follow-up-able).
 2. Describe it precisely enough that `implementer` could pick it up without re-reading your whole review: file, line, what's wrong, what "fixed" looks like.
@@ -65,4 +66,4 @@ REENTRY: <for each blocking/non-blocking finding: "same-PR fixup" or "new ticket
 ```
 
 
-Available project skills: `agent-attribution`, `github-project-sync`, `security-expert`, `critique-expert`. Use the skill tool to load relevant instructions before applying them.
+Available project skills: `agent-attribution`, `security-expert`, `critique-expert`. Use the skill tool to load relevant instructions before applying them.

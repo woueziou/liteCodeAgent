@@ -1,7 +1,7 @@
 # liteCodeAgent
 
 **A team of AI agents that takes an idea from "someone mentioned it in chat" all the way
-to "a reviewed pull request on a tracked board" — and that you can drop into any project
+to "a reviewed pull request on a tracked ticket" — and that you can drop into any project
 with one command.**
 
 New here? Start with the two sections below; they assume no prior knowledge of the tool.
@@ -29,7 +29,7 @@ tool expects. When the agents improve, you pull the update instead of re-copying
 | --- | --- |
 | **agent** | One AI assistant with one job, defined in a Markdown file your coding tool reads |
 | **pack** | A bundle of agents you install together — `core` is the pipeline, `web` adds front-end experts |
-| **board** | A GitHub Project where the agents track work, so progress lives somewhere you can see |
+| **ticket** | A local markdown file under `docs/tickets/` tracking one piece of work through the pipeline, synced to a GitHub issue |
 
 The agents are written as templates with blanks in them — your repo name, your test
 command, your coding conventions. Setup fills the blanks from your answers. That's what
@@ -67,12 +67,12 @@ That gating is deliberate: **no agent creates tracked work or writes code until 
 | --- | --- | --- |
 | [Bun](https://bun.sh) ≥ 1.1 | Runs the setup command. It's a JavaScript runtime, like Node. | `bun --version` |
 | A git repository | The tool reads your remote to learn your project's name | `git remote -v` |
-| [GitHub CLI](https://cli.github.com), signed in | Only for the board features and the agents' GitHub work | `gh auth status` |
+| [GitHub CLI](https://cli.github.com), signed in | For `ticket sync` and the agents' other GitHub work (issues, PRs) | `gh auth status` |
 | A coding tool | Claude Code, Codex, Pi, OpenCode or Kilo Code — whichever you already use | — |
 | A provider API key | **Only** if you want to run agents outside a coding tool | — |
 
-If `gh auth status` says you're not logged in, run `gh auth login` before any
-`board` command. Everything else works without it.
+If `gh auth status` says you're not logged in, run `gh auth login` before running
+`bunx litecodeagent ticket sync --apply`. Everything else works without it.
 
 ---
 
@@ -186,7 +186,6 @@ up, across a monorepo (not just the root manifest):
 | ADR directory | whether `docs/decisions/` exists |
 | skills you already own | `.claude/skills`, `.agents/skills`, `.pi/skills`, `.opencode/skills`, `.kilo/skills` |
 | house rules | the bullet list under a "Conventions" heading in your `CLAUDE.md`/`AGENTS.md` |
-| board | `gh project list` for your org — pick from the real list |
 
 You confirm or correct each one. Two things are derived rather than asked, because they're
 mechanical and drift the moment a human maintains them by hand:
@@ -266,48 +265,7 @@ immediately. Without it, the command updates the config only and reminds you to 
 Only files recorded in LiteCodeAgent's per-tool lockfiles are managed. Existing local skills
 and other project files are never rewritten or deleted by the CLI.
 
-### 4. Provision the board
-
-The pipeline is board-backed: state lives in a GitHub Project, not in issue comments.
-
-```bash
-bunx litecodeagent board init          # dry run; uses the board you picked during init
-bunx litecodeagent board init --apply
-```
-
-If you skipped the board question, pass it explicitly:
-`bunx litecodeagent board init --owner my-org --number 1`.
-
-This creates any missing fields (`Status`, `Priority`, `Size`, `Assigned Agent`,
-`Due Date`) and labels (`bug`, `feature`, `doc`, `chore`), then writes every resolved id
-into `.claude/data/board.json`. Put `owner` and `number` into your config afterwards so
-you can just run `bunx litecodeagent board init` next time.
-
-Don't have a board yet? Create an empty GitHub Project first (org → Projects → New
-project → Table), note its number from the URL, then run the command above — it will
-provision every field into it.
-
-#### Taking over a project that already has a Status field
-
-A project you already started carries GitHub's default `Status` field (`Todo` /
-`In Progress` / `Done`), while the pipeline needs seven statuses. `board init` reconciles
-that for you:
-
-- missing options (`Backlog`, `Planned`, `Blocked`, `Review`, `Ready to Merge`) are added,
-  with every existing option echoed back under its own id, colour and description — so no
-  item loses its Status;
-- an option the pipeline does not know, such as `Todo`, is removed **only if no item holds
-  it**. That is the usual case when the pipeline is taking the board over.
-
-`board init` aborts rather than writing `board.json` if any item lost its Status during the
-run, so the safety property is checked, not merely intended.
-
-It stops and asks for you only when an unknown option is **still in use** — deleting it
-would strip it from every item holding it, and only you can say where those items belong.
-Move them to a known option and re-run, or teach the pipeline what the option means by
-extending `FIELD_SPECS` / `STATUS_ROLES` in `src/board/spec.ts`.
-
-### 5. Commit
+### 4. Commit
 
 ```bash
 git add litecode.config.json
@@ -315,8 +273,7 @@ git commit -m "chore: add liteCodeAgent pipeline"
 ```
 
 Also add the generated harness directories you enabled, including their `.litecode-lock.json`
-files. Commit `board.json` too — these files are shared state, not local scratch. `board.json`
-is generated; never hand-edit it.
+files.
 
 ---
 
@@ -351,28 +308,32 @@ after you've explicitly approved.
 
 > "Sync the tickets"
 
-`sync` runs `litecode ticket sync`, which pulls whatever the board already knows (Status,
-Priority, Size, Assigned Agent) into any ticket file that's clean, then pushes every dirty
-ticket in one bounded, retryable batch: new tickets become real issues on the board, and
-already-created tickets push title/body/comment edits only. Status/Priority/Size are set
-**once, at creation** — after that, GitHub stays the only place that can change them; a
-ticket file never re-asserts pipeline state onto the board. See
-`docs/decisions/0001-local-ticket-buffer-and-github-sync.md` for the reasoning.
+`sync` runs `litecode ticket sync`, which pushes every dirty ticket in one bounded,
+retryable batch: a ticket with no `issue` yet becomes a real GitHub issue
+(`gh issue create`); an already-created ticket only ever pushes title/body/comment edits
+(`gh issue edit`/`gh issue comment`). `status`/`priority`/`size`/`assignedAgent` are plain
+local fields on the ticket file — the pipeline itself drives `status` as a ticket moves
+through `Planned`/`In Progress`/`Review`/`Ready to Merge`/`Blocked`, and none of the four
+is ever pushed to or pulled from GitHub. See
+`docs/decisions/0001-local-ticket-buffer-and-github-sync.md` for the original reasoning
+(superseded in part — the local ticket buffer is now the sole source of truth for
+pipeline state, not just a staging area in front of a GitHub Project board).
 
 ```bash
-bunx litecodeagent ticket new --title "Fix the flaky board test" --label bug \
+bunx litecodeagent ticket new --title "Fix the flaky sync test" --label bug \
   --priority medium --size small --body "Body goes here."
 bunx litecodeagent ticket list
 bunx litecodeagent ticket sync            # dry run: shows what would create/update/skip
-bunx litecodeagent ticket sync --apply    # pulls, then pushes the batch
+bunx litecodeagent ticket sync --apply    # pushes the dirty batch
 ```
 
 ### Plan the queue
 
 > "Run the dispatcher"
 
-`dispatcher` ranks `Backlog` by Priority / Size / Due Date and moves the top items to
-`Planned`, flagging any priority-vs-deadline conflict rather than silently resolving it.
+`dispatcher` ranks the local ticket buffer's `backlog`-status tickets by Priority / Size /
+Due Date and moves the top items to `Planned`, flagging any priority-vs-deadline conflict
+rather than silently resolving it.
 
 ### Implement one ticket
 
@@ -396,10 +357,8 @@ with the subject in hand:
 
 ```bash
 bunx litecodeagent status          # installed packs, versions, files the kit owns
-bunx litecodeagent board doctor    # board.json vs. the live board, and Status integrity
+bunx litecodeagent ticket doctor   # local ticket buffer: malformed/misplaced/duplicate files
 ```
-
-Run `board doctor` after anyone edits the project's fields in the GitHub UI.
 
 ---
 

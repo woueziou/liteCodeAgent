@@ -1,104 +1,99 @@
 {
-  "litecodeVersion": "0.13.1",
-  "installedAt": "2026-09-20T13:38:22.732Z",
+  "litecodeVersion": "0.14.0",
+  "installedAt": "2026-09-21T19:51:53.873Z",
   "packs": {
-    "core": "0.3.0"
+    "core": "0.4.0"
   },
   "files": {
     ".claude/commands/litecodeagent.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "1112d5d5c0733059"
     },
     ".claude/agents/synthesizer.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "d1c4be595234adfe"
+      "version": "0.4.0",
+      "hash": "ab70fd5c5898ab84"
     },
     ".claude/agents/orchestrator.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "f2af38139f077677"
+      "version": "0.4.0",
+      "hash": "3caed3170177f25f"
     },
     ".claude/agents/reviewer.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "e08a4009946fedc4"
+      "version": "0.4.0",
+      "hash": "79f51d3df8265c2e"
     },
     ".claude/agents/tracker.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "091ecafdd5e57e29"
+      "version": "0.4.0",
+      "hash": "7b2427a2d5dbef6d"
     },
     ".claude/agents/triage.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "13589bd511177f8a"
+      "version": "0.4.0",
+      "hash": "5d1630adb2a5c6da"
     },
     ".claude/agents/debate-angle.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "9d7462bcb9d1e0eb"
+      "version": "0.4.0",
+      "hash": "04fe372eccd3cf61"
     },
     ".claude/agents/classifier.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "1474c5ecfa0ccd8d"
+      "version": "0.4.0",
+      "hash": "9000da12b9b4ffde"
     },
     ".claude/agents/dispatcher.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "65523738160f13c4"
+      "version": "0.4.0",
+      "hash": "2a346d0bd4cb4710"
     },
     ".claude/agents/sync.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "9ea29827be63815b"
+      "version": "0.4.0",
+      "hash": "046298b9cc8a0574"
     },
     ".claude/agents/planner.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "139d0eb077594262"
+      "version": "0.4.0",
+      "hash": "fdbda08f5c42c564"
     },
     ".claude/agents/panel-selector.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "8cf106f83bed04ca"
     },
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "6a73909a3fc3577b"
+      "hash": "243140996f82a84b"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "2154c21560914394"
+      "version": "0.4.0",
+      "hash": "e780d053d73a391d"
     },
     ".claude/skills/chained-implementation/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "e03f3ba132da3e3d"
     },
     ".claude/skills/security-expert/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "961cf2b092f1573b"
     },
     ".claude/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "0e1e75de653a3539"
     },
     ".claude/skills/critique-expert/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "d4618c89c46a46bb"
-    },
-    ".claude/skills/github-project-sync/SKILL.md": {
-      "pack": "core",
-      "version": "0.3.0",
-      "hash": "2e64a4a3720926ab"
     }
   }
 }

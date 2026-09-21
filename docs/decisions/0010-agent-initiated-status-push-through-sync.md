@@ -5,8 +5,14 @@ task: "#27"
 
 # 0010. Agent-initiated Status push through `sync`
 
-Status: proposed
+Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)
 Date: 2026-09-20
+
+> **Note (2026-09-21):** the `Status` push-through-`sync` mechanism this ADR describes
+> (`statusEdit()`/`gh project item-edit` in `src/tickets/sync.ts`) no longer exists —
+> `status` is now a plain local field on the ticket file, never pushed to or pulled from
+> GitHub. This record is left as-is below since it was accurate for the decision it
+> captures at the time it was made — see the forthcoming ADR 0012 for the current model.
 
 ## Context
 

@@ -63,18 +63,17 @@ test("only documented entry points mention a gh board/issue mutation in an agent
 
 /**
  * Agent prompts aren't the only place an agent takes its instructions from — every agent
- * that lists `github-project-sync` in its `skills` also has that skill's prose injected
- * into its own context (see this test's own prior finding: the skill's "Moving an item
- * between statuses" section used to instruct a direct `item-edit`, which every agent
- * loading the skill would then follow regardless of what its own prompt said). Skill files
- * legitimately need to *document* the real `gh project item-add`/`item-edit` commands
- * somewhere — that's what `sync`'s own implementation actually runs — so this doesn't ban
- * the substrings outright the way the agent-prompt scan does; it only requires any skill
- * mentioning them to explicitly scope that mention to `sync`, via `SKILL_ITEM_MUTATION_ALLOWED`.
- * Anything not on that list is a skill an agent other than `sync` could read as license to
- * call the GitHub Project directly.
+ * that lists a skill in its `skills` also has that skill's prose injected into its own
+ * context (see this test's own prior finding: the `github-project-sync` skill's "Moving an
+ * item between statuses" section used to instruct a direct `item-edit`, which every agent
+ * loading the skill would then follow regardless of what its own prompt said). That skill
+ * was removed once the GitHub Project board mechanism it documented (`board init`, `gh
+ * project item-add`/`item-edit`, `board.json`) was deleted from the codebase entirely —
+ * there is no longer any `gh project` invocation anywhere in this pack. No skill may
+ * reintroduce one without updating this allowlist and explaining why the mutation is
+ * scoped to `sync`.
  */
-const SKILL_ITEM_MUTATION_ALLOWED = ["github-project-sync"];
+const SKILL_ITEM_MUTATION_ALLOWED: string[] = [];
 
 test("only the github-project-sync skill's reference doc mentions a gh project item-add/item-edit mutation", async () => {
   const violations: string[] = [];

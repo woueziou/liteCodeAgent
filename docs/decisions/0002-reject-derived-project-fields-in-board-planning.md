@@ -5,8 +5,14 @@ task: "#13"
 
 # 0002. Reject derived project fields in board planning
 
-Status: accepted
+Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)
 Date: 2026-09-18
+
+> **Note (2026-09-21):** `src/board/init.ts` and the whole `litecode board` command
+> family this ADR is about no longer exist — the GitHub Project board planning mechanism
+> was removed from the codebase entirely. This record is left as-is below since it was
+> accurate for the decision it captures at the time it was made — see the forthcoming
+> ADR 0012 for the current model.
 
 ## Context
 

@@ -173,4 +173,4 @@ CHECK_OUTPUT: <bun run check result if you got that far, or "n/a">
 ```
 
 
-Available project skills: `agent-attribution`, `github-project-sync`, `security-expert`. Use the skill tool to load relevant instructions before applying them.
+Available project skills: `agent-attribution`, `security-expert`. Use the skill tool to load relevant instructions before applying them.
