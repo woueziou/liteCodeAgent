@@ -25,7 +25,37 @@
 
 import { z } from "zod";
 import { parseFrontmatter, serializeFrontmatter, type Frontmatter } from "../frontmatter.ts";
-import { STATUS_ROLES, PRIORITY_OPTIONS, SIZE_OPTIONS, type StatusRole } from "../board/spec.ts";
+
+/**
+ * Statuses referred to by *role* (`inProgress`, `readyToMerge`, ...), never by literal
+ * label, so a board is free to name them differently as long as every role maps to
+ * something. `board init` provisions anything missing; `board doctor` checks that the
+ * generated board.json still matches reality.
+ *
+ * This vocabulary lives here (ticket vocabulary), not in `../board/spec.ts`, so the
+ * ticket schema doesn't carry a compile-time dependency on the board module.
+ */
+export type StatusRole =
+  | "backlog"
+  | "planned"
+  | "inProgress"
+  | "blocked"
+  | "review"
+  | "readyToMerge"
+  | "done";
+
+export const STATUS_ROLES: { role: StatusRole; label: string; description: string }[] = [
+  { role: "backlog", label: "Backlog", description: "Tracked, not yet scheduled" },
+  { role: "planned", label: "Planned", description: "Scheduled by dispatcher, ready for implementer" },
+  { role: "inProgress", label: "In Progress", description: "Implementer is actively working it" },
+  { role: "blocked", label: "Blocked", description: "Escalated to triage or waiting on a human" },
+  { role: "review", label: "Review", description: "PR open, needs a human judgment call" },
+  { role: "readyToMerge", label: "Ready to Merge", description: "Reviewer approved, nothing left but merge" },
+  { role: "done", label: "Done", description: "Merged or closed as verified-no-change" },
+];
+
+export const PRIORITY_OPTIONS = ["Low", "Medium", "High"] as const;
+export const SIZE_OPTIONS = ["Trivial", "Small", "Medium", "Large"] as const;
 
 export const TICKET_STATUSES = STATUS_ROLES.map((s) => s.role) as [StatusRole, ...StatusRole[]];
 
@@ -38,8 +68,8 @@ export type Size = (typeof SIZES)[number];
 
 /**
  * Explicit maps rather than a naive `charAt(0).toUpperCase()` capitalisation: if the
- * board's option labels (`PRIORITY_OPTIONS`/`SIZE_OPTIONS` in `board/spec.ts`) are ever
- * renamed to something that doesn't round-trip through simple capitalisation, this map
+ * board's option labels (`PRIORITY_OPTIONS`/`SIZE_OPTIONS`, defined above in this file)
+ * are ever renamed to something that doesn't round-trip through simple capitalisation, this map
  * fails at the type-check instead of silently sending the board an option string it
  * doesn't recognise.
  */
