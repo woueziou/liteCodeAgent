@@ -8,6 +8,8 @@ import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
 import { ensureAuth, onGhRetry, RateLimitError } from "./gh.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
+import { buildDashboard } from "./dashboard/build.ts";
+import { renderDashboard } from "./dashboard/render.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
 import { planTicketSync, applyTicketSync } from "./tickets/sync.ts";
@@ -79,6 +81,10 @@ function usage(): void {
                                      ${c.dim("(dry-run by default; --apply writes)")}
                                      ${c.dim("--auto: for unattended callers — implies --apply, skips the run if the last")}
                                      ${c.dim("--auto attempt was within tickets.autoMinIntervalMs (tracked in tickets.autoStateFile)")}
+  ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
+                                     regenerate the standalone HTML dashboard from the local ticket buffer
+                                     ${c.dim("current state only (status/priority/size/label/epic) — no trend, purely explicit, no watcher")}
+                                     ${c.dim("--out defaults to docs/dashboard.html")}
   ${c.bold("litecode upgrade")}                   update a legacy git-clone install
 
 Global: --project <dir>   target repo (default: cwd)
@@ -600,6 +606,33 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
   return 1;
 }
 
+/**
+ * `--build` is the only trigger — deliberately no hook, watcher, or install-time
+ * regeneration (see the ticket's "no server, no process" rule). Output is one
+ * self-contained HTML file so it opens offline with a double-click.
+ */
+async function cmdDashboard(root: string, argv: string[]): Promise<number> {
+  if (!argv.includes("--build")) {
+    console.log(c.red("dashboard requires --build (regeneration is purely explicit, run again after any ticket mutation)"));
+    return 1;
+  }
+  const { config } = await loadConfig(root);
+  const dir = config.project.tickets.dir;
+  const outArg = arg(argv, "--out");
+  const outPath = resolve(root, outArg ?? "docs/dashboard.html");
+
+  const data = await buildDashboard(root, dir);
+  const html = renderDashboard(data);
+  await mkdir(dirname(outPath), { recursive: true });
+  await Bun.write(outPath, html);
+
+  console.log(`${c.green("built")} ${outPath} (${data.total} ticket(s), ${data.blockedTickets.length} bloqué(s))`);
+  if (data.loadErrors.length > 0) {
+    console.log(c.yellow(`  ${data.loadErrors.length} fichier(s) en échec de lecture — voir \`litecode ticket doctor\`.`));
+  }
+  return 0;
+}
+
 const argv = process.argv.slice(2);
 const root = resolve(arg(argv, "--project") ?? process.cwd());
 
@@ -638,6 +671,7 @@ try {
       case "config": return cmdConfig(root, argv);
       case "run": return cmdRun(root, argv);
       case "ticket": return cmdTicket(root, argv);
+      case "dashboard": return cmdDashboard(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
     }
   })();
