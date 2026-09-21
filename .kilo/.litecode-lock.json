@@ -67,8 +67,8 @@
     },
     ".kilo/agents/implementer.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "47dca5eaa54babb9"
+      "version": "0.4.0",
+      "hash": "9eff5ced5e20f17b"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
