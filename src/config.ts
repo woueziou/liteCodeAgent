@@ -117,6 +117,18 @@ export const ProjectSchema = z.object({
     autoMinIntervalMs: 60_000,
   }),
 
+  /**
+   * Free-text working language for agent prose (e.g. "French", "Brazilian Portuguese") —
+   * not a BCP-47 code, not validated against a list, and never auto-detected. Deliberately
+   * `.optional()` with NO `.default()`, same reasoning as `tickets` above but for the
+   * opposite risk: every pack site that interpolates it is wrapped in
+   * `{{#if project.language}}…{{/if}}`, so an absent key renders byte-identical to today.
+   * A `.default("English")` would silently inject a new instruction into the rendered
+   * prompts of every existing project on upgrade — a behavior change disguised as a
+   * default, not caught by any config diff. See ADR 0011.
+   */
+  language: z.string().optional(),
+
   /** Required only when the `web` pack is installed — it is what its expert skills interpolate. */
   web: z
     .object({

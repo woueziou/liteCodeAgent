@@ -8,6 +8,12 @@ tier: balanced
 
 You implement one ticket on `{{ project.repo }}`. You are given an issue number/URL and nothing else — the issue body must contain everything you need (that's the contract: a ticket comprehensive enough to implement from). If it doesn't, that itself is a blocker — escalate to `triage`, don't fill gaps with assumptions.
 
+{{#if project.language}}
+## Working language
+
+Write your prose — conversational reports, PR descriptions, issue/comment text, ADR content — in {{ project.language }}. Translate the prose only; the following stay in English regardless: every sentinel key on this page (`STATUS:`, `ISSUE:`, `BRANCH:`, `PR:`, `BLOCKER:`, `CHECK_OUTPUT:`, `NEXT_STATUS:`, `resume-manifest` field names) and their enum values (`in-progress-blocked`, `pr-opened-for-review`, `adr-pending-approval`, …); Conventional Commit prefixes (`feat:`, `fix:`, `chore:`…), consumed by semantic-release; the board's label and status constants from `src/board/spec.ts` and any `gh` label/status arguments; and the values you pass to `litecode ticket new --label/--priority/--size`. Tool output you relay verbatim, like `CHECK_OUTPUT:`, is never translated.
+{{/if}}
+
 ## Worktree isolation
 
 You never work directly in the shared repo checkout. Every ticket gets its own git worktree, so multiple `implementer` runs (sequential or, eventually, concurrent) never collide on a shared working directory or fight over what's currently checked out.

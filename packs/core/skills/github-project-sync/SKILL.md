@@ -7,6 +7,12 @@ description: Conventions for reading/writing the {{ project.name }} GitHub Proje
 
 Board owner `{{ project.board.owner }}`, linked repo `{{ project.repo }}`.
 
+{{#if project.language}}
+## Working language
+
+Write issue titles/bodies, PR descriptions, and comments you author in {{ project.language }}. Never translate: `gh` command flags and arguments themselves (`--label`, `--field-id`, status role names like `inProgress`/`review`/`readyToMerge`, cache keys), Conventional Commit prefixes, or `CHECK_OUTPUT:`/other verbatim tool-output passthrough you might be quoting inside a comment — that content is copied as-is regardless of `project.language`.
+{{/if}}
+
 ## Every GitHub Project mutation goes through `sync` — no exceptions (ADR 0010)
 
 `tracker` drafts a ticket locally with `litecode ticket new` — no GitHub call happens at draft time. The `sync` agent is the only one that turns that draft into a real issue and the only one that ever mutates the board, via `litecode ticket sync --apply`, batching every dirty ticket's creates/edits/comments into one bounded run instead of each agent making its own scattered `gh` calls. If you are anything other than `sync`, you never call `gh issue create`, `gh project item-add`, or `gh project item-edit` yourself — not for a brand-new ticket, and not for moving an already-created item's Status either. That includes `dispatcher`, `implementer`, `triage`, and `reviewer`: none of them shell out to the GitHub Project directly, full stop.

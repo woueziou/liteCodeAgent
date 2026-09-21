@@ -86,6 +86,32 @@ test("non-interactive init produces a config that validates and renders", async 
   await expect(buildPlan(root, PACKS, config)).resolves.toBeDefined();
 });
 
+test("non-interactive init omits `project.language` entirely", async () => {
+  const root = await fixture();
+  await init(root, { yes: true, packsRoot: PACKS });
+
+  const raw = await Bun.file(join(root, "litecode.config.json")).json();
+  expect(raw.project.language).toBeUndefined();
+  expect(Object.hasOwn(raw.project, "language")).toBe(false);
+});
+
+test("a config with `project.language` set renders with no unresolved template syntax", async () => {
+  const root = await fixture();
+  await init(root, { yes: true, packsRoot: PACKS });
+
+  const config = ConfigSchema.parse(await Bun.file(join(root, "litecode.config.json")).json());
+  config.project.repo = "demo/demo";
+  config.project.adrDir = null;
+  config.project.web!.apiClient = "generated client";
+  config.project.web!.typeSourceOfTruth = "the Drizzle schema";
+  config.project.language = "French";
+
+  const plan = await buildPlan(root, PACKS, config);
+  for (const entry of plan.entries) {
+    expect(`${entry.rel}:${entry.content.includes("{{")}`).toBe(`${entry.rel}:false`);
+  }
+});
+
 test("init refuses to clobber an existing config", async () => {
   const root = await fixture();
   await init(root, { yes: true, packsRoot: PACKS });

@@ -49,6 +49,37 @@ test("a config predating the ticket buffer, with no `tickets` key at all, still 
   });
 });
 
+test("a config predating `project.language`, with no `language` key at all, still parses", () => {
+  const config = ConfigSchema.parse({
+    target: "claude-code",
+    packs: ["core"],
+    project: {
+      name: "demo",
+      repo: "demo/demo",
+      checkCommand: "bun test",
+      angles: [{ name: "correctness", covers: "x", triggeredBy: "y", skills: [] }],
+      board: { owner: "demo" },
+    },
+  });
+  expect(config.project.language).toBeUndefined();
+});
+
+test("`project.language` accepts arbitrary free text, unvalidated against any list", () => {
+  const config = ConfigSchema.parse({
+    target: "claude-code",
+    packs: ["core"],
+    project: {
+      name: "demo",
+      repo: "demo/demo",
+      checkCommand: "bun test",
+      angles: [{ name: "correctness", covers: "x", triggeredBy: "y", skills: [] }],
+      board: { owner: "demo" },
+      language: "Brazilian Portuguese",
+    },
+  });
+  expect(config.project.language).toBe("Brazilian Portuguese");
+});
+
 test("addTargets extends a legacy single-target config", () => {
   const config = ConfigSchema.parse({
     target: "claude-code",

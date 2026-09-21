@@ -61,3 +61,13 @@ test("referencedPaths reports the {{#each}} root path but not item-scoped fields
 test("referencedPaths ignores {{ . }} and standalone-slash close tags", () => {
   expect(referencedPaths("{{#each project.xs}}{{ . }}{{/each}}")).toEqual(["project.xs"]);
 });
+
+test("an absent `project.language` renders {{#if project.language}} blocks to byte-identical output", () => {
+  const tpl = "Before\n{{#if project.language}}\nWrite in {{ project.language }}.\n{{/if}}\nAfter";
+  expect(render(tpl, { project: {} })).toBe("Before\nAfter");
+});
+
+test("a present `project.language` substitutes correctly inside its {{#if}} guard", () => {
+  const tpl = "Before\n{{#if project.language}}\nWrite in {{ project.language }}.\n{{/if}}\nAfter";
+  expect(render(tpl, { project: { language: "French" } })).toBe("Before\nWrite in French.\nAfter");
+});

@@ -38,6 +38,18 @@ test("a full render produces no unresolved template syntax", async () => {
   }
 });
 
+test("a full render produces no unresolved template syntax when `project.language` is set", async () => {
+  const config = await exampleConfig();
+  config.project.language = "Brazilian Portuguese";
+  const root = await targetRepo();
+  const plan = await buildPlan(root, PACKS, config);
+  expect(plan.entries.length).toBeGreaterThan(20);
+  for (const entry of plan.entries) {
+    expect(`${entry.rel}:${entry.content.includes("{{")}`).toBe(`${entry.rel}:false`);
+    expect(entry.status).toBe("create");
+  }
+});
+
 test("install writes a lockfile that owns only what it rendered", async () => {
   const config = await exampleConfig();
   const root = await targetRepo();
@@ -47,7 +59,7 @@ test("install writes a lockfile that owns only what it rendered", async () => {
   const lock = await readLockfile(root);
   expect(lock).not.toBeNull();
   expect(Object.keys(lock!.files).length).toBe(plan.entries.length);
-  expect(lock!.packs).toEqual({ core: "0.3.0", web: "0.1.0" });
+  expect(lock!.packs).toEqual({ core: "0.4.0", web: "0.1.0" });
 
   // A file the project owns is invisible to the kit.
   const second = await buildPlan(root, PACKS, config);

@@ -208,6 +208,7 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
   let typecheckCommands = d.typecheckCommands;
   let adrDir: string | null = d.adrDir ?? "docs/decisions";
   let name = d.name;
+  let language = "";
 
   if (interactive) {
     heading("Project");
@@ -227,6 +228,13 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
     adrDir = (await confirm(`Record architecture decisions as ADRs${d.adrDir ? ` in ${d.adrDir}` : ""}?`, Boolean(d.adrDir)))
       ? await ask("ADR directory", d.adrDir ?? "docs/decisions", { required: true })
       : null;
+    // Free text, no BCP-47 validation, no auto-detection — there is no `language` field on
+    // `Detected` to default from. Blank (the default answer) omits the key entirely, so a
+    // skipped question renders byte-identical to a config predating this feature.
+    language = await ask(
+      "Working language for agent prose, e.g. French (blank to keep agents in English)",
+      undefined,
+    );
   }
 
   // --- conventions -------------------------------------------------------------------
@@ -365,6 +373,7 @@ export async function init(projectRoot: string, opts: InitOptions): Promise<stri
         dataFile: ".claude/data/board.json",
         itemIdCache: ".claude/data/github-project-item-ids.json",
       },
+      ...(language ? { language } : {}),
       ...(web ? { web } : {}),
     },
   };
