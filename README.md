@@ -468,8 +468,8 @@ A pack is a bundle of agents and skills installed together. There are two:
 
 - **`core`** — the 11 pipeline agents (`classifier`, `panel-selector`, `debate-angle`,
   `synthesizer`, `planner`, `orchestrator`, `tracker`, `dispatcher`, `implementer`,
-  `reviewer`, `triage`) plus `github-project-sync`, `agent-attribution`,
-  `critique-expert`, `security-expert`, and the two chaining skills.
+  `reviewer`, `triage`) plus `agent-attribution`, `critique-expert`,
+  `security-expert`, and the two chaining skills.
 - **`web`** — expert skills for TypeScript/React work: `typescript-expert`,
   `frontend-expert`, `ui-ux-expert`, `design-expert`, and the three `mobile-*` experts.
   Requires `core`, and requires `project.web` in your config.
