@@ -68,8 +68,8 @@ export type Size = (typeof SIZES)[number];
 
 /**
  * Explicit maps rather than a naive `charAt(0).toUpperCase()` capitalisation: if the
- * board's option labels (`PRIORITY_OPTIONS`/`SIZE_OPTIONS` in `board/spec.ts`) are ever
- * renamed to something that doesn't round-trip through simple capitalisation, this map
+ * board's option labels (`PRIORITY_OPTIONS`/`SIZE_OPTIONS`, defined above in this file)
+ * are ever renamed to something that doesn't round-trip through simple capitalisation, this map
  * fails at the type-check instead of silently sending the board an option string it
  * doesn't recognise.
  */
