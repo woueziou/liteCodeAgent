@@ -1,49 +1,44 @@
 {
-  "litecodeVersion": "0.13.1",
-  "installedAt": "2026-09-20T13:38:22.732Z",
+  "litecodeVersion": "0.14.0",
+  "installedAt": "2026-09-21T19:57:32.550Z",
   "packs": {
-    "core": "0.3.0"
+    "core": "0.4.0"
   },
   "files": {
     ".pi/prompts/litecodeagent.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "f3d5c04b9420d35c"
     },
     ".pi/extensions/litecodeagent.ts": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "c8c6d26409b2de50"
     },
     ".pi/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "2154c21560914394"
+      "version": "0.4.0",
+      "hash": "e780d053d73a391d"
     },
     ".pi/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "e03f3ba132da3e3d"
     },
     ".pi/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "961cf2b092f1573b"
     },
     ".pi/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "0e1e75de653a3539"
     },
     ".pi/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "d4618c89c46a46bb"
-    },
-    ".pi/skills/skills/github-project-sync/SKILL.md": {
-      "pack": "core",
-      "version": "0.3.0",
-      "hash": "2e64a4a3720926ab"
     }
   }
 }

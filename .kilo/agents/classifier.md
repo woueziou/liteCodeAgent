@@ -14,6 +14,7 @@ permission:
 
 You classify a requested change into exactly one size bucket. You do not implement, plan, or discuss the change — only classify it.
 
+
 ## Buckets
 
 - **trivial**: typo, copy/text change, single-line config value, no logic change, no schema/auth/contract touch, 1 file. → skip debate-panel entirely, go straight to `implementer`.

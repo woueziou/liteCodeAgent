@@ -112,19 +112,18 @@ export function deriveAgentSkills(
   const has = (s: string) => available.has(s);
   const angleSkills = [...new Set(angles.flatMap((a) => a.skills))].filter(has);
   const domainSkills = [...new Set(domains.flatMap((d) => d.skills))].filter(has);
-  const board = ["github-project-sync"].filter(has);
   const attribution = ["agent-attribution"].filter(has);
   const critique = ["critique-expert"].filter(has);
 
   return {
     "debate-angle": [...new Set([...angleSkills, ...critique])],
     planner: domainSkills.filter((s) => s !== "security-expert"),
-    implementer: [...new Set([...attribution, ...board, ...domainSkills])],
-    reviewer: [...new Set([...attribution, ...board, ...domainSkills, ...critique])],
-    triage: board,
-    dispatcher: board,
-    tracker: [...board, ...attribution],
-    sync: [...board, ...attribution],
+    implementer: [...new Set([...attribution, ...domainSkills])],
+    reviewer: [...new Set([...attribution, ...domainSkills, ...critique])],
+    triage: [],
+    dispatcher: [],
+    tracker: attribution,
+    sync: attribution,
   };
 }
 

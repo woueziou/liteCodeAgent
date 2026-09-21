@@ -5,8 +5,17 @@ task: "#10"
 
 # 0001. Local ticket buffer and GitHub sync
 
-Status: proposed
+Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)
 Date: 2026-09-18
+
+> **Note (2026-09-21):** the "Status/Priority/Size are pushed to the board exactly once,
+> at ticket creation, then pull-only" decision recorded below no longer holds — the
+> GitHub Project board mechanism it describes was removed from the codebase entirely
+> (`src/board/`, board hydration, `gh project item-add`/`item-edit`). `status`/
+> `priority`/`size`/`assignedAgent` are now plain local fields on the ticket file; none of
+> them is ever pushed to or pulled from GitHub. This record is left as-is below since it
+> was accurate for the decision it captures at the time it was made — see the
+> forthcoming ADR 0012 for the current model.
 
 ## Context
 

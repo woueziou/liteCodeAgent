@@ -5,8 +5,16 @@ task: "#31"
 
 # 0009. Unattended `ticket sync --auto`: trigger, conflict handling, anti-runaway
 
-Status: proposed
+Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)
 Date: 2026-09-19
+
+> **Note (2026-09-21):** parts of this ADR (the `--auto` trigger and anti-runaway
+> cooldown) still describe live behaviour in `litecode ticket sync --auto`. But any
+> conflict-handling reasoning here that assumed a live GitHub Project board (Status
+> pushed/pulled against it) is stale — that mechanism was removed from the codebase
+> entirely; `status` is now a plain local field never synced anywhere. Marked superseded
+> wholesale rather than partially, to avoid leaving readers to guess which paragraphs
+> still hold. See the forthcoming ADR 0012 for the current model.
 
 ## Context
 

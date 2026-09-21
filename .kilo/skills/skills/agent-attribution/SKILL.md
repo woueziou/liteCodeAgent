@@ -5,7 +5,7 @@ description: Mandatory traceability rule for any agent that mutates files, commi
 
 # Agent attribution
 
-Any agent that can mutate state (files, git, GitHub issues/board) MUST leave a trace that survives independently of that agent's own self-report. The point is detection, not prevention: if something edited a file without leaving the expected trace, that is itself the signal something unexpected happened (a different plugin, a fallback agent, a hook) — investigate before trusting the diff.
+Any agent that can mutate state (files, git, GitHub issues) MUST leave a trace that survives independently of that agent's own self-report. The point is detection, not prevention: if something edited a file without leaving the expected trace, that is itself the signal something unexpected happened (a different plugin, a fallback agent, a hook) — investigate before trusting the diff.
 
 ## Rule 1 — Git commits carry an `Agent:` trailer
 
@@ -40,7 +40,7 @@ in its frontmatter (in addition to whatever other frontmatter that document type
 
 ## Rule 3 — Every mutation ends in a self-report, no exceptions
 
-An agent that edits/writes/commits must, in its final output to whoever invoked it, explicitly list: every file touched, every command run that had a side effect (`git commit`, `gh issue create`, `gh project item-edit`), and what was deliberately NOT done. Silence about a touched file is treated as a violation, not an oversight.
+An agent that edits/writes/commits must, in its final output to whoever invoked it, explicitly list: every file touched, every command run that had a side effect (`git commit`, `gh issue create`/`comment`, `gh pr create`/`comment`), and what was deliberately NOT done. Silence about a touched file is treated as a violation, not an oversight.
 
 ## Rule 4 — Mismatch is a stop condition, not a detail to note in passing
 

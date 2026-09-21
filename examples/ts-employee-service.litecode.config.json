@@ -156,7 +156,6 @@
       ],
       "implementer": [
         "agent-attribution",
-        "github-project-sync",
         "frontend-expert",
         "orpc-expert",
         "typescript-expert",
@@ -169,25 +168,18 @@
       ],
       "reviewer": [
         "agent-attribution",
-        "github-project-sync",
         "typescript-expert",
         "orpc-expert",
         "security-expert",
         "frontend-expert",
         "critique-expert"
       ],
-      "triage": [
-        "github-project-sync"
-      ],
-      "dispatcher": [
-        "github-project-sync"
-      ],
+      "triage": [],
+      "dispatcher": [],
       "tracker": [
-        "github-project-sync",
         "agent-attribution"
       ],
       "sync": [
-        "github-project-sync",
         "agent-attribution"
       ]
     },

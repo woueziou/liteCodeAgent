@@ -1,104 +1,99 @@
 {
-  "litecodeVersion": "0.13.1",
-  "installedAt": "2026-09-20T13:38:22.731Z",
+  "litecodeVersion": "0.14.0",
+  "installedAt": "2026-09-21T19:57:32.549Z",
   "packs": {
-    "core": "0.3.0"
+    "core": "0.4.0"
   },
   "files": {
     ".kilo/commands/litecodeagent.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "12bd46423c96e8fa"
     },
     ".kilo/agents/synthesizer.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "bbf6dca33750fb60"
+      "version": "0.4.0",
+      "hash": "9553624fe2d9a4aa"
     },
     ".kilo/agents/orchestrator.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "331278e000e8e37d"
+      "version": "0.4.0",
+      "hash": "31399e1cec64fa6c"
     },
     ".kilo/agents/reviewer.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "7317ef7a9665f0f2"
+      "version": "0.4.0",
+      "hash": "b14a8aeed768d7f9"
     },
     ".kilo/agents/tracker.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "3f114f8b5f8713d6"
+      "version": "0.4.0",
+      "hash": "ad92948cfd2f8e5e"
     },
     ".kilo/agents/triage.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "704a53a0c5cf0eaa"
+      "version": "0.4.0",
+      "hash": "e4a20ec85dfc2986"
     },
     ".kilo/agents/debate-angle.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "ff9f7d4dc0f97adf"
+      "version": "0.4.0",
+      "hash": "e1ab7dabc517c9fa"
     },
     ".kilo/agents/classifier.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "b0288604107af770"
+      "version": "0.4.0",
+      "hash": "cd459f78ad250081"
     },
     ".kilo/agents/dispatcher.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "fae21b8a483b1048"
+      "version": "0.4.0",
+      "hash": "7d4f3adaaf6cd274"
     },
     ".kilo/agents/sync.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "cf3fa4d92b31697b"
+      "version": "0.4.0",
+      "hash": "e5ff07a708d7ffe3"
     },
     ".kilo/agents/planner.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "f5a4d0c0dac42ed4"
+      "version": "0.4.0",
+      "hash": "0d39bc8489097937"
     },
     ".kilo/agents/panel-selector.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "13c7152015fbaf59"
     },
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "367069c0a6b1354b"
+      "hash": "e4dc819ddc844499"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
-      "hash": "2154c21560914394"
+      "version": "0.4.0",
+      "hash": "e780d053d73a391d"
     },
     ".kilo/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "e03f3ba132da3e3d"
     },
     ".kilo/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "961cf2b092f1573b"
     },
     ".kilo/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "0e1e75de653a3539"
     },
     ".kilo/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "hash": "d4618c89c46a46bb"
-    },
-    ".kilo/skills/skills/github-project-sync/SKILL.md": {
-      "pack": "core",
-      "version": "0.3.0",
-      "hash": "2e64a4a3720926ab"
     }
   }
 }

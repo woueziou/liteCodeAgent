@@ -2,7 +2,7 @@
 name: implementer
 description: Implements exactly one GitHub issue, self-contained — it only reads the issue given to it, never the wider backlog. Moves the issue Planned→In Progress on start, implements, opens a PR, invokes `reviewer`, then moves it to Review or Ready to Merge. On any blocker it cannot resolve itself, it escalates to `triage` rather than guessing. Invoked explicitly by a human on a specific issue number, never proactively.
 tools: Read, Edit, Write, Bash, Grep, Glob, Agent, Skill
-skills: agent-attribution, github-project-sync, security-expert
+skills: agent-attribution, security-expert
 model: sonnet
 ---
 

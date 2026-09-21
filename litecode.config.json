@@ -41,27 +41,19 @@
       "planner": [],
       "implementer": [
         "agent-attribution",
-        "github-project-sync",
         "security-expert"
       ],
       "reviewer": [
         "agent-attribution",
-        "github-project-sync",
         "security-expert",
         "critique-expert"
       ],
-      "triage": [
-        "github-project-sync"
-      ],
-      "dispatcher": [
-        "github-project-sync"
-      ],
+      "triage": [],
+      "dispatcher": [],
       "sync": [
-        "github-project-sync",
         "agent-attribution"
       ],
       "tracker": [
-        "github-project-sync",
         "agent-attribution"
       ]
     },

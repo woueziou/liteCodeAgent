@@ -489,7 +489,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
         console.log(
           c.dim(
             "If the existing ticket/issue actually IS this work and just needs linking, this command cannot attach an `issue:` " +
-              "after the fact — see ticket 0009 for board→file hydration, which is the reconciliation path, not this guard.",
+              "after the fact — edit the ticket file's `issue:` field by hand instead.",
           ),
         );
         return 1;
