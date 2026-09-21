@@ -46,7 +46,7 @@ Les agents et skills rendus **restent dans le dossier natif de chaque harness** 
 
 `docs/decisions/0004-litecodeagent-neutral-state-directory.md`
 
-**Important : utiliser le numéro 0004, pas 0003.** Deux autres plans élaborés en parallèle ont chacun calculé « prochain numéro libre » sans se voir ; 0003 est réservé au ticket « langue de travail » (`docs/tickets/0002-feat-packs-langue-configurable.md`).
+**Important : utiliser le numéro 0004, pas 0003.** Deux autres plans élaborés en parallèle ont chacun calculé « prochain numéro libre » sans se voir ; 0003 est réservé au ticket « langue de travail » (`docs/tickets/install-config/0002-feat-packs-langue-configurable.md`).
 
 L'implémenteur écrit l'ADR, le poste en commentaire sur l'issue, puis s'arrête sur `STATUS: adr-pending-approval` sans commiter.
 

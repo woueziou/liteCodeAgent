@@ -63,3 +63,21 @@ litecode ticket sync --apply    # pull, then push
 Those are written by `litecode ticket sync` alone. Editing them by hand can make a file
 lie about whether GitHub has seen its content, which is exactly the failure mode this
 buffer exists to avoid.
+
+## Migration note — flat layout retired on 2026-09-21
+
+As of 2026-09-21, ticket files moved from a flat `docs/tickets/NNNN-slug.md` layout into
+per-epic directories: `docs/tickets/<epic>/NNNN-slug.md` (epics: `local-first-tickets`,
+`pipeline-fiabilite`, `ticket-buffer`, `install-config`, `board-legacy`). The filename
+itself did not change, only its parent directory. `ticketFiles` walks the tree
+recursively and handles both layouts, so no code change was required to read migrated
+files.
+
+This is a **deliberate, dated cutoff, not a silent move**: any reference to the old flat
+path — inside an ADR's prose, a ticket body, or a GitHub PR comment already posted before
+this date — now points at a location that no longer exists. References inside this repo
+(ADRs, other ticket bodies) can in principle be fixed going forward; nothing under
+`docs/decisions/0008`-`0011` needed changing at migration time (they refer to tickets by
+number/issue, not by literal flat path). References inside already-published GitHub PR
+comments are external and were **not** and cannot be edited — treat any flat
+`docs/tickets/NNNN-*.md` link found in a PR comment dated before 2026-09-21 as broken.
