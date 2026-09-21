@@ -14,8 +14,9 @@ The local-first tickets epic removed the GitHub Project board entirely: `src/boa
 is gone, `litecode board init`/`litecode board doctor` no longer exist, and pipeline
 state (`status`, `priority`, `size`, `assignedAgent`) lives only in the local ticket
 buffer under `docs/tickets/`. GitHub is still used, but only as a place to publish —
-`gh issue create`/`gh issue comment` (via `sync`) and `gh pr create`/`gh pr comment`
-(via `implementer`/`reviewer`) — never as a place to read pipeline state back from.
+`gh issue create`/`comment`/`edit` (via `sync`), `gh issue list` (via `ticket new`'s
+dedupe check), and `gh pr create`/`comment` (via `implementer`/`reviewer`) — never as
+a place to read pipeline state back from.
 
 Lot 7 of that epic marked four existing ADRs (0001, 0002, 0009, 0010) as
 `Status: superseded by ADR 0012 (local-first tickets, lot 7/9 — not yet written)`,
@@ -100,10 +101,11 @@ title/body/comment state already been pushed to GitHub."
   writes this key for a fresh project, and no runtime code reads any field of it any
   more — it is vestigial, kept only for backward config compatibility, not because
   any part of the pipeline still consults it.
-- `gh issue create`/`comment`/`edit` and `gh issue list` (via `sync` — the latter is
-  `src/tickets/dedupe.ts`'s `fetchOpenIssueDedupeCandidates`, wired into `ticket new`'s
-  duplicate check) and `gh pr create`/`comment` (via `implementer`/`reviewer`) are the
-  only GitHub surfaces this project still calls. Every board-specific *code path* — `gh project item-add`/`item-edit`, the whole
+- `gh issue create`/`comment`/`edit` (via `sync`), `gh issue list` (via `ticket new`'s
+  dedupe check — `src/tickets/dedupe.ts`'s `fetchOpenIssueDedupeCandidates`, called from
+  `cmdTicket`'s `sub === "new"` branch in `src/cli.ts`, not from `sync`), and
+  `gh pr create`/`comment` (via `implementer`/`reviewer`) are the only GitHub surfaces
+  this project still calls. Every board-specific *code path* — `gh project item-add`/`item-edit`, the whole
   `src/board/` module — is gone; nothing in the runtime issues those calls or
   imports that module any more. The two data files those calls used to write,
   `.claude/data/board.json` and the item-id cache
