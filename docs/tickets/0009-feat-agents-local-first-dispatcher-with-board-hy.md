@@ -3,10 +3,10 @@ schemaVersion: 1
 id: 0009-feat-agents-local-first-dispatcher-with-board-hy
 title: feat(agents): local-first dispatcher with board hydration, and enforce the sync-only-gh invariant
 label: feature
-status: backlog
+status: done
 priority: medium
 size: large
-assignedAgent: human
+assignedAgent: implementer
 dueDate: 
 issue: 27
 synced: true

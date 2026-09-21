@@ -3,14 +3,14 @@ schemaVersion: 1
 id: 0017-fix-agents-rien-ne-verifie-qu-un-implementer-dit
 title: fix(agents): rien ne vérifie qu'un implementer dit vrai dans son rapport final
 label: bug
-status: backlog
+status: planned
 priority: high
 size: medium
-assignedAgent: human
+assignedAgent: implementer
 dueDate: 
 issue: 45
 synced: true
-syncedAt: 2026-09-21T15:36:23.815Z
+syncedAt: 2026-09-21T16:26:04.474Z
 ---
 
 Sur la session du 19-21/09/2026, **trois agents sur une douzaine** ont produit un rapport final faux ou vide. Aucun n'a été détecté par un test : les trois l'ont été par vérification manuelle de la session appelante contre l'état réel de GitHub et du dépôt.

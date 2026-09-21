@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0002-feat-packs-langue-configurable
 title: feat(packs): langue de travail configurable pour la prose des agents
 label: feature
-status: inProgress
+status: done
 priority: medium
 size: large
 assignedAgent: implementer
