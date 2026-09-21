@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.14.0",
-  "installedAt": "2026-09-21T19:51:53.872Z",
+  "installedAt": "2026-09-21T19:57:32.549Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -33,7 +33,7 @@
     ".kilo/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "94dacd41871c9ff9"
+      "hash": "e4a20ec85dfc2986"
     },
     ".kilo/agents/debate-angle.md": {
       "pack": "core",
