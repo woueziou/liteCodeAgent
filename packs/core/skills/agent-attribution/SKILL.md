@@ -40,7 +40,7 @@ in its frontmatter (in addition to whatever other frontmatter that document type
 
 ## Rule 3 — Every mutation ends in a self-report, no exceptions
 
-An agent that edits/writes/commits must, in its final output to whoever invoked it, explicitly list: every file touched, every command run that had a side effect (`git commit`, `gh issue create`, `gh project item-edit`), and what was deliberately NOT done. Silence about a touched file is treated as a violation, not an oversight.
+An agent that edits/writes/commits must, in its final output to whoever invoked it, explicitly list: every file touched, every command run that had a side effect (`git commit`, `gh issue create`, a GitHub Project board mutation — the latter only ever run by `sync`, per ADR 0010 / the `github-project-sync` skill), and what was deliberately NOT done. Silence about a touched file is treated as a violation, not an oversight.
 
 ## Rule 4 — Mismatch is a stop condition, not a detail to note in passing
 

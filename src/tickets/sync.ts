@@ -1,24 +1,34 @@
 /**
  * Push the ticket buffer to GitHub, and pull the board back into it.
  *
- * Push only ever writes Status/Priority/Size to the board **once, at creation** — the
- * board does not know about the item yet, so there is nothing to conflict with. After
- * creation those three fields are pull-only: GitHub, not a ticket file, is the source of
- * truth for pipeline state, so every push after the first only ever touches title, body,
- * and comments. See ADR 0001.
+ * Push writes Priority/Size/Assigned Agent to the board **once, at creation** — the board
+ * does not know about the item yet, so there is nothing to conflict with. After creation
+ * those three stay pull-only forever: they're human-curated, and GitHub, not a ticket
+ * file, is the source of truth for them. See ADR 0001.
  *
- * Pull exists precisely because of that: anything a human (or another agent) moved on the
- * board wins over what a ticket file remembers, and `ticket sync` runs pull before push by
- * default so a push never overwrites board state the file hasn't seen yet.
+ * `Status` is different, per ADR 0010: it's the one field the pipeline itself drives
+ * (`dispatcher`/`implementer` handing a ticket between `Planned`/`In Progress`/`Review`/
+ * `Ready to Merge`), so a dirty local file's `status` is allowed to push past creation too
+ * — this is also the *only* way any agent moves a board item's Status now; no agent calls
+ * `gh project item-edit` directly for it any more, they write the local file and `sync`
+ * turns that into the board mutation. The project owner accepted, in writing (see ADR
+ * 0010), the same overwrite risk this already carried for title/body: if a human moves the
+ * card on the board and an agent independently dirties the same ticket with a different
+ * Status inside one `sync` cycle, the agent's write wins.
+ *
+ * Pull runs first regardless: anything a human (or another agent) moved on the board is
+ * read back before push decides what, if anything, still disagrees with it, and `ticket
+ * sync` runs pull before push by default so a push never overwrites board state the file
+ * hasn't seen yet this run.
  */
 
 import { join } from "node:path";
 import { gh } from "../board/gh.ts";
 import type { BoardData } from "../board/spec.ts";
 import { fetchTicketItems, type RemoteItem } from "./remote.ts";
-import { priorityOption, sizeOption, type Ticket } from "./spec.ts";
+import { priorityOption, sizeOption, slugify, type Ticket, type TicketMeta } from "./spec.ts";
 import { PRIORITIES, SIZES } from "./spec.ts";
-import { writeTicket } from "./store.ts";
+import { listTickets, nextNumber, writeTicket, writeTicketExclusive } from "./store.ts";
 
 export type FieldEdit = {
   field: string;
@@ -31,7 +41,22 @@ export type FieldEdit = {
 
 export type TicketAction =
   | { kind: "create"; ticket: Ticket; edits: FieldEdit[]; comments: string[] }
-  | { kind: "update"; ticket: Ticket; issue: number; comments: string[] };
+  | {
+      kind: "update";
+      ticket: Ticket;
+      issue: number;
+      edits: FieldEdit[];
+      comments: string[];
+      /**
+       * True when `remote` had no usable Status data for this issue (item missing from
+       * the board fetch entirely, or its Status field unset) — `edits` is then `[]`
+       * because there was nothing to diff the local `status` against, not because it's
+       * confirmed to already agree. `applyTicketSync` must not mark a ticket "synced" on
+       * this basis: a real disagreement could exist and go undetected until `remote`
+       * eventually has data for it. See the reviewer finding this fixes, PR #41.
+       */
+      statusUnresolved: boolean;
+    };
 
 export type SyncPlan = {
   actions: TicketAction[];
@@ -80,7 +105,57 @@ function creationEdits(board: BoardData, ticket: Ticket): FieldEdit[] {
   return edits;
 }
 
-export function planTicketSync(tickets: Ticket[], board: BoardData): SyncPlan {
+/**
+ * Per ADR 0010: `Status` is the one field a dirty local file is allowed to push past
+ * creation — it's the field the pipeline itself drives (`dispatcher`/`implementer`
+ * handing a ticket between `Planned`/`In Progress`/`Review`/`Ready to Merge`), unlike
+ * `Priority`/`Size`/`Assigned Agent`, which stay human-curated and pull-only forever. An
+ * agent never calls `gh project item-edit` itself for any of these — it writes the local
+ * file and dirties it; this is the one place that write turns into a board mutation, and
+ * only `sync` (via `applyTicketSync`) ever executes it.
+ *
+ * Only produces an edit when `remote` actually has an entry for the ticket's issue and
+ * that entry's Status disagrees with what the local file now says — no remote data means
+ * nothing to diff against, so no edit is pushed blind. Throws, rather than silently
+ * skipping, if `ticket.status` itself has no board mapping (a stale `board.json`) — see
+ * the throw below for why.
+ */
+function statusEdit(board: BoardData, ticket: Ticket, remote: Map<number, RemoteItem>): FieldEdit[] {
+  if (ticket.issue === undefined) return [];
+  const remoteItem = remote.get(ticket.issue);
+  if (!remoteItem) return [];
+  const remoteStatus = remoteItem.fields.get("Status");
+  if (remoteStatus === undefined) return [];
+  // Unlike a missing `remoteItem`/`remoteStatus` (nothing to diff against yet, so no edit
+  // is the right no-op), a `ticket.status` role with no board mapping means `board.json` is
+  // stale — the same failure mode `creationEdits`/`planTicketPull` both already throw on
+  // for this exact field, so silently skipping the edit here would leave `applyTicketSync`
+  // reporting a ticket "synced" while its Status quietly never moved on the board.
+  const desired = board.statusRoles[ticket.status];
+  if (!desired) {
+    throw new Error(
+      `No board status mapped to role '${ticket.status}' for #${ticket.issue} — board.json may be stale, run \`litecode board init --apply\``,
+    );
+  }
+  if (remoteStatus === desired.label) return [];
+  return [{ field: "Status", fieldId: field(board, "Status").id, from: remoteStatus, to: desired.label, optionId: desired.optionId }];
+}
+
+/**
+ * True when `statusEdit` couldn't diff at all — no remote entry for the issue, or the
+ * remote entry's Status is unset — as opposed to having diffed and found the two already
+ * agree. `applyTicketSync` needs this distinction: only the latter is safe to mark
+ * "synced", since the former means a real disagreement could exist and simply wasn't
+ * detectable this run.
+ */
+function statusUnresolved(ticket: Ticket, remote: Map<number, RemoteItem>): boolean {
+  if (ticket.issue === undefined) return false;
+  const remoteItem = remote.get(ticket.issue);
+  if (!remoteItem) return true;
+  return remoteItem.fields.get("Status") === undefined;
+}
+
+export function planTicketSync(tickets: Ticket[], board: BoardData, remote: Map<number, RemoteItem>): SyncPlan {
   const plan: SyncPlan = { actions: [], skipped: [], blockers: [] };
 
   for (const ticket of tickets) {
@@ -105,9 +180,18 @@ export function planTicketSync(tickets: Ticket[], board: BoardData): SyncPlan {
       continue;
     }
 
-    // Existing issue: title/body/comments only. Status/Priority/Size are pull-only past
-    // creation, so there is nothing left to diff against the board here.
-    plan.actions.push({ kind: "update", ticket, issue: ticket.issue, comments: ticket.pendingComments });
+    // Existing issue: title/body/comments, plus a Status edit if the local file (the
+    // pipeline's own hand-off) disagrees with what `remote` just read off the board.
+    // Priority/Size/Assigned Agent stay pull-only, per ADR 0001/0010 — nothing else is
+    // diffed here.
+    plan.actions.push({
+      kind: "update",
+      ticket,
+      issue: ticket.issue,
+      edits: statusEdit(board, ticket, remote),
+      statusUnresolved: statusUnresolved(ticket, remote),
+      comments: ticket.pendingComments,
+    });
   }
   return plan;
 }
@@ -133,14 +217,12 @@ async function cacheItemId(root: string, cachePath: string, issue: number, itemI
  * Per-ticket outcome of a ticket-sync run.
  *
  * `applyTicketSync` itself only ever processes `plan.actions` (tickets `planTicketSync`
- * decided are dirty and not blocked), so every entry it currently produces is "synced" — the
- * other three variants are not reachable through this function today. They exist because this
- * type is meant to describe a ticket's outcome across the wider sync pipeline, not just this
- * one function: "blocked" and "skipped" mirror `SyncPlan.blockers` / `SyncPlan.skipped`
- * (currently reported separately, by `planTicketSync`, not merged into this type), and
- * "hydrated" is reserved for a ticket pulled fresh from the board with no prior local file —
- * neither producer exists yet. Trim the type back to "synced" only if no caller ends up
- * needing the other three; don't let it silently rot as dead variants otherwise.
+ * decided are dirty and not blocked), so every entry it produces is "synced" — "blocked"
+ * and "skipped" mirror `SyncPlan.blockers` / `SyncPlan.skipped` (reported separately, by
+ * `planTicketSync`, not merged into this type). "hydrated" is now produced too, but by a
+ * separate producer (`planTicketHydration`/`applyTicketHydration`), for a board item that
+ * had no local file at all — see issue #27. Trim the type back to "synced"/"hydrated"
+ * only if "blocked"/"skipped" never end up needing to merge in here.
  */
 export type SyncOutcome = "synced" | "blocked" | "hydrated" | "skipped";
 
@@ -198,6 +280,7 @@ export async function applyTicketSync(
   root: string,
   plan: SyncPlan,
   board: BoardData,
+  remote: Map<number, RemoteItem>,
   opts: SyncOptions,
 ): Promise<PerTicketResult[]> {
   const results: PerTicketResult[] = [];
@@ -258,6 +341,21 @@ export async function applyTicketSync(
       detail = `updated #${action.issue} from ${ticket.path}`;
       emit(detail);
       await throttle(opts);
+
+      if (action.edits.length > 0) {
+        const itemId = remote.get(action.issue)?.itemId;
+        if (!itemId) {
+          throw new Error(
+            `#${action.issue} has a Status edit to push but no board item id in \`remote\` — ` +
+              `the board fetch this run started from should already have it for any issue it diffed against`,
+          );
+        }
+        for (const edit of action.edits) {
+          await editField(itemId, board.projectId, edit);
+          emit(`  ${edit.field} = ${edit.to}`);
+          await throttle(opts);
+        }
+      }
     }
 
     const issueNumber = ticket.issue!;
@@ -272,9 +370,21 @@ export async function applyTicketSync(
       await throttle(opts);
     }
 
-    ticket = { ...ticket, synced: true, syncedAt: stamp() };
+    // An `update` whose Status disagreement couldn't be checked this run (no remote data
+    // for the issue) must not be marked "synced" — that would permanently clear the dirty
+    // flag on a ticket whose pending Status move may never have reached the board. Leave
+    // it dirty so the next `sync` run retries once `remote` (hopefully) has data for it;
+    // title/body/comments already pushed above are unaffected (comments are already
+    // shifted off `pendingComments`, and re-pushing title/body on a retry is a harmless
+    // no-op `gh issue edit`).
+    const statusUnresolved = action.kind === "update" && action.statusUnresolved;
+    ticket = statusUnresolved ? ticket : { ...ticket, synced: true, syncedAt: stamp() };
     await writeTicket(root, ticket);
-    results.push({ ticket, outcome: "synced", detail });
+    results.push({
+      ticket,
+      outcome: statusUnresolved ? "blocked" : "synced",
+      detail: statusUnresolved ? `${detail} (Status unresolved: no board data yet for #${ticket.issue} — will retry next sync)` : detail,
+    });
   }
   return results;
 }
@@ -286,6 +396,133 @@ function statusRoleFor(board: BoardData, label: string): Ticket["status"] | null
     if (v.label === label) return role as Ticket["status"];
   }
   return null;
+}
+
+const KNOWN_LABELS: readonly TicketMeta["label"][] = ["bug", "feature", "doc", "chore"];
+
+function labelFor(remote: RemoteItem): TicketMeta["label"] {
+  return remote.labels.find((l): l is TicketMeta["label"] => (KNOWN_LABELS as readonly string[]).includes(l)) ?? "chore";
+}
+
+export type HydrationSkip = { issue: number; reason: string };
+
+export type HydrationPlan = { toCreate: Ticket[]; skipped: HydrationSkip[] };
+
+/**
+ * Board -> file, for board items that have **no local file at all** yet (filed directly
+ * on GitHub, or created before the local buffer existed). Without this, `dispatcher`
+ * ranking from the local buffer would have a strictly worse view than querying the board
+ * directly — a board item invisible to the pipeline is worse than one it can at least see
+ * and rank. See ticket 0009 / issue #27.
+ *
+ * Every hydrated ticket is written `synced: true` — it mirrors exactly what the board
+ * already holds, so there is nothing pending to push. A board item whose Status is not
+ * yet set is skipped rather than hydrated with a fabricated default: there is nothing to
+ * rank it by, and materialising a file with an invented status would misrepresent the
+ * board, not reconcile it. `dispatcher` is expected to log these skips, not silently drop
+ * them (Context section of issue #27: a board item with NULL fields must not be invisible).
+ */
+export function planTicketHydration(
+  tickets: Ticket[],
+  board: BoardData,
+  remote: Map<number, RemoteItem>,
+  dir: string,
+): HydrationPlan {
+  const known = new Set(tickets.filter((t) => t.issue !== undefined).map((t) => t.issue));
+  const toCreate: Ticket[] = [];
+  const skipped: HydrationSkip[] = [];
+  // `nextNumber` looks at file ids only, so track pending creations in the same batch too
+  // — otherwise two board items hydrated in one run would collide on the same NNNN.
+  let pool = [...tickets];
+
+  // Deterministic order (ascending issue number) so a hydration run's output — and the
+  // NNNN each gets assigned — doesn't depend on GraphQL's pagination order.
+  const items = [...remote.values()].sort((a, b) => a.issue - b.issue);
+
+  for (const item of items) {
+    if (known.has(item.issue)) continue;
+    if (item.state && item.state !== "OPEN") {
+      skipped.push({ issue: item.issue, reason: `issue is ${item.state.toLowerCase()}, not pipeline-relevant` });
+      continue;
+    }
+    const statusLabel = item.fields.get("Status");
+    if (!statusLabel) {
+      skipped.push({ issue: item.issue, reason: "no Status set on the board item — nothing to rank it by" });
+      continue;
+    }
+    const status = statusRoleFor(board, statusLabel);
+    if (!status) {
+      skipped.push({ issue: item.issue, reason: `Status '${statusLabel}' does not map to any known role (board.json may be stale)` });
+      continue;
+    }
+
+    const priorityRaw = item.fields.get("Priority")?.toLowerCase();
+    const priority = (PRIORITIES as readonly string[]).includes(priorityRaw ?? "") ? (priorityRaw as Ticket["priority"]) : "medium";
+    const sizeRaw = item.fields.get("Size")?.toLowerCase();
+    const size = (SIZES as readonly string[]).includes(sizeRaw ?? "") ? (sizeRaw as Ticket["size"]) : "medium";
+    const dueDateRaw = item.fields.get("Due Date");
+    const dueDate = dueDateRaw && /^\d{4}-\d{2}-\d{2}$/.test(dueDateRaw) ? dueDateRaw : undefined;
+
+    const title = item.title ?? `Issue #${item.issue}`;
+    const id = `${String(nextNumber(pool)).padStart(4, "0")}-${slugify(title)}`;
+    const ticket: Ticket = {
+      schemaVersion: 1,
+      id,
+      title,
+      label: labelFor(item),
+      status,
+      priority,
+      size,
+      assignedAgent: item.fields.get("Assigned Agent") ?? "human",
+      dueDate,
+      issue: item.issue,
+      synced: true,
+      syncedAt: new Date().toISOString(),
+      path: join(dir, `${id}.md`),
+      body: (item.body?.trim() || `Hydrated from #${item.issue} — see the GitHub issue for the full body.`) + "\n",
+      pendingComments: [],
+    };
+    toCreate.push(ticket);
+    pool = [...pool, ticket];
+  }
+
+  return { toCreate, skipped };
+}
+
+/** Writes every hydrated ticket to its file. */
+const MAX_HYDRATION_ATTEMPTS = 8;
+
+/**
+ * A plain `writeTicket` here would reopen the exact race `createTicket`'s exclusive
+ * `wx`-flag write exists to close (see `store.ts`'s doc comment on it): `planTicketHydration`
+ * assigns each candidate's NNNN from a listing taken at plan time, and a concurrent
+ * `ticket new` or a second concurrent hydration run can pick the same next-id before this
+ * runs. `writeTicketExclusive` refuses to overwrite whatever won that race; on collision,
+ * `dir` lets this re-derive a fresh NNNN (the id is the only thing that can collide — issue
+ * number, title, etc. came from the board and don't change) and retry, same pattern as
+ * `createTicket`.
+ */
+export async function applyTicketHydration(root: string, dir: string, toCreate: Ticket[]): Promise<void> {
+  for (const planned of toCreate) {
+    let ticket = planned;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await writeTicketExclusive(root, ticket);
+        break;
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+        if (attempt >= MAX_HYDRATION_ATTEMPTS) {
+          throw new Error(
+            `Could not hydrate #${ticket.issue} after ${MAX_HYDRATION_ATTEMPTS} attempts — ` +
+              "too many concurrent writers picking the same id.",
+          );
+        }
+        const existing = await listTickets(root, dir);
+        const id = `${String(nextNumber(existing)).padStart(4, "0")}-${slugify(ticket.title)}`;
+        ticket = { ...ticket, id, path: join(dir, `${id}.md`) };
+      }
+    }
+  }
 }
 
 /**

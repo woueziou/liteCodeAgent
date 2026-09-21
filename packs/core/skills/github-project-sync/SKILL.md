@@ -7,11 +7,13 @@ description: Conventions for reading/writing the {{ project.name }} GitHub Proje
 
 Board owner `{{ project.board.owner }}`, linked repo `{{ project.repo }}`.
 
-## New tickets go through the local buffer, not a direct `gh issue create`
+## Every GitHub Project mutation goes through `sync` — no exceptions (ADR 0010)
 
-`tracker` drafts a ticket locally with `litecode ticket new` — no GitHub call happens at draft time. The `sync` agent is the only one that turns that draft into a real issue, via `litecode ticket sync --apply`, batching every dirty ticket's creates/edits/comments into one bounded run instead of each agent making its own scattered `gh` calls. If you are `tracker`, do not skip ahead to `gh issue create` yourself; if you are anything other than `sync`, do not call `gh issue create`/`item-add`/`item-edit` on a brand-new ticket either — that is `sync`'s job.
+`tracker` drafts a ticket locally with `litecode ticket new` — no GitHub call happens at draft time. The `sync` agent is the only one that turns that draft into a real issue and the only one that ever mutates the board, via `litecode ticket sync --apply`, batching every dirty ticket's creates/edits/comments into one bounded run instead of each agent making its own scattered `gh` calls. If you are anything other than `sync`, you never call `gh issue create`, `gh project item-add`, or `gh project item-edit` yourself — not for a brand-new ticket, and not for moving an already-created item's Status either. That includes `dispatcher`, `implementer`, `triage`, and `reviewer`: none of them shell out to the GitHub Project directly, full stop.
 
-Status/Priority/Size are pushed to the board **once**, at that first sync (the item doesn't exist on the board before then). After that, those three fields are **pull-only**: `litecode ticket sync` reads them back from the board into the file, never the other way around. Everything below this section — moving an existing item's Status, reading board state — still applies as-is; it is how `dispatcher`/`implementer`/`reviewer`/`triage` move an *already-created* item through the pipeline, which was never routed through the ticket buffer.
+Priority/Size/Assigned Agent are pushed to the board **once**, at that first sync (the item doesn't exist on the board before then), and stay **pull-only** after that: `litecode ticket sync` reads them back from the board into the file, never the other way around — they're human-curated fields a pipeline agent has no business overwriting.
+
+`Status` is different (ADR 0010, widening what ADR 0001 originally decided): it's the one field the pipeline itself drives (`dispatcher`/`implementer`/`triage` handing a ticket between `Planned`/`In Progress`/`Review`/`Ready to Merge`/`Blocked`), so it's allowed to push past creation too — but the *mechanism* is still never a direct `gh` call from the agent doing the moving. See "Moving an item between statuses" below for how it actually works.
 
 ## Where the IDs come from — never hand-write them
 
@@ -48,7 +50,9 @@ If the label a change needs doesn't exist yet, create it before creating the iss
 gh label create <name> --repo {{ project.repo }} --description "<one line>" --color "<hex>"
 ```
 
-## Item-ID cache (avoid a full board fetch for status edits)
+## Item-ID cache (avoid a full board fetch — for `sync`'s own use)
+
+Everything below is what `sync`'s own implementation does internally (`applyTicketSync` in `src/tickets/sync.ts`) when it pushes a ticket — creation, or a Status move per "Moving an item between statuses" below. No other agent resolves or uses an item ID directly any more: they write the local ticket file and leave the board-side lookup to `sync`.
 
 `gh project item-list` fetches the **entire board** in one GraphQL call — expensive, and the single biggest avoidable source of GitHub API quota usage when several agents run concurrently. A project item's node ID never changes once assigned, so it's safe to cache permanently.
 
@@ -110,8 +114,14 @@ gh project item-list "$(jq -r '.number' {{ project.board.dataFile }})" \
   --owner {{ project.board.owner }} --format json
 ```
 
-Filter/parse with `--jq` rather than scraping issue comments — the board fields are the source of truth for pipeline state.
+Read-only, not a mutation — any agent may run this to check current board state. Filter/parse with `--jq` rather than scraping issue comments — the board fields are the source of truth for pipeline state.
 
 ## Moving an item between statuses
 
-Same `item-edit --field-id <Status field id> --single-select-option-id <role's optionId>` pattern, reading both from `{{ project.board.dataFile }}`.
+Never a direct `item-edit` from `dispatcher`/`implementer`/`triage` — per ADR 0010, that field move happens by writing the local ticket file instead:
+
+1. Find the ticket's local file: grep `{{ project.tickets.dir }}/*.md` frontmatter for `issue: <n>`.
+2. Set its `status` field to the target role (`planned`, `inProgress`, `blocked`, `review`, `readyToMerge`, …) and mark the file dirty (`synced: false`) with `Edit`/`Write`.
+3. `sync` picks up the dirty file on its next run: `planTicketSync` diffs the local `status` against what its own board fetch (`remote`) has for that issue, and if they disagree, pushes exactly the `item-edit --field-id <Status field id> --single-select-option-id <role's optionId>` call above — reading both IDs from `{{ project.board.dataFile }}`, same as every other field edit `sync` makes.
+
+That lag (the board only reflects the move once `sync` next runs, not the instant the local file is written) is expected, not a bug — see ADR 0010 for the accepted tradeoff.

@@ -17,7 +17,15 @@ query($projectId: ID!, $cursor: String) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id
-          content { ... on Issue { number state } }
+          content {
+            ... on Issue {
+              number
+              state
+              title
+              body
+              labels(first: 10) { nodes { name } }
+            }
+          }
           fieldValues(first: 20) {
             nodes {
               ... on ProjectV2ItemFieldSingleSelectValue {
@@ -43,6 +51,14 @@ export type RemoteItem = {
   state: string | null;
   /** Field name -> its current value, as a string, for every field kind we write. */
   fields: Map<string, string>;
+  /**
+   * Only populated for hydration (materialising a local file for a board item that has
+   * none yet) — `planTicketPull`/`applyTicketSync` never read these, they only reconcile
+   * `fields`.
+   */
+  title: string | null;
+  body: string | null;
+  labels: string[];
 };
 
 type ValueNode = {
@@ -63,7 +79,13 @@ export async function fetchTicketItems(projectId: string): Promise<Map<number, R
           pageInfo: { hasNextPage: boolean; endCursor: string };
           nodes: {
             id: string;
-            content: { number?: number; state?: string } | null;
+            content: {
+              number?: number;
+              state?: string;
+              title?: string;
+              body?: string;
+              labels?: { nodes: { name: string }[] };
+            } | null;
             fieldValues: { nodes: ValueNode[] };
           }[];
         };
@@ -79,7 +101,15 @@ export async function fetchTicketItems(projectId: string): Promise<Map<number, R
         const held = value?.name ?? value?.text ?? value?.date;
         if (field && held) fields.set(field, held);
       }
-      byIssue.set(issue, { itemId: item.id, issue, state: item.content?.state ?? null, fields });
+      byIssue.set(issue, {
+        itemId: item.id,
+        issue,
+        state: item.content?.state ?? null,
+        fields,
+        title: item.content?.title ?? null,
+        body: item.content?.body ?? null,
+        labels: item.content?.labels?.nodes.map((n) => n.name) ?? [],
+      });
     }
     cursor = data.node.items.pageInfo.hasNextPage ? data.node.items.pageInfo.endCursor : undefined;
   } while (cursor);

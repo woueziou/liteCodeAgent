@@ -11,11 +11,16 @@
  * `synced` is therefore a dirty flag, not a piece of state anyone should reason from:
  * `false` means "this file holds changes GitHub has not seen yet".
  *
- * Status/priority/size are pushed to the board **once, at creation** — the board does
- * not know about the item before that, so there is nothing to conflict with yet. After
- * creation those three fields are pull-only: GitHub, not the file, is authoritative for
- * pipeline state, so a ticket file re-asserting a stale status on every sync would fight
- * a human who moved the card on the board. See ADR 0001.
+ * Priority/size/assignedAgent are pushed to the board **once, at creation** — the board
+ * does not know about the item before that, so there is nothing to conflict with yet.
+ * After creation those three fields are pull-only: GitHub, not the file, is authoritative
+ * for them, so a ticket file re-asserting a stale value on every sync would fight a human
+ * who edited it on the board. See ADR 0001.
+ *
+ * `status` is the one exception, per ADR 0010: it's the field the pipeline itself drives
+ * (`dispatcher`/`implementer`/`triage` handing a ticket between `Planned`/`In Progress`/
+ * `Review`/`Ready to Merge`/`Blocked`), so a dirty file's `status` is read for a push past
+ * creation too — see `planTicketSync`'s `statusEdit` in `sync.ts`.
  */
 
 import { z } from "zod";
@@ -81,9 +86,13 @@ export const TicketSchema = z.object({
   title: z.string().min(1),
   label: z.enum(["bug", "feature", "doc", "chore"]),
   /**
-   * The pipeline status this ticket asserts. Only meaningful before the first sync
-   * (create) — once `issue`/`synced` show the ticket has a board item, this field is
-   * overwritten by `ticket sync`'s pull step, never read for a push.
+   * The pipeline status this ticket asserts. Unlike priority/size/assignedAgent below,
+   * this stays meaningful (and push-eligible) after the first sync too, per ADR 0010:
+   * `dispatcher`/`implementer`/`triage` move a ticket through the pipeline by writing this
+   * field directly and marking the file dirty (`synced: false`); `ticket sync`'s push step
+   * then pushes it to the board if it disagrees with what its own pull just read. A clean
+   * (non-dirty) file still gets this field overwritten by the pull step, same as always —
+   * only a *dirty* file's `status` is ever read for a push.
    */
   status: z.enum(TICKET_STATUSES).default("backlog"),
   priority: z.enum(PRIORITIES).default("medium"),

@@ -13,7 +13,15 @@ import { doctor } from "./board/doctor.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import type { BoardData } from "./board/spec.ts";
 import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
-import { planTicketSync, applyTicketSync, planTicketPull, applyTicketPull, fetchTicketItems } from "./tickets/sync.ts";
+import {
+  planTicketSync,
+  applyTicketSync,
+  planTicketPull,
+  applyTicketPull,
+  planTicketHydration,
+  applyTicketHydration,
+  fetchTicketItems,
+} from "./tickets/sync.ts";
 import {
   loadAutoSyncState,
   saveAutoSyncState,
@@ -643,7 +651,13 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(c.red("Fix the malformed ticket file(s) above before syncing."));
       return 1;
     }
-    if (tickets.length === 0) {
+
+    // Hydration needs the board even with an empty local ticket dir (a board-only item
+    // could still need hydrating), but a genuinely fresh repo — no local tickets *and*
+    // `board init --apply` never run yet — must still no-op gracefully here rather than
+    // hard-fail on a missing `board.json`, same as it did before hydration existed.
+    const boardDataPath = resolve(root, config.project.board.dataFile);
+    if (tickets.length === 0 && !(await Bun.file(boardDataPath).exists())) {
       console.log(c.dim(`No tickets in ${dir}.`));
       return 0;
     }
@@ -651,18 +665,46 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     const board = await loadBoardData(root, config.project.board.dataFile);
     const remote = await fetchTicketItems(board.projectId);
 
+    // Hydration first: a board item with no local file at all is invisible to everything
+    // below (pull only reconciles tickets that already have a file), so it must be
+    // materialised before pull/push can reason about the buffer as a whole. See
+    // `planTicketHydration`'s doc comment / issue #27.
+    const hydration = planTicketHydration(tickets, board, remote, dir);
+    for (const t of hydration.toCreate) {
+      console.log(`  ${c.cyan("hydrate")} ${t.path} (from #${t.issue})`);
+    }
+    for (const s of hydration.skipped) {
+      console.log(`  ${c.dim("skip  ")} #${s.issue} ${c.dim(`(${s.reason})`)}`);
+    }
+
+    if (tickets.length === 0 && hydration.toCreate.length === 0) {
+      console.log(c.dim(`No tickets in ${dir}.`));
+      return 0;
+    }
+
+    // `--auto` implies `--apply` (see usage text above) — the hydration-apply gate must
+    // honor that too, or an unattended `--auto` run silently drops a hydrated ticket from
+    // `allTickets` (it never gets written to disk, stays invisible to `dispatcher`'s
+    // local-first ranking, and gets re-logged as `hydrate` on every subsequent run) while
+    // still falling through into a real apply for everything else below.
+    const applying = argv.includes("--apply") || auto;
+    if (applying && hydration.toCreate.length > 0) {
+      await applyTicketHydration(root, dir, hydration.toCreate);
+    }
+    const allTickets = applying ? [...tickets, ...hydration.toCreate] : tickets;
+
     // Pull before push, always: a push must never overwrite board state this run hasn't
     // read yet.
-    const pullChanges = planTicketPull(tickets, board, remote);
+    const pullChanges = planTicketPull(allTickets, board, remote);
     for (const change of pullChanges) {
       console.log(`  ${c.cyan("pull")} ${change.ticket.path}`);
       for (const line of change.changes) console.log(`    ${line}`);
     }
 
     const pulledById = new Map(pullChanges.map((p) => [p.ticket.id, p.ticket]));
-    const afterPull = tickets.map((t) => pulledById.get(t.id) ?? t);
+    const afterPull = allTickets.map((t) => pulledById.get(t.id) ?? t);
 
-    const plan = planTicketSync(afterPull, board);
+    const plan = planTicketSync(afterPull, board, remote);
     for (const a of plan.actions) {
       console.log(`  ${a.kind === "create" ? c.green("create") : c.yellow("update")} ${a.ticket.path}`);
     }
@@ -687,7 +729,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       await saveAutoSyncState(root, autoStateFile, autoState);
     }
 
-    if (!argv.includes("--apply") && !auto) {
+    if (!applying) {
       if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
       console.log(c.dim(`\nDry run. Re-run with --apply to write the pulled files and push ${plan.actions.length} ticket(s).`));
       return plan.blockers.length > 0 ? 1 : 0;
@@ -705,7 +747,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     }
 
     if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
-    const results = await applyTicketSync(root, plan, board, {
+    const results = await applyTicketSync(root, plan, board, remote, {
       repo: config.project.repo,
       owner: config.project.board.owner,
       number,
@@ -716,11 +758,21 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(`  ${c.green("result")} ${r.ticket.path} [${r.outcome}] ${r.detail}`);
     }
     // `applyTicketSync` only ever processes `plan.actions` (a plan with blockers has already
-    // returned 1 above, before this point), so every entry it produces is "synced" — there is
-    // no "blocked"/"skipped"/"hydrated" branch to check for here. See the `SyncOutcome` doc
-    // comment in tickets/sync.ts for why the type still carries those variants.
+    // returned 1 above, before this point) — but as of ADR 0010's Status push-on-update, an
+    // individual entry can still come back "blocked" (statusUnresolved: no board data this
+    // run to diff the local Status against) even though the action itself ran without
+    // throwing. A caller gating on this CLI's exit code (the `sync` agent, `--auto`
+    // automation) must see that as a non-clean run, same as a plan-level blocker — the
+    // "hydrated" outcome is produced separately, above, by `planTicketHydration` /
+    // `applyTicketHydration` (already logged and written before this point runs); "skipped"
+    // mirrors `SyncPlan.skipped`, reported separately too. See the `SyncOutcome` doc comment
+    // in tickets/sync.ts for the full picture.
     const nothingHappened = results.length === 0 && plan.actions.length > 0;
-    return nothingHappened ? 1 : 0;
+    const blockedResults = results.filter((r) => r.outcome === "blocked");
+    if (blockedResults.length > 0) {
+      console.log(c.yellow(`\n${blockedResults.length} ticket(s) left with an unresolved Status push — will retry next sync.`));
+    }
+    return nothingHappened || blockedResults.length > 0 ? 1 : 0;
   }
 
   usage();
