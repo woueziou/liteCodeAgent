@@ -1,7 +1,12 @@
 /**
  * Safety rails for an unattended `ticket sync --auto` run: a cooldown so a failing trigger
- * can't retry in a tight loop, and a durable trace for a detect-and-block conflict that
- * happens when nobody is watching stdout. See ADR 0009 (issue #31).
+ * can't retry in a tight loop. See ADR 0009 (issue #31).
+ *
+ * A detect-and-block conflict trace used to live here too, keyed off `SyncPlan.blockers` —
+ * that concept only ever existed for a missing board option (`planTicketSync` refusing to
+ * push a create with no matching Priority/Size option on the board). There is no board to
+ * be missing an option on any more, so `planTicketSync` no longer produces blockers and
+ * this module no longer tracks them; see lot 6 of the local-first-tickets epic.
  *
  * Deliberately pure/stateless functions over a plain `AutoSyncState` value: the only I/O
  * (reading/writing `config.project.tickets.autoStateFile`) lives in the CLI glue, so this
@@ -9,25 +14,12 @@
  */
 
 import { join } from "node:path";
-import type { SyncPlan } from "./sync.ts";
-
-export type BlockerTrace = {
-  /** `SyncPlan.blockers[].problem`, the identity of a blocker for dedupe purposes. */
-  problem: string;
-  fix: string;
-  firstSeenAt: string;
-  lastSeenAt: string;
-  /** How many `--auto` runs in a row have seen this exact blocker still unresolved. */
-  attempts: number;
-};
 
 export type AutoSyncState = {
   lastAttemptAt?: string;
-  /** Keyed by ticket id. A ticket blocked pre-creation has no issue number to key on. */
-  blockers: Record<string, BlockerTrace>;
 };
 
-export const EMPTY_AUTO_SYNC_STATE: AutoSyncState = { blockers: {} };
+export const EMPTY_AUTO_SYNC_STATE: AutoSyncState = {};
 
 /**
  * `true` when the last `--auto` run was recent enough that this one should no-op instead
@@ -63,40 +55,6 @@ export function resolveAutoMinIntervalMs(configuredMs: number): number {
 }
 
 /**
- * Folds `plan.blockers` into the persisted trace: a blocker seen again bumps `attempts` and
- * `lastSeenAt`; a ticket that was blocked before and is no longer in `plan.blockers` is
- * dropped (it resolved). Detect-and-block never auto-resolves a conflict itself — this only
- * tracks that the *report* of the same still-unresolved conflict shouldn't re-alert as if it
- * were new every single run.
- */
-export function reconcileBlockers(
-  state: AutoSyncState,
-  blockers: SyncPlan["blockers"],
-  now: Date,
-): { state: AutoSyncState; newlyReported: SyncPlan["blockers"] } {
-  const nowIso = now.toISOString();
-  const nextBlockers: Record<string, BlockerTrace> = {};
-  const newlyReported: SyncPlan["blockers"] = [];
-
-  for (const b of blockers) {
-    const key = b.ticket.id;
-    const prior = state.blockers[key];
-    const sameProblem = prior && prior.problem === b.problem;
-    if (sameProblem) {
-      // Refresh `fix` from the current run too: the problem identity is unchanged, but the
-      // guidance text can change across a CLI upgrade, and a long-blocked ticket shouldn't
-      // show stale advice indefinitely.
-      nextBlockers[key] = { ...prior, fix: b.fix, lastSeenAt: nowIso, attempts: prior.attempts + 1 };
-    } else {
-      nextBlockers[key] = { problem: b.problem, fix: b.fix, firstSeenAt: nowIso, lastSeenAt: nowIso, attempts: 1 };
-      newlyReported.push(b);
-    }
-  }
-
-  return { state: { ...state, blockers: nextBlockers }, newlyReported };
-}
-
-/**
  * Missing file reads as `EMPTY_AUTO_SYNC_STATE`: a first-ever `--auto` run has nothing to
  * skip. A truncated/corrupted file (e.g. the process was killed mid-`Bun.write` during a
  * prior unattended run) must not read the same way, though: that would report no prior
@@ -112,11 +70,11 @@ export async function loadAutoSyncState(root: string, path: string): Promise<Aut
   if (!(await file.exists())) return EMPTY_AUTO_SYNC_STATE;
   try {
     const raw = (await file.json()) as Partial<AutoSyncState>;
-    return { lastAttemptAt: raw.lastAttemptAt, blockers: raw.blockers ?? {} };
+    return { lastAttemptAt: raw.lastAttemptAt };
   } catch {
     const lastModified = file.lastModified;
     const lastAttemptAt = Number.isFinite(lastModified) ? new Date(lastModified).toISOString() : undefined;
-    return { lastAttemptAt, blockers: {} };
+    return { lastAttemptAt };
   }
 }
 

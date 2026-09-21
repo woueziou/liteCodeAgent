@@ -1,39 +1,40 @@
 /**
- * A ticket file is a *buffer*, not a second source of truth.
+ * A ticket file is local-first, not a buffer for some other authoritative store.
  *
- * GitHub stays authoritative for everything the board shows. What lives under the
- * tickets directory is a local staging area: a ticket is drafted there (no API call),
- * edited there, and accumulates pending comments there — then one `litecode ticket sync`
- * pushes the whole batch in a single burst of `gh` calls. That is what turns N agents
- * each doing their own scattered `gh issue create`/`item-edit` into one bounded, retryable
- * run, which is the only durable answer to GitHub's secondary rate limit.
+ * The tickets directory is where a ticket lives, full stop: it's drafted there (no API
+ * call), edited there, moved through the pipeline there, and accumulates pending comments
+ * there. `litecode ticket sync` pushes the batch of dirty tickets to GitHub in one bounded
+ * run of `gh` calls (issue create/edit, comments) — that's still what turns N agents each
+ * doing their own scattered `gh` calls into one durable answer to GitHub's secondary rate
+ * limit — but GitHub is a downstream mirror of the file, not the other way around. There
+ * is no board to pull from any more; nothing reads state back out of GitHub into the file.
  *
  * `synced` is therefore a dirty flag, not a piece of state anyone should reason from:
  * `false` means "this file holds changes GitHub has not seen yet".
  *
- * Priority/size/assignedAgent are pushed to the board **once, at creation** — the board
- * does not know about the item before that, so there is nothing to conflict with yet.
- * After creation those three fields are pull-only: GitHub, not the file, is authoritative
- * for them, so a ticket file re-asserting a stale value on every sync would fight a human
- * who edited it on the board. See ADR 0001.
+ * `priority`/`size`/`assignedAgent` are plain local fields, same as everything else in the
+ * file: set at creation, freely editable afterwards by hand or by any agent, never pushed
+ * to GitHub past the initial `gh issue create`. Their old justification ("the board is
+ * authoritative for them after creation") no longer applies now that there is no board —
+ * they're kept because they're still useful ranking/routing inputs for `dispatcher`, not
+ * because anything downstream owns them.
  *
- * `status` is the one exception, per ADR 0010: it's the field the pipeline itself drives
+ * `status` works the same way: it's the field the pipeline itself drives
  * (`dispatcher`/`implementer`/`triage` handing a ticket between `Planned`/`In Progress`/
- * `Review`/`Ready to Merge`/`Blocked`), so a dirty file's `status` is read for a push past
- * creation too — see `planTicketSync`'s `statusEdit` in `sync.ts`.
+ * `Review`/`Ready to Merge`/`Blocked`) by writing it directly on the local file. It was
+ * already local-first before this file became the sole source of truth; now it's simply
+ * never synced anywhere else either.
  */
 
 import { z } from "zod";
 import { parseFrontmatter, serializeFrontmatter, type Frontmatter } from "../frontmatter.ts";
 
 /**
- * Statuses referred to by *role* (`inProgress`, `readyToMerge`, ...), never by literal
- * label, so a board is free to name them differently as long as every role maps to
- * something. `board init` provisions anything missing; `board doctor` checks that the
- * generated board.json still matches reality.
- *
- * This vocabulary lives here (ticket vocabulary), not in `../board/spec.ts`, so the
- * ticket schema doesn't carry a compile-time dependency on the board module.
+ * Statuses referred to by *role* (`inProgress`, `readyToMerge`, ...), a naming convention
+ * kept from the era when a GitHub Project board's status labels had to be mapped onto a
+ * fixed set of pipeline roles. There is no board any more, but the roles themselves are
+ * still the vocabulary `dispatcher`/`implementer`/`triage` drive a ticket's `status`
+ * field through, so it stays here rather than being collapsed into a bare string enum.
  */
 export type StatusRole =
   | "backlog"
@@ -54,45 +55,13 @@ export const STATUS_ROLES: { role: StatusRole; label: string; description: strin
   { role: "done", label: "Done", description: "Merged or closed as verified-no-change" },
 ];
 
-export const PRIORITY_OPTIONS = ["Low", "Medium", "High"] as const;
-export const SIZE_OPTIONS = ["Trivial", "Small", "Medium", "Large"] as const;
-
 export const TICKET_STATUSES = STATUS_ROLES.map((s) => s.role) as [StatusRole, ...StatusRole[]];
 
-/** File-side vocabulary is lower-case; the board's option labels are capitalised. */
 export const PRIORITIES = ["low", "medium", "high"] as const;
 export const SIZES = ["trivial", "small", "medium", "large"] as const;
 
 export type Priority = (typeof PRIORITIES)[number];
 export type Size = (typeof SIZES)[number];
-
-/**
- * Explicit maps rather than a naive `charAt(0).toUpperCase()` capitalisation: if the
- * board's option labels (`PRIORITY_OPTIONS`/`SIZE_OPTIONS`, defined above in this file)
- * are ever renamed to something that doesn't round-trip through simple capitalisation, this map
- * fails at the type-check instead of silently sending the board an option string it
- * doesn't recognise.
- */
-const PRIORITY_OPTION_BY_VALUE: Record<Priority, (typeof PRIORITY_OPTIONS)[number]> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-};
-
-const SIZE_OPTION_BY_VALUE: Record<Size, (typeof SIZE_OPTIONS)[number]> = {
-  trivial: "Trivial",
-  small: "Small",
-  medium: "Medium",
-  large: "Large",
-};
-
-export function priorityOption(p: Priority): (typeof PRIORITY_OPTIONS)[number] {
-  return PRIORITY_OPTION_BY_VALUE[p];
-}
-
-export function sizeOption(s: Size): (typeof SIZE_OPTIONS)[number] {
-  return SIZE_OPTION_BY_VALUE[s];
-}
 
 /**
  * Bumped whenever the on-disk shape of a ticket file changes in a way an existing
@@ -116,13 +85,10 @@ export const TicketSchema = z.object({
   title: z.string().min(1),
   label: z.enum(["bug", "feature", "doc", "chore"]),
   /**
-   * The pipeline status this ticket asserts. Unlike priority/size/assignedAgent below,
-   * this stays meaningful (and push-eligible) after the first sync too, per ADR 0010:
+   * The pipeline status this ticket asserts — purely local state.
    * `dispatcher`/`implementer`/`triage` move a ticket through the pipeline by writing this
-   * field directly and marking the file dirty (`synced: false`); `ticket sync`'s push step
-   * then pushes it to the board if it disagrees with what its own pull just read. A clean
-   * (non-dirty) file still gets this field overwritten by the pull step, same as always —
-   * only a *dirty* file's `status` is ever read for a push.
+   * field directly on the file; nothing in `ticket sync` reads or writes it against
+   * GitHub, there is no board left to disagree with.
    */
   status: z.enum(TICKET_STATUSES).default("backlog"),
   priority: z.enum(PRIORITIES).default("medium"),

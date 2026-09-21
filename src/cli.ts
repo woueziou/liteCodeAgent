@@ -7,28 +7,15 @@ import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
 import { ensureAuth, onGhRetry, RateLimitError } from "./gh.ts";
-import { fetchProject, fetchOptionUsage } from "./board/query.ts";
-import { planBoard, applyBoardPlan } from "./board/init.ts";
-import { doctor } from "./board/doctor.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
-import type { BoardData } from "./board/spec.ts";
 import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
-import {
-  planTicketSync,
-  applyTicketSync,
-  planTicketPull,
-  applyTicketPull,
-  planTicketHydration,
-  applyTicketHydration,
-  fetchTicketItems,
-} from "./tickets/sync.ts";
+import { planTicketSync, applyTicketSync } from "./tickets/sync.ts";
 import {
   loadAutoSyncState,
   saveAutoSyncState,
   shouldSkipForCooldown,
   recordAttempt,
-  reconcileBlockers,
   resolveAutoMinIntervalMs,
 } from "./tickets/auto-sync.ts";
 import { PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
@@ -82,19 +69,16 @@ function usage(): void {
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
-  ${c.bold("bunx litecodeagent board init")} [--apply]     provision/resolve the GitHub Project board
-  ${c.bold("bunx litecodeagent board doctor")}             check board.json against the live board
   ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--force]
                                      draft a ticket file locally; checks the title against local tickets and open
                                      issues for a likely duplicate first (read-only GitHub call) and blocks if one
                                      is found — pass --force to create anyway
   ${c.bold("bunx litecodeagent ticket list")}              list local ticket files and their dirty state
   ${c.bold("bunx litecodeagent ticket doctor")}            check the local ticket buffer for malformed/misplaced/duplicate files
-  ${c.bold("bunx litecodeagent ticket sync")} [--apply|--auto]    pull the board into dirty tickets, then push the batch
+  ${c.bold("bunx litecodeagent ticket sync")} [--apply|--auto]    push the dirty ticket batch to GitHub (issue create/edit, comments)
                                      ${c.dim("(dry-run by default; --apply writes)")}
                                      ${c.dim("--auto: for unattended callers — implies --apply, skips the run if the last")}
-                                     ${c.dim("--auto attempt was within tickets.autoMinIntervalMs, and records any")}
-                                     ${c.dim("--auto detect-and-block conflict to tickets.autoStateFile instead of only stdout")}
+                                     ${c.dim("--auto attempt was within tickets.autoMinIntervalMs (tracked in tickets.autoStateFile)")}
   ${c.bold("litecode upgrade")}                   update a legacy git-clone install
 
 Global: --project <dir>   target repo (default: cwd)
@@ -447,90 +431,6 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
   return 0;
 }
 
-async function cmdBoard(root: string, argv: string[]): Promise<number> {
-  const sub = argv[1];
-  const { config } = await loadConfig(root);
-  onGhRetry((attempt, waitMs, reason) => {
-    console.log(c.dim(`  ${reason} — retrying in ${Math.round(waitMs / 1000)}s (attempt ${attempt})`));
-  });
-  await ensureAuth();
-
-  if (sub === "doctor") {
-    const findings = await doctor(root, config);
-    if (findings.length === 0) {
-      console.log(c.green("Board is consistent with board.json."));
-      return 0;
-    }
-    for (const f of findings) {
-      console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
-    }
-    return findings.some((f) => f.severity === "error") ? 1 : 0;
-  }
-
-  if (sub !== "init") {
-    usage();
-    return 1;
-  }
-
-  const number = Number(arg(argv, "--number") ?? config.project.board.number);
-  if (!number) {
-    console.log(c.red("No project number: set project.board.number in config, or pass --number <n>."));
-    return 1;
-  }
-  const owner = arg(argv, "--owner") ?? config.project.board.owner;
-
-  const remote = await fetchProject(owner, number);
-  // Which options are actually held decides whether an unknown one can be dropped.
-  const optionUsage = await fetchOptionUsage(remote.id);
-  console.log(`${c.bold("Board")}    ${remote.title} ${c.dim(remote.url)}`);
-  console.log(`${c.bold("Node id")}  ${remote.id}\n`);
-
-  const plan = planBoard(remote, config, optionUsage);
-
-  for (const a of plan.actions) {
-    const verb =
-      a.kind === "write-board-json" ? c.cyan("write   ")
-      : a.kind === "add-options" ? c.yellow("update  ")
-      : a.kind === "remove-options" ? c.yellow("remove  ")
-      : c.green("create  ");
-    console.log(`  ${verb} ${a.field} ${c.dim(a.detail)}`);
-  }
-  for (const b of plan.blockers) {
-    console.log(`  ${c.red("BLOCKED ")} ${b.field}: ${b.problem}`);
-    console.log(`           ${c.dim(`fix: ${b.fix}`)}`);
-  }
-
-  if (plan.data) {
-    console.log(`\n${c.bold("Resolved ids")}`);
-    for (const [name, f] of Object.entries(plan.data.fields)) {
-      console.log(`  ${name.padEnd(16)} ${f.id}`);
-      for (const [opt, id] of Object.entries(f.options ?? {})) {
-        console.log(`    ${c.dim(opt.padEnd(16))} ${id}`);
-      }
-    }
-  }
-
-  if (!argv.includes("--apply")) {
-    console.log(c.dim(`\nDry run. Re-run with --apply to create missing fields/labels and write ${config.project.board.dataFile}.`));
-    return plan.blockers.length > 0 ? 1 : 0;
-  }
-  if (plan.blockers.length > 0) {
-    console.log(c.red("\nNot applying: resolve the blockers above first."));
-    return 1;
-  }
-  for (const line of await applyBoardPlan(root, plan, config)) console.log(`  ${c.green("done")} ${line}`);
-  return 0;
-}
-
-async function loadBoardData(root: string, dataFile: string): Promise<BoardData> {
-  const path = resolve(root, dataFile);
-  const file = Bun.file(path);
-  if (!(await file.exists())) {
-    throw new Error(`${dataFile} does not exist — run \`litecode board init --apply\` first.`);
-  }
-  return (await file.json()) as BoardData;
-}
-
 async function cmdTicket(root: string, argv: string[]): Promise<number> {
   const sub = argv[1];
   const { config } = await loadConfig(root);
@@ -666,127 +566,34 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       return 1;
     }
 
-    // Hydration needs the board even with an empty local ticket dir (a board-only item
-    // could still need hydrating), but a genuinely fresh repo — no local tickets *and*
-    // `board init --apply` never run yet — must still no-op gracefully here rather than
-    // hard-fail on a missing `board.json`, same as it did before hydration existed.
-    const boardDataPath = resolve(root, config.project.board.dataFile);
-    if (tickets.length === 0 && !(await Bun.file(boardDataPath).exists())) {
+    if (tickets.length === 0) {
       console.log(c.dim(`No tickets in ${dir}.`));
       return 0;
     }
 
-    const board = await loadBoardData(root, config.project.board.dataFile);
-    const remote = await fetchTicketItems(board.projectId);
-
-    // Hydration first: a board item with no local file at all is invisible to everything
-    // below (pull only reconciles tickets that already have a file), so it must be
-    // materialised before pull/push can reason about the buffer as a whole. See
-    // `planTicketHydration`'s doc comment / issue #27.
-    const hydration = planTicketHydration(tickets, board, remote, dir);
-    for (const t of hydration.toCreate) {
-      console.log(`  ${c.cyan("hydrate")} ${t.path} (from #${t.issue})`);
-    }
-    for (const s of hydration.skipped) {
-      console.log(`  ${c.dim("skip  ")} #${s.issue} ${c.dim(`(${s.reason})`)}`);
-    }
-
-    if (tickets.length === 0 && hydration.toCreate.length === 0) {
-      console.log(c.dim(`No tickets in ${dir}.`));
-      return 0;
-    }
-
-    // `--auto` implies `--apply` (see usage text above) — the hydration-apply gate must
-    // honor that too, or an unattended `--auto` run silently drops a hydrated ticket from
-    // `allTickets` (it never gets written to disk, stays invisible to `dispatcher`'s
-    // local-first ranking, and gets re-logged as `hydrate` on every subsequent run) while
-    // still falling through into a real apply for everything else below.
-    const applying = argv.includes("--apply") || auto;
-    if (applying && hydration.toCreate.length > 0) {
-      await applyTicketHydration(root, dir, hydration.toCreate);
-    }
-    const allTickets = applying ? [...tickets, ...hydration.toCreate] : tickets;
-
-    // Pull before push, always: a push must never overwrite board state this run hasn't
-    // read yet.
-    const pullChanges = planTicketPull(allTickets, board, remote);
-    for (const change of pullChanges) {
-      console.log(`  ${c.cyan("pull")} ${change.ticket.path}`);
-      for (const line of change.changes) console.log(`    ${line}`);
-    }
-
-    const pulledById = new Map(pullChanges.map((p) => [p.ticket.id, p.ticket]));
-    const afterPull = allTickets.map((t) => pulledById.get(t.id) ?? t);
-
-    const plan = planTicketSync(afterPull, board, remote);
+    const plan = planTicketSync(tickets);
     for (const a of plan.actions) {
       console.log(`  ${a.kind === "create" ? c.green("create") : c.yellow("update")} ${a.ticket.path}`);
     }
     for (const s of plan.skipped) {
       console.log(`  ${c.dim("skip  ")} ${s.ticket.path} ${c.dim(`(${s.reason})`)}`);
     }
-    for (const b of plan.blockers) {
-      console.log(`  ${c.red("BLOCKED")} ${b.ticket.path}: ${b.problem}`);
-      console.log(`           ${c.dim(`fix: ${b.fix}`)}`);
-    }
 
-    if (autoState) {
-      // Durable trace for detect-and-block: an unattended `--auto` run has nobody reading
-      // stdout, so an unresolved conflict must still be discoverable later from
-      // `autoStateFile`. A blocker already reported on a prior run is not re-announced here
-      // — only genuinely new/changed blockers are, so a stuck ticket doesn't spam every run.
-      const { state, newlyReported } = reconcileBlockers(autoState, plan.blockers, now);
-      autoState = state;
-      for (const b of newlyReported) {
-        console.log(c.yellow(`  new blocker recorded in ${autoStateFile}: ${b.ticket.path} — ${b.problem}`));
-      }
-      await saveAutoSyncState(root, autoStateFile, autoState);
-    }
-
+    const applying = argv.includes("--apply") || auto;
     if (!applying) {
-      if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
-      console.log(c.dim(`\nDry run. Re-run with --apply to write the pulled files and push ${plan.actions.length} ticket(s).`));
-      return plan.blockers.length > 0 ? 1 : 0;
-    }
-    if (plan.blockers.length > 0) {
-      console.log(c.red("\nNot pushing: resolve the blockers above first."));
-      if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
-      return 1;
+      console.log(c.dim(`\nDry run. Re-run with --apply to push ${plan.actions.length} ticket(s).`));
+      return 0;
     }
 
-    const number = config.project.board.number;
-    if (!number) {
-      console.log(c.red("No project number: set project.board.number in config, or pass --number <n>."));
-      return 1;
-    }
-
-    if (pullChanges.length > 0) await applyTicketPull(root, pullChanges);
-    const results = await applyTicketSync(root, plan, board, remote, {
+    const results = await applyTicketSync(root, plan, {
       repo: config.project.repo,
-      owner: config.project.board.owner,
-      number,
-      itemIdCache: config.project.board.itemIdCache,
       onLog: (line) => console.log(`  ${c.green("done")} ${line}`),
     });
     for (const r of results) {
       console.log(`  ${c.green("result")} ${r.ticket.path} [${r.outcome}] ${r.detail}`);
     }
-    // `applyTicketSync` only ever processes `plan.actions` (a plan with blockers has already
-    // returned 1 above, before this point) — but as of ADR 0010's Status push-on-update, an
-    // individual entry can still come back "blocked" (statusUnresolved: no board data this
-    // run to diff the local Status against) even though the action itself ran without
-    // throwing. A caller gating on this CLI's exit code (the `sync` agent, `--auto`
-    // automation) must see that as a non-clean run, same as a plan-level blocker — the
-    // "hydrated" outcome is produced separately, above, by `planTicketHydration` /
-    // `applyTicketHydration` (already logged and written before this point runs); "skipped"
-    // mirrors `SyncPlan.skipped`, reported separately too. See the `SyncOutcome` doc comment
-    // in tickets/sync.ts for the full picture.
     const nothingHappened = results.length === 0 && plan.actions.length > 0;
-    const blockedResults = results.filter((r) => r.outcome === "blocked");
-    if (blockedResults.length > 0) {
-      console.log(c.yellow(`\n${blockedResults.length} ticket(s) left with an unresolved Status push — will retry next sync.`));
-    }
-    return nothingHappened || blockedResults.length > 0 ? 1 : 0;
+    return nothingHappened ? 1 : 0;
   }
 
   usage();
@@ -830,7 +637,6 @@ try {
       case "status": return cmdStatus(root);
       case "config": return cmdConfig(root, argv);
       case "run": return cmdRun(root, argv);
-      case "board": return cmdBoard(root, argv);
       case "ticket": return cmdTicket(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
     }

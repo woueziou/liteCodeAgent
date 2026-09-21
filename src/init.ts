@@ -135,7 +135,7 @@ async function pickBoard(owner: string): Promise<number | undefined> {
     const projects = (JSON.parse(out).projects ?? []) as { number: number; title: string }[];
     if (projects.length === 0) {
       note(`  No GitHub Project found under '${owner}'.`);
-      note("  Create one (org → Projects → New project → Table), then run `bunx litecodeagent board init`.");
+      note("  Create one (org → Projects → New project → Table), then set project.board in litecode.config.json.");
       return undefined;
     }
     return await select(
@@ -144,7 +144,7 @@ async function pickBoard(owner: string): Promise<number | undefined> {
     );
   } catch {
     note(`  Could not list projects for '${owner}' (is \`gh\` authenticated?).`);
-    note("  Set it later with `bunx litecodeagent board init --owner <owner> --number <n>`.");
+    note("  Set project.board.owner/number in litecode.config.json later.");
     return undefined;
   }
 }
