@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0020-fix-packs-les-corps-de-prompts-supposent-des-mec
 title: fix(packs): les corps de prompts supposent des mécanismes Claude Code sur les cinq cibles d'installation
 label: bug
-status: review
+status: done
 priority: medium
 size: large
 assignedAgent: human
