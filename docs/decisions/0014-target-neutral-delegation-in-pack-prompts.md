@@ -46,12 +46,14 @@ results not always reaching the parent.
    skill. `src/delegation.ts` supplies the exact wording per target (`Agent`, `task`,
    Codex spawn-by-name, `litecode run`), including each harness's own built-in worker for
    `general-purpose`. The template engine gained a `{{> helper arg}}` form for this; an
-   unknown helper or a bad argument fails the render. The blind `Agent` rewrites in the
+   unknown helper, a malformed call, or delegating to an agent no installed pack provides
+   fails the render, naming the file. The blind `Agent` rewrites in the
    Codex, OpenCode and Kilo renderers are gone, so the `Agent:` trailer and every other
    ordinary use of the word survive unchanged.
 3. **When native delegation isn't available, the fallback is the project's own API runner,
    never doing the other agent's work inline.** `{{> delegation}}` tells the agent to run
-   `litecode run <agent> --prompt-file <file>` via `Bash` — synchronous everywhere — and,
+   `litecode run <agent> --prompt-file <file>` via `Bash` (or `bunx litecodeagent run …`
+   when `litecode` isn't on PATH) — synchronous everywhere — and,
    without `Bash` or a configured runner, to stop and say so. Pi, which has no subagents,
    delegates this way directly. The Codex planning workflow no longer says "otherwise
    follow its sequence directly".
@@ -67,6 +69,10 @@ results not always reaching the parent.
   target that can't delegate stops with an explicit report instead of degrading silently.
 - New delegation sites must use the helper. A literal "via `Agent`" in a pack prompt now
   fails the render test on the four non-Claude targets.
+- **Known gap:** `orchestrator`, whose whole job is delegating, has no `Bash` (and runs
+  read-only on Codex), so the runner fallback can't reach it. Where a harness forbids a
+  sub-agent from starting another, it stops with an explicit report rather than
+  degrading. This predates this ADR and needs its own decision.
 - The per-target wording in `src/delegation.ts` encodes what each harness documents
   today. When a harness changes its delegation mechanism, that table is the one place to
   update.

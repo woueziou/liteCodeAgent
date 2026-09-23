@@ -1,11 +1,12 @@
-import { expect, test } from "bun:test";
-import { mkdtemp } from "node:fs/promises";
+import { afterAll, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig, TARGETS, type InstallTarget } from "../src/config.ts";
 import { buildPlan, type PlanEntry } from "../src/install.ts";
-import { delegationHelpers } from "../src/delegation.ts";
-import { render } from "../src/template.ts";
+import { delegationHelpers, packAgentNames } from "../src/delegation.ts";
+import { listPacks, loadPack } from "../src/packs.ts";
+import { referencedPaths, render, TemplateError } from "../src/template.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const PACKS = join(ROOT, "packs");
@@ -15,17 +16,31 @@ const PACKS = join(ROOT, "packs");
  * own wording from `src/delegation.ts`. Renders every pack file for every target (this
  * repo's own config, all five targets) and checks what each harness would actually read.
  */
-async function renderAll(): Promise<PlanEntry[]> {
-  const { config } = await loadConfig(ROOT);
-  const all = { ...config, targets: [...TARGETS] };
-  const plan = await buildPlan(await mkdtemp(join(tmpdir(), "litecode-render-")), PACKS, all);
-  return plan.entries;
+let rendered: Promise<PlanEntry[]> | undefined;
+let scratch: string | undefined;
+
+/** Rendered once for the whole file: every test reads the same plan. */
+function renderAll(): Promise<PlanEntry[]> {
+  rendered ??= (async () => {
+    const { config } = await loadConfig(ROOT);
+    scratch = await mkdtemp(join(tmpdir(), "litecode-render-"));
+    const plan = await buildPlan(scratch, PACKS, { ...config, targets: [...TARGETS] });
+    return plan.entries;
+  })();
+  return rendered;
 }
+
+afterAll(async () => {
+  if (scratch) await rm(scratch, { recursive: true, force: true });
+});
 
 const byTarget = (entries: PlanEntry[], target: InstallTarget) => entries.filter((e) => e.harness === target);
 
-/** Claude Code's tool named on its own, e.g. "via `Agent`" — but not the `Agent:` trailer. */
-const CLAUDE_TOOL = /`Agent`/;
+/**
+ * Claude Code's tool named on its own — "via `Agent`", "the Agent tool" — but not the
+ * `Agent:` commit trailer or "Assigned Agent".
+ */
+const CLAUDE_TOOL = /`Agent`|\bAgent tool\b/;
 
 /** Wording that only makes sense on one harness, and must not leak onto the others. */
 const FOREIGN: Record<InstallTarget, RegExp[]> = {
@@ -90,4 +105,43 @@ test("a bad helper call fails the render instead of leaving a hole", () => {
   expect(() => render("{{> delegate}}", {}, "t", helpers)).toThrow("needs an agent name");
   expect(() => render("{{> delegation extra}}", {}, "t", helpers)).toThrow("takes no argument");
   expect(() => render("{{> nope}}", {}, "t", helpers)).toThrow("unknown helper");
+});
+
+test("the runner renders every pack file with its own wording and no leftover helper", async () => {
+  const { config } = await loadConfig(ROOT);
+  const packs = await Promise.all(
+    (await listPacks(PACKS)).filter((n) => config.packs.includes(n)).map(async (name) => ({ name, pack: await loadPack(PACKS, name) })),
+  );
+  const helpers = delegationHelpers("runner", packAgentNames(packs));
+  for (const { name, pack } of packs) {
+    for (const file of pack.files) {
+      const out = render(file.source, { project: config.project }, `${name}/${file.rel}`, helpers);
+      expect(out).not.toContain("{{>");
+      expect(out).not.toMatch(/`task` tool|Codex subagent/);
+    }
+  }
+});
+
+test("delegating to an agent no installed pack provides fails the render, naming the file", () => {
+  const helpers = delegationHelpers("claude-code", new Set(["reviewer"]));
+  expect(render("{{> delegate reviewer}}", {}, "t", helpers)).toContain("`reviewer`");
+  expect(render("{{> delegate general-purpose}}", {}, "t", helpers)).toContain("general-purpose");
+  expect(() => render("{{> delegate reviewr}}", {}, "agents/x.md", helpers)).toThrow(
+    "agents/x.md: {{> delegate reviewr}} names no installed agent",
+  );
+});
+
+test("inherited object members are not helpers, and malformed calls say so", () => {
+  const helpers = delegationHelpers("opencode");
+  for (const name of ["toString", "constructor", "hasOwnProperty"]) {
+    expect(() => render(`{{> ${name} x}}`, {}, "t", helpers)).toThrow(TemplateError);
+    expect(() => render(`{{> ${name} x}}`, {}, "t", helpers)).toThrow("unknown helper");
+  }
+  expect(() => render("{{> 9x}}", {}, "t", helpers)).toThrow("malformed helper call");
+});
+
+test("helper calls are never reported as required config paths", () => {
+  expect(referencedPaths("{{> delegate reviewer}} {{>delegation}} {{ > delegate x }}")).toEqual([]);
+  expect(referencedPaths("{{#each project.xs}}{{> delegate reviewer}} {{ name }}{{/each}}")).toEqual(["project.xs"]);
+  expect(referencedPaths("{{#if project.language}}{{> delegation}}{{/if}}")).toEqual(["project.language"]);
 });

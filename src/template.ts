@@ -124,14 +124,22 @@ function renderScope(tpl: string, scopes: Ctx[], where: string, helpers: Helpers
 
 const HELPER = /^>\s*([A-Za-z][\w-]*)(?:\s+(.*))?$/;
 
+function callHelper(expr: string, where: string, helpers: Helpers): string {
+  const call = HELPER.exec(expr);
+  if (!call) throw new TemplateError(`${where}: malformed helper call '{{ ${expr} }}' — expected '{{> name arg}}'`);
+  const name = call[1]!;
+  // Own properties only: `helpers.toString` & co. exist on every object and aren't helpers.
+  if (!Object.hasOwn(helpers, name)) throw new TemplateError(`${where}: unknown helper '{{> ${name}}}'`);
+  try {
+    return helpers[name]!((call[2] ?? "").trim());
+  } catch (e) {
+    throw new TemplateError(`${where}: ${(e as Error).message}`);
+  }
+}
+
 function renderLeaf(tpl: string, scopes: Ctx[], where: string, helpers: Helpers): string {
   return tpl.replace(/\{\{([^#^/][^}]*)\}\}/g, (_full, rawExpr: string) => {
-    const call = HELPER.exec(rawExpr.trim());
-    if (call) {
-      const helper = helpers[call[1]!];
-      if (!helper) throw new TemplateError(`${where}: unknown helper '{{> ${call[1]}}}'`);
-      return helper((call[2] ?? "").trim());
-    }
+    if (rawExpr.trim().startsWith(">")) return callHelper(rawExpr.trim(), where, helpers);
     const [rawPath, filter] = rawExpr.split("|").map((s) => s.trim());
     const value = lookup(rawPath ?? "", scopes);
     if (value === undefined) {

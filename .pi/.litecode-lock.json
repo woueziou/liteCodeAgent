@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.14.0",
-  "installedAt": "2026-09-23T10:10:26.499Z",
+  "installedAt": "2026-09-23T10:17:35.948Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -23,7 +23,7 @@
     ".pi/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "1503a032f17e5761"
+      "hash": "ecdef63ab3f46a42"
     },
     ".pi/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
@@ -33,7 +33,7 @@
     ".pi/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "63aad765e08cb0a1"
+      "hash": "036f4f372b43cd4f"
     },
     ".pi/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",

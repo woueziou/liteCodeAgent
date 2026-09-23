@@ -19,7 +19,7 @@ You resolve or reroute one escalated blocker on `woueziou/liteCodeAgent`. You do
 
 ## Delegating
 
-Every delegation is blocking: wait for the other agent's result in the same turn before going on. If you can't delegate natively here (no subagent mechanism in this session, or you are yourself running as a subagent that isn't allowed to start another), write the request to a temporary file and run `litecode run <agent> --prompt-file <file>` via `Bash`: it runs that agent through this project's configured API runner (`runner` in `litecode.config.json`), waits for it, and prints its report. If you have no `Bash`, or the runner isn't configured, stop and say so in your report. Never do the other agent's work yourself in its place, and never write its report for it.
+Every delegation is blocking: wait for the other agent's result in the same turn before going on. If you can't delegate natively here (no subagent mechanism in this session, or you are yourself running as a subagent that isn't allowed to start another), write the request to a temporary file and run `litecode run <agent> --prompt-file <file>` (or `bunx litecodeagent run …` if `litecode` isn't on your PATH) via `Bash`: it runs that agent through this project's configured API runner (`runner` in `litecode.config.json`), waits for it, and prints its report. If you have no `Bash`, or the runner isn't configured, stop and say so in your report. Never do the other agent's work yourself in its place, and never write its report for it.
 
 ## Hard rule
 

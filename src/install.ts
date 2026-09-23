@@ -5,7 +5,7 @@ import { selectedTargets, TARGETS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
 import { render, referencedPaths } from "./template.ts";
-import { delegationHelpers } from "./delegation.ts";
+import { delegationHelpers, packAgentNames } from "./delegation.ts";
 import { hash, readLockfile, writeLockfile, type Lockfile } from "./lockfile.ts";
 
 export type PlanEntry = {
@@ -315,8 +315,13 @@ function validateRequiredConfigPaths(
 }
 
 /** Returns all generated output paths for a source pack file. */
-function outputFiles(file: PackFile, config: Config, target: InstallTarget): { rel: string; content: string }[] {
-  const rendered = render(file.source, { project: config.project }, `${file.rel}`, delegationHelpers(target));
+function outputFiles(
+  file: PackFile,
+  config: Config,
+  target: InstallTarget,
+  agents: ReadonlySet<string>,
+): { rel: string; content: string }[] {
+  const rendered = render(file.source, { project: config.project }, `${file.rel}`, delegationHelpers(target, agents));
   const { data, body } = parseFrontmatter(rendered, file.rel);
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
   const skill = /^(skills\/.+)$/.exec(file.rel);
@@ -436,10 +441,11 @@ export async function buildPlan(projectRoot: string, packsRoot: string, config: 
     packs.flatMap(({ packName, pack }) => pack.files.map((file) => ({ ...file, packName }))),
   );
 
+  const agents = packAgentNames(packs);
   for (const targetName of targets) {
     for (const { packName, pack } of packs) {
       for (const file of pack.files) {
-        for (const output of outputFiles(file, config, targetName)) {
+        for (const output of outputFiles(file, config, targetName, agents)) {
           const rel = output.rel;
           const ownerKey = `${targetName}:${rel}`;
           const owner = seen.get(ownerKey);

@@ -21,7 +21,7 @@ The human says something like "enchaîne sur #10", "chain dispatcher and impleme
 
 ## Delegating
 
-Pi has no subagents, so every delegation here goes through `litecode run <agent> --prompt-file <file>` via `Bash`, which runs the agent through this project's configured API runner and waits for it. If the runner isn't configured, stop and say so in your report. Never do the other agent's work yourself in its place, and never write its report for it.
+Pi has no subagents, so every delegation here goes through `litecode run <agent> --prompt-file <file>` (or `bunx litecodeagent run …` if `litecode` isn't on your PATH) via `Bash`, which runs the agent through this project's configured API runner and waits for it. If the runner isn't configured, stop and say so in your report. Never do the other agent's work yourself in its place, and never write its report for it.
 
 ## Hard rule
 

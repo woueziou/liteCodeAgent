@@ -57,8 +57,11 @@ function delegate(target: RenderTarget, agent: string): string {
   }
 }
 
+/** `litecode` is on PATH only after install.sh; `bunx litecodeagent` works everywhere else. */
+const NOT_ON_PATH = " (or `bunx litecodeagent run …` if `litecode` isn't on your PATH)";
+
 const RUNNER_FALLBACK =
-  "write the request to a temporary file and run `litecode run <agent> --prompt-file <file>` via `Bash`: " +
+  `write the request to a temporary file and run \`litecode run <agent> --prompt-file <file>\`${NOT_ON_PATH} via \`Bash\`: ` +
   "it runs that agent through this project's configured API runner (`runner` in `litecode.config.json`), " +
   "waits for it, and prints its report. If you have no `Bash`, or the runner isn't configured, stop and say " +
   "so in your report";
@@ -70,8 +73,8 @@ function delegation(target: RenderTarget): string {
       return `Every delegation is a blocking \`Agent\` call: its result comes back in the same turn. ${never}`;
     case "pi":
       return (
-        "Pi has no subagents, so every delegation here goes through `litecode run <agent> --prompt-file <file>` " +
-        "via `Bash`, which runs the agent through this project's configured API runner and waits for it. " +
+        "Pi has no subagents, so every delegation here goes through `litecode run <agent> --prompt-file <file>`" +
+        `${NOT_ON_PATH} via \`Bash\`, which runs the agent through this project's configured API runner and waits for it. ` +
         `If the runner isn't configured, stop and say so in your report. ${never}`
       );
     default:
@@ -82,11 +85,23 @@ function delegation(target: RenderTarget): string {
   }
 }
 
-/** The `{{> …}}` helpers pack prompts may use, bound to one render target. */
-export function delegationHelpers(target: RenderTarget): Helpers {
+/** Names of the agents a set of packs installs (`agents/<name>.md`). */
+export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]): Set<string> {
+  return new Set(packs.flatMap(({ pack }) => pack.files.flatMap((f) => /^agents\/([^/]+)\.md$/.exec(f.rel)?.[1] ?? [])));
+}
+
+/**
+ * The `{{> …}}` helpers pack prompts may use, bound to one render target. With `agents`
+ * (the pack agents being installed), delegating to anything else — a typo, an agent from
+ * a pack that isn't installed — fails the render instead of failing at run time.
+ */
+export function delegationHelpers(target: RenderTarget, agents?: ReadonlySet<string>): Helpers {
   return {
     delegate(arg) {
       if (!AGENT_NAME.test(arg)) throw new Error(`{{> delegate}} needs an agent name, got '${arg}'`);
+      if (agents && arg !== "general-purpose" && !agents.has(arg)) {
+        throw new Error(`{{> delegate ${arg}}} names no installed agent (known: ${[...agents].sort().join(", ")})`);
+      }
       return delegate(target, arg);
     },
     delegation(arg) {
