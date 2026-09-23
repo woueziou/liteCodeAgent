@@ -1,3 +1,12 @@
+## [1.1.1](https://github.com/woueziou/liteCodeAgent/compare/v1.1.0...v1.1.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **cli:** `upgrade` no longer drops angles that simply have no skills ([cffc95c](https://github.com/woueziou/liteCodeAgent/commit/cffc95c532678ac6cb96c692ebc30714b27fe786))
+* **cli:** close upgrade's symlink escape; keep config formatting ([fd10a2d](https://github.com/woueziou/liteCodeAgent/commit/fd10a2db15bab66f3a6ab2e58817ca01a401665c))
+* untrack the node_modules symlink; harden upgrade after bug-hunter ([cc2af74](https://github.com/woueziou/liteCodeAgent/commit/cc2af74e0e1f13612104e80d4a33fb1053877600)), closes [#73](https://github.com/woueziou/liteCodeAgent/issues/73)
+
 # [1.1.0](https://github.com/woueziou/liteCodeAgent/compare/v1.0.0...v1.1.0) (2026-09-23)
 
 
