@@ -1,4 +1,8 @@
-/** Thin `gh` wrapper. All GitHub access goes through the user's existing gh auth. */
+/**
+ * Thin `gh` wrapper, with rate-limit handling. All GitHub access goes through the user's
+ * existing gh auth. Since tickets became purely local (ADR 0015), the CLI's only call is
+ * `verify-report`'s read-only `gh pr view`; agents run their own `gh pr` commands.
+ */
 
 export class GhError extends Error {}
 
@@ -11,7 +15,7 @@ export class GhError extends Error {}
  *  - a SECONDARY limit (burst/abuse throttle, keyed on the user id) tripped — the hourly
  *    counter still reads full, and the block lifts on its own within seconds to minutes.
  *
- * The second is what board commands actually hit, and it is indistinguishable from the
+ * The second is what bursts of calls actually hit, and it is indistinguishable from the
  * first by message alone. So a failed call asks `gh api rate_limit` (which is itself
  * exempt from the quota): a full remaining count means a secondary limit, which is worth
  * retrying; a drained one means waiting until the reset, which is reported rather than
@@ -38,20 +42,15 @@ function looksRateLimited(stderr: string): boolean {
   return RATE_LIMIT_PATTERNS.some((p) => p.test(stderr));
 }
 
-/** Keeps the multi-line GraphQL document out of user-facing errors. */
-function summarize(args: string[]): string {
-  return args.map((a) => (a.startsWith("query=") || a.startsWith("mutation=") ? "query=…" : a)).join(" ");
-}
-
 /** Overridable so a non-standard gh install (and the test stubs) can be pointed at. */
 function ghBin(): string {
   return process.env.LITECODE_GH_BIN || "gh";
 }
 
-async function spawnGh(args: string[], input?: string): Promise<{ stdout: string; stderr: string; code: number }> {
+async function spawnGh(args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
   const proc = Bun.spawn([ghBin(), ...args], {
     env: process.env,
-    stdin: input ? new TextEncoder().encode(input) : "ignore",
+    stdin: "ignore",
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -93,27 +92,16 @@ function backoffMs(attempt: number): number {
   return base + Math.floor(Math.random() * (unit / 2)); // jitter, so parallel agents don't resync
 }
 
-export type RunOptions = {
-  /** Called before each wait, so the CLI can tell the user why it is pausing. */
-  onRetry?: (attempt: number, waitMs: number, reason: string) => void;
-};
-
-let notify: RunOptions["onRetry"];
-
-/** Lets the CLI surface retry notices without threading options through every call site. */
-export function onGhRetry(fn: RunOptions["onRetry"]): void {
-  notify = fn;
-}
-
-async function run(args: string[], input?: string): Promise<string> {
+/** Runs `gh`, retrying a secondary rate limit with backoff; any other failure throws. */
+export async function gh(args: string[]): Promise<string> {
   let waited = 0;
 
   for (let attempt = 1; ; attempt++) {
-    const { stdout, stderr, code } = await spawnGh(args, input);
+    const { stdout, stderr, code } = await spawnGh(args);
     if (code === 0) return stdout;
 
     if (!looksRateLimited(stderr)) {
-      throw new GhError(`gh ${summarize(args)} failed (exit ${code}):\n${stderr.trim()}`);
+      throw new GhError(`gh ${args.join(" ")} failed (exit ${code}):\n${stderr.trim()}`);
     }
 
     const quota = await readQuota();
@@ -142,48 +130,7 @@ async function run(args: string[], input?: string): Promise<string> {
       );
     }
 
-    notify?.(attempt, wait, "GitHub secondary rate limit");
     waited += wait;
     await Bun.sleep(wait);
-  }
-}
-
-/**
- * Variables go through a JSON body on stdin rather than `-f name=value`, because `-f`
- * sends every value as a *string*: a list variable such as
- * `[ProjectV2SingleSelectFieldOptionInput!]!` is then rejected outright ("Expected ... to
- * be a key-value object"), which silently made creating any single-select field
- * impossible. `--input -` posts real JSON, so lists, numbers and booleans survive.
- */
-export async function graphql<T>(query: string, vars: Record<string, unknown>): Promise<T> {
-  const args = ["api", "graphql", "--input", "-"];
-  const out = await run(args, JSON.stringify({ query, variables: vars }));
-  const parsed = JSON.parse(out) as { data?: T; errors?: { message: string; type?: string }[] };
-  if (parsed.errors?.length) {
-    // A 200 response can still carry RATE_LIMITED in the error body.
-    if (parsed.errors.some((e) => e.type === "RATE_LIMITED" || looksRateLimited(e.message))) {
-      throw new RateLimitError(
-        `GitHub rate-limited this query: ${parsed.errors.map((e) => e.message).join("; ")}`,
-        null,
-      );
-    }
-    throw new GhError(`GraphQL error: ${parsed.errors.map((e) => e.message).join("; ")}`);
-  }
-  if (!parsed.data) throw new GhError("GraphQL returned no data");
-  return parsed.data;
-}
-
-export async function gh(args: string[]): Promise<string> {
-  return run(args);
-}
-
-export async function ensureAuth(): Promise<void> {
-  try {
-    await run(["auth", "status"]);
-  } catch (e) {
-    if (e instanceof RateLimitError) throw e;
-    throw new GhError(
-      `gh is not authenticated. Run \`gh auth login\` first.\n${(e as Error).message}`,
-    );
   }
 }
