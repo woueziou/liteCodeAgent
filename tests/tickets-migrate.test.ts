@@ -57,3 +57,8 @@ test("fences follow CommonMark: unclosed, longer, tilde and indented fences all 
   ];
   for (const body of cases) expect(migrateTicket(v1(body)).body).toContain("<!-- litecode:comment -->");
 });
+
+test("CRLF lines still delimit fences", () => {
+  const fenced = "```md\r\n" + block("keep").replace(/\n/g, "\r\n") + "```\r\n";
+  expect(migrateTicket(v1(`Example:\n\n${fenced}`)).body).toContain("<!-- litecode:comment -->\r\nkeep");
+});

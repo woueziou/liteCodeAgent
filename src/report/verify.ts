@@ -118,11 +118,12 @@ export type Probes = {
   /** Paths changed by commits only this branch has; `null` when git couldn't tell. */
   branchFiles(branch: string): Promise<string[] | null>;
   /**
-   * Every status the ticket currently has, wherever it lives: the primary checkout (step 2
-   * writes it there, before any worktree exists) and the branch's committed copy (later
-   * moves are written in the worktree). Empty when no ticket file matches the TICKET.
+   * The ticket's status in the primary checkout — the only copy agents write (ADR 0015).
+   * A copy committed on the branch is deliberately ignored: no agent writes there, so it
+   * only ever holds a stale status that could make a false report pass. `undefined` when
+   * no ticket file matches the TICKET.
    */
-  ticketStatuses(ticket: string, branch: string | undefined): Promise<StatusRole[]>;
+  ticketStatus(ticket: string): Promise<StatusRole | undefined>;
 };
 
 /**
@@ -197,13 +198,11 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
     );
   } else if (report.ticket) {
     const expected = EXPECTED_TICKET_STATUS[report.status];
-    const actual = await probes.ticketStatuses(report.ticket, report.branch);
-    if (actual.length === 0) {
+    const actual = await probes.ticketStatus(report.ticket);
+    if (actual === undefined) {
       warn(`no ticket file found for TICKET ${report.ticket} — its status could not be checked`);
-    } else if (expected && !actual.some((s) => expected.includes(s))) {
-      error(
-        `ticket ${report.ticket} has status '${actual.join("' / '")}', expected ${expected.join(" or ")} after ${report.status}`,
-      );
+    } else if (expected && !expected.includes(actual)) {
+      error(`ticket ${report.ticket} has status '${actual}', expected ${expected.join(" or ")} after ${report.status}`);
     }
   }
 

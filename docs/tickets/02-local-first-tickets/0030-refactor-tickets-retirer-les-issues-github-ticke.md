@@ -37,3 +37,7 @@ Changement cassant pour les utilisateurs de la CLI (`ticket sync` disparaît).
 ### 2026-09-23 — claude: seconde passe de bug-hunter
 
 La correction précédente (statut et notes commités sur la branche du ticket) introduisait 3 problèmes bloquants : `verify-report` acceptait un `blocked` jamais écrit, le `done` d'un ticket de vérification seule restait sur une branche jamais mergée, et triage ne voyait pas le blocage. Décision humaine : retour au checkout principal — les agents y écrivent statut et notes, visibles tout de suite, et l'humain commite les tickets. Également corrigé : un commentaire contenant un bloc de code n'était plus migré (détection des blocs réécrite selon CommonMark), et toute valeur `ISSUE:` est désormais traitée comme un ancien numéro GitHub.
+
+### 2026-09-23 — claude: troisième passe de bug-hunter
+
+Les 7 constats précédents sont clos. Nouveau bloquant corrigé : `verify-report` lisait aussi la copie du ticket commitée sur la branche, qu'aucun agent n'écrit plus — elle restait `planned` et faisait passer un rapport `in-progress-blocked` sans `blocked` écrit. Le statut ne vient plus que du checkout principal. Corrigé aussi : la détection des blocs de code ignorait les lignes CRLF. Reporté : des cas rares de migration (marqueur cité dans du code en ligne, bloc de code dans une citation, marqueurs déséquilibrés) — aucun ticket de ce dépôt n'est concerné.

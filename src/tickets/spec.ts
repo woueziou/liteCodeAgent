@@ -122,8 +122,9 @@ function fenceRegions(text: string): [number, number][] {
   const regions: [number, number][] = [];
   let open: { char: string; length: number; start: number } | null = null;
   let offset = 0;
-  for (const line of text.split("\n")) {
-    const lineEnd = offset + line.length + 1;
+  for (const raw of text.split("\n")) {
+    const lineEnd = offset + raw.length + 1;
+    const line = raw.replace(/\r$/, "");
     if (!open) {
       const m = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
       if (m && !(m[1]![0] === "`" && m[2]!.includes("`"))) open = { char: m[1]![0]!, length: m[1]!.length, start: offset };
