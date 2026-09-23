@@ -67,7 +67,7 @@ typing any other command (ticket 0031).
    the user can write. A path that fails either check is listed and never deleted, and
    a legacy data path that isn't a file is listed too.
 7. **Config cleanup edits the file as written**, removing only obsolete keys and keeping
-   the file's indentation. It never re-serializes the parsed config, which would add
+   the file's formatting (indentation unit, minified or not, CRLF). It never re-serializes the parsed config, which would add
    every default the user never set. A domain that loses its last skill to a removed one
    is dropped, because the schema forbids a domain with no skill. Angles are never
    dropped, since an empty skill list is normal for them, and neither is any entry that
