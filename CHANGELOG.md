@@ -1,3 +1,89 @@
+# [1.0.0](https://github.com/woueziou/liteCodeAgent/compare/v0.14.0...v1.0.0) (2026-09-23)
+
+
+* feat(packs)!: target-neutral delegation in pack prompts, runner as fallback ([8d7d549](https://github.com/woueziou/liteCodeAgent/commit/8d7d5493a3333dbf47bbac0c7d8eb06a0602c4fa)), closes [#49](https://github.com/woueziou/liteCodeAgent/issues/49)
+* feat(tickets)!: supprimer src/board/ et couper le chemin d'hydratation ([f8941d9](https://github.com/woueziou/liteCodeAgent/commit/f8941d97962887af6248036a62745df9193a3c7f))
+* refactor(tickets)!: drop GitHub issue sync, tickets are purely local ([0bda902](https://github.com/woueziou/liteCodeAgent/commit/0bda902b6927b1340a5b6398d2e32dac581188df))
+
+
+### Bug Fixes
+
+* --auto must imply --apply for hydration too, and fail loud on a stale status mapping ([a839d68](https://github.com/woueziou/liteCodeAgent/commit/a839d6872bd522a83a0e0f2b39778dd8531671f1)), closes [#27](https://github.com/woueziou/liteCodeAgent/issues/27)
+* **agents:** close the remaining gaps from bug-hunter's second pass ([26e5bdf](https://github.com/woueziou/liteCodeAgent/commit/26e5bdf4aaa787167aa2dc825df2806ad92de6ed)), closes [#48](https://github.com/woueziou/liteCodeAgent/issues/48)
+* **agents:** give review passes the worktree, close flow gaps bug-hunter found ([f57bc17](https://github.com/woueziou/liteCodeAgent/commit/f57bc17a38a113d84a4f17bcccbf275996ef184c)), closes [#48](https://github.com/woueziou/liteCodeAgent/issues/48)
+* **agents:** post reviewer verdict on the PR on every path, not just Review ([7adfa02](https://github.com/woueziou/liteCodeAgent/commit/7adfa0228de4dbb0102dcc0446cc3d20194b0b92)), closes [#34](https://github.com/woueziou/liteCodeAgent/issues/34) [#36](https://github.com/woueziou/liteCodeAgent/issues/36) [#39](https://github.com/woueziou/liteCodeAgent/issues/39) [#41](https://github.com/woueziou/liteCodeAgent/issues/41) [#42](https://github.com/woueziou/liteCodeAgent/issues/42) [#43](https://github.com/woueziou/liteCodeAgent/issues/43)
+* **agents:** require --body-file for PR verdict comments, verify they land ([47d41a5](https://github.com/woueziou/liteCodeAgent/commit/47d41a53db3a39d896b8e3920ece1c8ae94284d3)), closes [#43](https://github.com/woueziou/liteCodeAgent/issues/43) [#43](https://github.com/woueziou/liteCodeAgent/issues/43)
+* **agents:** update lockfiles for implementer.md drift, replace fabricated verdict ([e351b1e](https://github.com/woueziou/liteCodeAgent/commit/e351b1e6d53dc4ef0b150c0374edff1e5a625bad)), closes [#43](https://github.com/woueziou/liteCodeAgent/issues/43)
+* close remaining gaps from reviewer's code-review pass ([8cad278](https://github.com/woueziou/liteCodeAgent/commit/8cad27851f684b7a3015a5f2ad3807a34ed9e9f2)), closes [#27](https://github.com/woueziou/liteCodeAgent/issues/27)
+* **docs:** correct ADR 0012's epic directory names to match main, not the pending PR [#59](https://github.com/woueziou/liteCodeAgent/issues/59) rename ([768ab52](https://github.com/woueziou/liteCodeAgent/commit/768ab527858e6ff8ba8f4c39d645d044ac4cd60d))
+* **docs:** correct GitHub surface list and version-bump claim in ADR 0012 ([d86cebf](https://github.com/woueziou/liteCodeAgent/commit/d86cebff504623aa71d06162b7b3c05a76bf4caf))
+* **docs:** correct project.board schema behavior and board data-file status in ADR 0012 ([a4e56fb](https://github.com/woueziou/liteCodeAgent/commit/a4e56fbba849818d945aea6c79eff248e35b73e3))
+* **docs:** correct release status of board removal, unstale supersession pointers ([62737d3](https://github.com/woueziou/liteCodeAgent/commit/62737d30b5fed7fd8526d9ffcc51a9703dc23ebb))
+* **docs:** finish purging board language from triage.md ([75eaaf3](https://github.com/woueziou/liteCodeAgent/commit/75eaaf37d854c28fb994285ed36a9ba06b07b222))
+* **docs:** fix gh issue list attribution and sync context intro in ADR 0012 ([623394a](https://github.com/woueziou/liteCodeAgent/commit/623394a67efc2357de4a6e749b7952ba9787d10e))
+* never mark a ticket synced when its Status push was unresolved ([46d53f8](https://github.com/woueziou/liteCodeAgent/commit/46d53f8a491f24c9ee315b88fe0d153e40ab4e22)), closes [#27](https://github.com/woueziou/liteCodeAgent/issues/27)
+* **packs:** frame planner.md's PLAN/ADR_DECISIONS with project.language ([07e569d](https://github.com/woueziou/liteCodeAgent/commit/07e569d361bd8c18697374e961d1cf8192570f3f)), closes [#if](https://github.com/woueziou/liteCodeAgent/issues/if) [#42](https://github.com/woueziou/liteCodeAgent/issues/42) [#16](https://github.com/woueziou/liteCodeAgent/issues/16)
+* **packs:** harden delegation helpers after bug-hunter's pass ([1d110ee](https://github.com/woueziou/liteCodeAgent/commit/1d110ee5cac7c684c95b4bcb531670865b0e5d10)), closes [#each](https://github.com/woueziou/liteCodeAgent/issues/each) [#if](https://github.com/woueziou/liteCodeAgent/issues/if) [#49](https://github.com/woueziou/liteCodeAgent/issues/49)
+* **report:** address code-review findings on verify-report ([54614c2](https://github.com/woueziou/liteCodeAgent/commit/54614c2e6dde89feaf1deab78f7d3d1ae4b17efa)), closes [#45](https://github.com/woueziou/liteCodeAgent/issues/45)
+* **report:** read ticket status from the main checkout only; CRLF fences ([9a0d38e](https://github.com/woueziou/liteCodeAgent/commit/9a0d38e8476f92f40ea7cd35f200c43886919655))
+* **report:** tighten verify-report after review ([ca0c30a](https://github.com/woueziou/liteCodeAgent/commit/ca0c30a73a0534e65243e61c441466a07d7d9639)), closes [#45](https://github.com/woueziou/liteCodeAgent/issues/45)
+* ticket sync's exit code must reflect a per-ticket 'blocked' outcome ([2ce4b7f](https://github.com/woueziou/liteCodeAgent/commit/2ce4b7faa2a01b95f0685b0bcca9dbd212e29315)), closes [#27](https://github.com/woueziou/liteCodeAgent/issues/27)
+* **tickets:** address bug-hunter's findings on local-only tickets ([0d0974f](https://github.com/woueziou/liteCodeAgent/commit/0d0974f95e807cac427e98d226e18d054d9e614b))
+* **tickets:** address reviewer notes on ticket doctor ([116dc44](https://github.com/woueziou/liteCodeAgent/commit/116dc44ed35876a615a9b5b3a01e65e80342269a))
+* **tickets:** correct stale board/spec.ts reference in doc comment ([26f33f5](https://github.com/woueziou/liteCodeAgent/commit/26f33f5588d83112cd3f0c427d5dcb35ea92763e))
+* **tickets:** finish removing dead board onboarding from init/config ([2e54e6f](https://github.com/woueziou/liteCodeAgent/commit/2e54e6f2b50621c2fdda279d5eb65d4f85d2a9e2))
+* **tickets:** keep ticket state in the main checkout, fix fenced comments ([9e4882e](https://github.com/woueziou/liteCodeAgent/commit/9e4882ee81a968e850d36a7035209e12bbf31117))
+* **tickets:** sort ticketFiles by filename, not full joined path ([6c35fc2](https://github.com/woueziou/liteCodeAgent/commit/6c35fc28508cc5b7dfa1cd06dc0024578c49f71c))
+* **tickets:** ticketFiles walks nested epic directories recursively ([6458211](https://github.com/woueziou/liteCodeAgent/commit/64582115c5aa5607c2b3b20a9d8faeafe369eff5))
+
+
+### Features
+
+* **agents:** local-first dispatcher ranking, board hydration, and a sync-only-gh regression test ([34f6fca](https://github.com/woueziou/liteCodeAgent/commit/34f6fca5b719d3fd5730372ed6c8b5d97289a53a)), closes [#27](https://github.com/woueziou/liteCodeAgent/issues/27)
+* **agents:** move the correctness pass to a dedicated bug-hunter agent ([201d775](https://github.com/woueziou/liteCodeAgent/commit/201d775ab5cf73e9c945ab8dd3a79f28796ae5c5)), closes [#48](https://github.com/woueziou/liteCodeAgent/issues/48)
+* **agents:** widen ADR 0010, extend Status push-on-update, and enforce sync-only gh project access ([0930f8a](https://github.com/woueziou/liteCodeAgent/commit/0930f8af4ad775f360393fd9914f40354ae4e74a)), closes [#27](https://github.com/woueziou/liteCodeAgent/issues/27)
+* **dashboard:** commit the generated dashboard snapshot per owner decision ([42350ff](https://github.com/woueziou/liteCodeAgent/commit/42350ffa971be86b033b2f10e17efe538c48714e)), closes [#57](https://github.com/woueziou/liteCodeAgent/issues/57)
+* **dashboard:** generate a standalone HTML dashboard from the ticket buffer ([d581e9e](https://github.com/woueziou/liteCodeAgent/commit/d581e9eaecaf378d99f457b082b20fadbe1f48bb))
+* **packs:** optional project.language for agent prose ([934130e](https://github.com/woueziou/liteCodeAgent/commit/934130e085261b0a47e8c0978f38dac91cf5d7c5)), closes [#if](https://github.com/woueziou/liteCodeAgent/issues/if) [#16](https://github.com/woueziou/liteCodeAgent/issues/16) [#16](https://github.com/woueziou/liteCodeAgent/issues/16)
+* **packs:** update status to inProgress and adjust synced flag for language configuration ([b25de23](https://github.com/woueziou/liteCodeAgent/commit/b25de2391f3bc1c0fb1a96074aa16eed03b667ca))
+* **report:** verify an implementer's final report against git, gh and the ticket buffer ([d43162f](https://github.com/woueziou/liteCodeAgent/commit/d43162f945d70269ffda0ffe8030a23f85ca3d37)), closes [#45](https://github.com/woueziou/liteCodeAgent/issues/45)
+* **tickets:** add documentation for reviewer verdict issue in PRs ([ae7a15d](https://github.com/woueziou/liteCodeAgent/commit/ae7a15d8d6294ac9f0755f7ad49bd703ab28b4c1))
+* **tickets:** add multiple ticket documents for agent synchronization and status management ([86a98ef](https://github.com/woueziou/liteCodeAgent/commit/86a98ef295f0f23e977887ba5d1f02f2620c06fc))
+* **tickets:** litecode ticket doctor, local buffer diagnostic ([868b698](https://github.com/woueziou/liteCodeAgent/commit/868b6984c86789c6c5e758b19c1950ff01e80b20))
+* update project item IDs and mark tickets as done ([d2c1a9c](https://github.com/woueziou/liteCodeAgent/commit/d2c1a9c52642c475500638b170509200882953f7))
+* update project item IDs in GitHub data file ([020c1c5](https://github.com/woueziou/liteCodeAgent/commit/020c1c5cadeed5ae6b6ee34acf6634411aedc5b2)), closes [#27](https://github.com/woueziou/liteCodeAgent/issues/27)
+
+
+### BREAKING CHANGES
+
+* `litecode ticket sync` and the `sync` agent are
+removed; ticket files move to schema v2 (`litecode ticket migrate`).
+
+Agent: claude
+Task: 0030
+* installed prompts on codex, opencode and kilo-code
+change wording; custom pack files that relied on the automatic
+Agent rewrite must use `{{> delegate X}}` instead.
+
+Agent: claude
+* **docs:** footer) is confirmed not an ancestor of the v0.14.0 tag and
+  is still unreleased on top of it. Corrected to state it is unreleased and
+  will drive a major bump under this project's semantic-release convention
+  once it ships.
+- ADR 0001/0002/0009/0010 all still said "superseded by ADR 0012 ... not yet
+  written" — false the moment this PR lands ADR 0012. Dropped "not yet
+  written" from all four Status lines.
+
+Agent: implementer
+Task: docs/decisions ADR 0012 (local-first tickets, lot 7/9)
+* `bunx litecodeagent board init` et `bunx litecodeagent
+board doctor` disparaissent sans fenêtre de dépréciation.
+
+Lot 6/9 de l'épopée local-first-tickets (0026-feat-tickets-supprimer-src-board-et-couper-le-ch).
+
+Agent: implementer
+Task: 0026-feat-tickets-supprimer-src-board-et-couper-le-ch
+
 # [0.14.0](https://github.com/woueziou/liteCodeAgent/compare/v0.13.1...v0.14.0) (2026-09-21)
 
 
