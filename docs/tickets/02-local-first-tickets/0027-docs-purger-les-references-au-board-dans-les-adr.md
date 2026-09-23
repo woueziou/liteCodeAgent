@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0027-docs-purger-les-references-au-board-dans-les-adr
 title: docs: purger les références au board dans les ADR, prompts et skills
 label: doc
-status: readyToMerge
+status: planned
 priority: medium
 size: medium
 assignedAgent: human
@@ -34,3 +34,16 @@ Two follow-up commits added on PR #58 (https://github.com/woueziou/liteCodeAgent
 
 Status already at Ready to Merge; PR shows no merge conflicts.
 <!-- /litecode:comment -->
+
+## Réouverture — 2026-09-23
+
+Rouvert après vérification sur `main` (b160f38) : la PR #58 a purgé les ADR, la skill `github-project-sync` et le test d'invariant, mais **pas les corps de prompts**. Ceux-ci décrivent encore une mécanique qui n'existe plus depuis #55 (0026) — `sync` ne pousse que titre/corps/commentaires, jamais `status` (`src/tickets/sync.ts:1-21`, `packs/core/agents/sync.md:22`).
+
+Reste à corriger :
+
+- `packs/core/agents/implementer.md:14` — cite `src/board/spec.ts`, supprimé (le vocabulaire vit dans `src/tickets/spec.ts`).
+- `packs/core/agents/implementer.md:57`, `:67`, `:170` — « `sync` pousse le changement de Status vers le board », « l'hydratation de `sync` » : faux, le statut est purement local.
+- `packs/core/agents/implementer.md` (autres occurrences de « board item ») — le ticket se déplace dans son fichier local, pas sur un board.
+- `packs/core/agents/reviewer.md:53`, `packs/core/agents/orchestrator.md`, `packs/core/workflows/litecodeagent.md`, `packs/core/skills/idea-to-planned/SKILL.md`, `packs/core/skills/chained-implementation/SKILL.md`, `packs/core/agents/dispatcher.md` — vocabulaire « board » / « GitHub Project » à ramener au buffer local.
+- `src/tickets/store.ts:77` — commentaire citant `applyTicketHydration`, supprimé.
+- `docs/tickets/README.md` — décrit encore GitHub comme source de vérité et `status` comme pull-only (corrigé dans le même lot que cette réouverture).

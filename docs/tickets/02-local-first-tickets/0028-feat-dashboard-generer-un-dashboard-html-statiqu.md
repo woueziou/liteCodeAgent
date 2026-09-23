@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0028-feat-dashboard-generer-un-dashboard-html-statiqu
 title: feat(dashboard): générer un dashboard HTML statique depuis le buffer local
 label: feature
-status: readyToMerge
+status: done
 priority: medium
 size: large
 assignedAgent: human

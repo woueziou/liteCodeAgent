@@ -1,9 +1,11 @@
 # Local ticket buffer
 
-This directory is a **staging area**, not a second source of truth. GitHub is always
-authoritative for pipeline state (Status, Priority, Size). See
-[`docs/decisions/0001-local-ticket-buffer-and-github-sync.md`](../decisions/0001-local-ticket-buffer-and-github-sync.md)
-for the full reasoning.
+This directory is the **sole source of truth** for pipeline state (Status, Priority,
+Size). There is no GitHub Project board any more; GitHub issues only mirror a ticket's
+title, body, and comments. See
+[`docs/decisions/0012-local-ticket-buffer-as-sole-source-of-truth.md`](../decisions/0012-local-ticket-buffer-as-sole-source-of-truth.md)
+(which supersedes the "GitHub is authoritative" framing of
+[ADR 0001](../decisions/0001-local-ticket-buffer-and-github-sync.md)).
 
 ## What a ticket file is
 
@@ -29,14 +31,13 @@ syncedAt:
 Body goes here, exactly like a GitHub issue body.
 ```
 
-- `synced: false` means this file holds changes GitHub has not seen yet — it is a **dirty
-  flag**, not a state to read pipeline status from.
+- `synced: false` means this file holds a title/body change GitHub has not seen yet — it
+  is a **dirty flag**, not a state to read pipeline status from. Staged comments (below)
+  make a file dirty on their own.
 - `issue` is empty until the first successful sync creates the GitHub issue; from then on
   it never changes.
-- `status`/`priority`/`size` are only ever *pushed* to the board at creation. After that,
-  `litecode ticket sync` treats them as **pull-only**: the board wins, always. Editing
-  `status` in a file that already has an `issue` set has no effect on the board; the next
-  sync's pull step will overwrite it back to whatever GitHub says.
+- `status`/`priority`/`size` are **purely local**: edit them in place, by hand or by an
+  agent. `litecode ticket sync` never pushes them anywhere and never overwrites them.
 
 ## Staging a comment
 
@@ -55,20 +56,25 @@ This is a comment that will be posted to the issue on the next sync.
 litecode ticket new --title "..." --label bug --priority medium --size small --body "..."
 litecode ticket list
 litecode ticket sync            # dry run
-litecode ticket sync --apply    # pull, then push
+litecode ticket sync --apply    # push creations, title/body edits, staged comments
+litecode ticket doctor          # malformed / misplaced / duplicate ticket files
+litecode dashboard --build      # regenerate docs/dashboard.html
 ```
 
-## Never hand-edit `issue`, `synced`, or `syncedAt`
+## Never hand-edit `issue` or `syncedAt`
 
-Those are written by `litecode ticket sync` alone. Editing them by hand can make a file
-lie about whether GitHub has seen its content, which is exactly the failure mode this
-buffer exists to avoid.
+Those are written by `litecode ticket sync` alone. The only manual touch allowed on
+`synced` is setting it to `false` after editing the title or body of a ticket that
+already has an `issue`, so the next sync pushes the edit. Never set it to `true` by
+hand: that makes a file lie about whether GitHub has seen its content, which is exactly
+the failure mode this buffer exists to avoid.
 
 ## Migration note — flat layout retired on 2026-09-21
 
 As of 2026-09-21, ticket files moved from a flat `docs/tickets/NNNN-slug.md` layout into
-per-epic directories: `docs/tickets/<epic>/NNNN-slug.md` (epics: `local-first-tickets`,
-`pipeline-fiabilite`, `ticket-buffer`, `install-config`, `board-legacy`). The filename
+per-epic directories: `docs/tickets/<epic>/NNNN-slug.md`. Epic directories carry an
+explicit order prefix: `01-ticket-buffer`, `02-local-first-tickets`,
+`03-pipeline-fiabilite`, `04-install-config`, `05-board-legacy`. The filename
 itself did not change, only its parent directory. `ticketFiles` walks the tree
 recursively and handles both layouts, so no code change was required to read migrated
 files.

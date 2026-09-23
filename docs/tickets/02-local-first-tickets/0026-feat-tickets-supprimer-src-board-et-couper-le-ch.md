@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0026-feat-tickets-supprimer-src-board-et-couper-le-ch
 title: feat(tickets)!: supprimer src/board/ et couper le chemin d'hydratation
 label: feature
-status: inProgress
+status: done
 priority: high
 size: large
 assignedAgent: human

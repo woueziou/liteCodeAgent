@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0024-chore-tickets-migrer-les-20-tickets-a-plat-vers
 title: chore(tickets): migrer les 20 tickets à plat vers les répertoires d'epic
 label: chore
-status: review
+status: done
 priority: medium
 size: medium
 assignedAgent: human
