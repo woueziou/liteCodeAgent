@@ -36,13 +36,24 @@ export type Finding = { severity: "error" | "warn"; message: string };
 
 const KEYS = ["STATUS", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT"] as const;
 
-/** `n/a`, `none`, `none (…)` and empty all mean "the report claims nothing here". */
+/** Strips the wrapping an agent tends to add around a value: quotes, backticks, bold. */
+function unwrap(value: string): string {
+  return value.trim().replace(/^(\*\*|["'`])+|(\*\*|["'`])+$/g, "").trim();
+}
+
+/** `n/a`, `none`, either with a trailing explanation, and empty all mean "no claim". */
 function claimed(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
-  const v = value.trim().replace(/^`|`$/g, "");
-  if (v === "" || /^n\/a$/i.test(v) || /^none\b/i.test(v)) return undefined;
+  const v = unwrap(value);
+  if (v === "" || /^n\/a\b/i.test(v) || /^none\b/i.test(v)) return undefined;
   return v;
 }
+
+/**
+ * A sentinel line, tolerating the markdown an agent may wrap the block in: a list marker
+ * (`- STATUS: …`), a quote marker, or bold/backticked keys (`**STATUS:** …`).
+ */
+const SENTINEL = /^\s*(?:[-*>]\s+)?(?:\*\*|`)?([A-Z_]+):(?:\*\*|`)?\s?(.*)$/;
 
 /**
  * Reads the sentinel lines of the report's `Output` block. The first occurrence of each
@@ -52,13 +63,14 @@ function claimed(value: string | undefined): string | undefined {
  */
 export function parseReport(text: string): { report: Report } | { error: Finding } {
   const fields = new Map<string, string>();
-  for (const line of text.split("\n")) {
-    const m = /^\s*([A-Z_]+):\s?(.*)$/.exec(line);
+  for (const line of text.split(/\r?\n/)) {
+    const m = SENTINEL.exec(line);
     if (!m || !(KEYS as readonly string[]).includes(m[1]!) || fields.has(m[1]!)) continue;
     fields.set(m[1]!, m[2]!.trim());
   }
 
-  const status = fields.get("STATUS");
+  const rawStatus = fields.get("STATUS");
+  const status = rawStatus === undefined ? undefined : unwrap(rawStatus);
   if (status === undefined) {
     return { error: { severity: "error", message: "no STATUS: line — this is not an implementer report (empty or placeholder output?)" } };
   }
@@ -89,10 +101,14 @@ export type Probes = {
   prView(pr: string): Promise<PrLookup>;
   /** Uncommitted paths in the primary checkout (not the worktree). */
   dirtyFiles(): Promise<string[]>;
-  /** Paths the branch changes relative to the default branch. */
-  branchFiles(branch: string): Promise<string[]>;
-  /** `undefined` when no local ticket file matches the report's ISSUE. */
-  ticketStatus(issue: string): Promise<StatusRole | undefined>;
+  /** Paths changed by commits only this branch has; `null` when git couldn't tell. */
+  branchFiles(branch: string): Promise<string[] | null>;
+  /**
+   * Every status the ticket currently has, wherever it lives: the primary checkout (step 2
+   * writes it there, before any worktree exists) and the branch's committed copy (later
+   * moves are written in the worktree). Empty when no ticket file matches the ISSUE.
+   */
+  ticketStatuses(issue: string, branch: string | undefined): Promise<StatusRole[]>;
 };
 
 /**
@@ -102,7 +118,8 @@ export type Probes = {
  */
 const EXPECTED_TICKET_STATUS: Partial<Record<ReportStatus, StatusRole[]>> = {
   "pr-opened-for-review": ["review", "readyToMerge"],
-  "in-progress-blocked": ["blocked"],
+  // `triage` runs before the report and may resolve the blocker, moving the ticket back.
+  "in-progress-blocked": ["blocked", "planned"],
   // Verification-only path: a reviewer `approve` goes straight to `done`; a disagreement
   // means a code change after all, which is reported under a different STATUS.
   "verified-no-changes-needed": ["done"],
@@ -112,7 +129,15 @@ const EXPECTED_TICKET_STATUS: Partial<Record<ReportStatus, StatusRole[]>> = {
 
 const NEEDS_BRANCH: ReportStatus[] = ["pr-opened-for-review", "implemented-pending-github", "adr-pending-approval"];
 
-export async function verifyReport(report: Report, probes: Probes): Promise<Finding[]> {
+/** Matches `owner/repo` out of a GitHub pull request URL. */
+const PR_URL = /github\.com\/([^/\s]+\/[^/\s]+)\/pull\/\d+/i;
+
+export type VerifyOptions = {
+  /** `owner/repo` the PR must belong to; a same-named branch on a fork proves nothing. */
+  repo?: string;
+};
+
+export async function verifyReport(report: Report, probes: Probes, options: VerifyOptions = {}): Promise<Finding[]> {
   const findings: Finding[] = [];
   const error = (message: string) => findings.push({ severity: "error", message });
   const warn = (message: string) => findings.push({ severity: "warn", message });
@@ -130,7 +155,10 @@ export async function verifyReport(report: Report, probes: Probes): Promise<Find
   if (report.status === "pr-opened-for-review" && !report.pr) {
     error("STATUS pr-opened-for-review, but PR: claims no pull request");
   }
-  if (report.pr) {
+  const prRepo = report.pr ? PR_URL.exec(report.pr)?.[1] : undefined;
+  if (prRepo && options.repo && prRepo.toLowerCase() !== options.repo.toLowerCase()) {
+    error(`PR '${report.pr}' is on ${prRepo}, not on this project's repo ${options.repo}`);
+  } else if (report.pr) {
     const pr = await probes.prView(report.pr);
     if (pr.kind === "missing") {
       error(`PR '${report.pr}' does not resolve to a pull request`);
@@ -150,17 +178,21 @@ export async function verifyReport(report: Report, probes: Probes): Promise<Find
 
   if (report.issue) {
     const expected = EXPECTED_TICKET_STATUS[report.status];
-    const actual = await probes.ticketStatus(report.issue);
-    if (actual === undefined) {
+    const actual = await probes.ticketStatuses(report.issue, report.branch);
+    if (actual.length === 0) {
       warn(`no local ticket file found for ISSUE ${report.issue} — its status could not be checked`);
-    } else if (expected && !expected.includes(actual)) {
-      error(`ticket for ISSUE ${report.issue} has status '${actual}', expected ${expected.join(" or ")} after ${report.status}`);
+    } else if (expected && !actual.some((s) => expected.includes(s))) {
+      error(
+        `ticket for ISSUE ${report.issue} has status '${actual.join("' / '")}', expected ${expected.join(" or ")} after ${report.status}`,
+      );
     }
   }
 
   const dirty = await probes.dirtyFiles();
   if (dirty.length > 0) {
-    const onBranch = report.branch ? new Set(await probes.branchFiles(report.branch)) : new Set<string>();
+    const files = report.branch ? await probes.branchFiles(report.branch) : [];
+    if (files === null) warn(`could not list the files BRANCH '${report.branch}' changes — leak check is incomplete`);
+    const onBranch = new Set(files ?? []);
     const leaked = dirty.filter((p) => onBranch.has(p));
     const other = dirty.filter((p) => !onBranch.has(p));
     if (leaked.length > 0) {

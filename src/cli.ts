@@ -646,6 +646,10 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
  */
 async function cmdVerifyReport(root: string, argv: string[]): Promise<number> {
   const file = arg(argv, "--file");
+  if (!file && process.stdin.isTTY) {
+    console.log(c.red("verify-report needs a report: pass --file <path>, or pipe the report on stdin"));
+    return 1;
+  }
   const text = file ? await Bun.file(resolve(root, file)).text() : await Bun.stdin.text();
   const { config } = await loadConfig(root);
 
@@ -658,9 +662,9 @@ async function cmdVerifyReport(root: string, argv: string[]): Promise<number> {
           realProbes({
             root,
             repo: config.project.repo,
-            defaultBranch: config.project.defaultBranch,
             ticketsDir: config.project.tickets.dir,
           }),
+          { repo: config.project.repo },
         );
   const errors = findings.filter((f) => f.severity === "error").length;
 

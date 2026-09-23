@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0017-fix-agents-rien-ne-verifie-qu-un-implementer-dit
 title: fix(agents): rien ne vérifie qu'un implementer dit vrai dans son rapport final
 label: bug
-status: inProgress
+status: review
 priority: high
 size: medium
 assignedAgent: implementer
@@ -38,4 +38,17 @@ Approche retenue (choix humain, 2026-09-23) : une commande de vérification méc
 - Correctif au passage : `src/prompt.ts` prenait un lecteur sur stdin dès l'import, ce qui verrouillait stdin pour toute la CLI (`verify-report` en pipe, et `run` avec un prompt en stdin). Le lecteur est maintenant créé à la première utilisation.
 
 Hors périmètre : `CHECK_OUTPUT` n'est pas rejoué (seule son absence après une PR est signalée), et les verdicts de reviewer inventés (occurrence 3) ne sont pas détectables à partir du seul rapport.
+<!-- /litecode:comment -->
+
+<!-- litecode:comment -->
+Corrections après review (`reviewer` puis une passe `code-review` complète) :
+
+- Le statut du ticket est lu à la fois dans le checkout principal (l'étape 2 l'y écrit, avant l'existence du worktree) et dans la copie commitée sur la branche (étapes suivantes) ; il suffit qu'une des deux corresponde. Les fichiers ticket ne comptent plus comme fuite dans le checkout principal.
+- `in-progress-blocked` accepte aussi `planned` (triage peut avoir levé le blocage) ; `verified-no-changes-needed` n'accepte plus que `done`.
+- Les fichiers de la branche sont ceux des commits qu'elle est seule à avoir, plus un diff contre la branche par défaut : une branche basée sur une autre PR non mergée ne se voit plus attribuer les fichiers de sa parente. Un échec git devient un avertissement explicite au lieu d'une liste vide silencieuse.
+- Chemins non ASCII (`-z`) et fichiers non suivis listés un par un.
+- Une URL de PR sur un autre dépôt que `project.repo` est une erreur.
+- Parsing tolérant : fins de ligne CRLF, puces et gras markdown autour des clés, `"n/a"` entre guillemets ou suivi d'une explication.
+- Détection « PR introuvable » restreinte aux formulations de `gh` pour une PR ; un « not found » générique reste un avertissement.
+- Sans `--file` et sans pipe, la commande s'arrête avec un message au lieu d'attendre EOF.
 <!-- /litecode:comment -->

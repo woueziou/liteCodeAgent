@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseReport, verifyReport, type Probes, type Report } from "../src/report/verify.ts";
+import { parseReport, verifyReport, type Probes, type Report, type VerifyOptions } from "../src/report/verify.ts";
 
 const GOOD = `Some prose before the block.
 
@@ -24,13 +24,13 @@ function probes(overrides: Partial<Probes> = {}): Probes {
     prView: async () => ({ kind: "found", headRefName: "fix/verify/issue-45", state: "OPEN" }),
     dirtyFiles: async () => [],
     branchFiles: async () => ["src/a.ts"],
-    ticketStatus: async () => "review",
+    ticketStatuses: async () => ["review"],
     ...overrides,
   };
 }
 
-const errors = async (report: Report, p: Probes) =>
-  (await verifyReport(report, p)).filter((f) => f.severity === "error").map((f) => f.message);
+const errors = async (report: Report, p: Probes, options?: VerifyOptions) =>
+  (await verifyReport(report, p, options)).filter((f) => f.severity === "error").map((f) => f.message);
 
 test("a truthful report produces no findings", async () => {
   expect(await verifyReport(parsed(GOOD), probes())).toEqual([]);
@@ -97,7 +97,7 @@ test("pr-opened-for-review without a PR or a check run is an error", async () =>
 
 test("a status that implies a branch requires one", async () => {
   const r = parsed("STATUS: implemented-pending-github\nISSUE: #45\nBRANCH: n/a\nPR: none (pending GitHub)");
-  expect(await errors(r, probes({ ticketStatus: async () => "inProgress" }))).toEqual([
+  expect(await errors(r, probes({ ticketStatuses: async () => ["inProgress"] }))).toEqual([
     "STATUS implemented-pending-github implies a branch, but BRANCH: claims none",
   ]);
 });
@@ -108,28 +108,63 @@ test("a missing ISSUE is an error", async () => {
 });
 
 test("a ticket status that contradicts the reported outcome is an error", async () => {
-  expect(await errors(parsed(GOOD), probes({ ticketStatus: async () => "inProgress" }))).toEqual([
+  expect(await errors(parsed(GOOD), probes({ ticketStatuses: async () => ["inProgress"] }))).toEqual([
     "ticket for ISSUE #45 has status 'inProgress', expected review or readyToMerge after pr-opened-for-review",
   ]);
 });
 
 test("verified-no-changes-needed expects the ticket in done", async () => {
   const r = parsed("STATUS: verified-no-changes-needed\nISSUE: #45\nBRANCH: n/a\nPR: none (verification-only)");
-  expect(await errors(r, probes({ ticketStatus: async () => "review" }))).toEqual([
+  expect(await errors(r, probes({ ticketStatuses: async () => ["review"] }))).toEqual([
     "ticket for ISSUE #45 has status 'review', expected done after verified-no-changes-needed",
   ]);
 });
 
+test("in-progress-blocked accepts a ticket triage already moved back to planned", async () => {
+  const r = parsed("STATUS: in-progress-blocked\nISSUE: #45\nBRANCH: n/a");
+  expect(await errors(r, probes({ ticketStatuses: async () => ["planned"] }))).toEqual([]);
+});
+
+test("the ticket passes when any of its copies has the expected status", async () => {
+  // Step 2 leaves `inProgress` in the primary checkout; step 10 commits `review` on the branch.
+  expect(await errors(parsed(GOOD), probes({ ticketStatuses: async () => ["inProgress", "review"] }))).toEqual([]);
+});
+
 test("blocked-github-unavailable has no expected ticket status", async () => {
   const r = parsed("STATUS: blocked-github-unavailable\nISSUE: #45\nBRANCH: n/a");
-  expect(await errors(r, probes({ ticketStatus: async () => "planned" }))).toEqual([]);
+  expect(await errors(r, probes({ ticketStatuses: async () => ["planned"] }))).toEqual([]);
 });
 
 test("a ticket with no local file is only a warning", async () => {
-  const findings = await verifyReport(parsed(GOOD), probes({ ticketStatus: async () => undefined }));
+  const findings = await verifyReport(parsed(GOOD), probes({ ticketStatuses: async () => [] }));
   expect(findings).toEqual([
     { severity: "warn", message: "no local ticket file found for ISSUE #45 — its status could not be checked" },
   ]);
+});
+
+test("a PR on another repo is an error, whatever its branch", async () => {
+  const found = await errors(parsed(GOOD), probes(), { repo: "someone/else" });
+  expect(found).toEqual(["PR 'https://github.com/o/r/pull/7' is on o/r, not on this project's repo someone/else"]);
+  expect(await errors(parsed(GOOD), probes(), { repo: "O/R" })).toEqual([]);
+});
+
+test("CRLF line endings and markdown wrapping still parse", () => {
+  const r = parsed("- **STATUS:** `pr-opened-for-review`\r\n- ISSUE: #45\r\n* `BRANCH:` fix/verify/issue-45\r\n");
+  expect([r.status, r.issue, r.branch]).toEqual(["pr-opened-for-review", "#45", "fix/verify/issue-45"]);
+});
+
+test("quoted or annotated n/a counts as no claim", () => {
+  const r = parsed('STATUS: in-progress-blocked\nISSUE: #3\nBRANCH: "n/a"\nCHECK_OUTPUT: n/a (never got that far)');
+  expect([r.branch, r.checkOutput]).toEqual([undefined, undefined]);
+});
+
+test("an unknown branch file list is a warning, and nothing counts as leaked", async () => {
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({ dirtyFiles: async () => ["src/a.ts"], branchFiles: async () => null }),
+  );
+  expect(findings.map((f) => f.severity)).toEqual(["warn", "warn"]);
+  expect(findings[0]!.message).toContain("leak check is incomplete");
 });
 
 test("branch files left dirty in the primary checkout are an error; unrelated dirt is a warning", async () => {
