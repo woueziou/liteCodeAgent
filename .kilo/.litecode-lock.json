@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.14.0",
-  "installedAt": "2026-09-23T09:53:02.726Z",
+  "installedAt": "2026-09-23T09:57:16.274Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -23,7 +23,7 @@
     ".kilo/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "c5cf28fccf739c1d"
+      "hash": "228645bdfe58894b"
     },
     ".kilo/agents/tracker.md": {
       "pack": "core",
@@ -73,7 +73,7 @@
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e0c2f2ad9cd65f15"
+      "hash": "9d6922d5cb49f9dd"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",

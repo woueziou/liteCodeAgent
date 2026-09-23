@@ -37,7 +37,7 @@ Load only what the diff actually touches — don't load all of these reflexively
 {{/each}}
 {{/if}}
 3. **Obvious defects you see while reading** — report them, but you are not the correctness pass: `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
-4. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `{{ project.checkCommand }}` and report actual output{{#if project.typecheckCommands}}; run {{ project.typecheckCommands | codelist }} if any type moved{{/if}}.
+4. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `{{ project.checkCommand }}` and report actual output. If you weren't given a worktree path and the branch under review isn't what your working directory has checked out, say so in `CHECK_OUTPUT` instead of running the check against the wrong code{{#if project.typecheckCommands}}; run {{ project.typecheckCommands | codelist }} if any type moved{{/if}}.
 5. **Attribution** — per `agent-attribution` skill, if the diff includes commits made by an agent, verify the `Agent:` trailer is present.
 
 ## When you find a bug
