@@ -498,6 +498,9 @@ something rather than guessing.
 
 ## Upgrading and undoing
 
+**Coming from 0.x?** 1.0 removes the GitHub board and GitHub issue sync, and migrates
+ticket files to a new schema. Follow [`docs/upgrading-to-1.0.md`](docs/upgrading-to-1.0.md).
+
 ```bash
 bunx litecodeagent@latest install          # latest release, dry run shows the delta
 bunx litecodeagent@latest install --apply
