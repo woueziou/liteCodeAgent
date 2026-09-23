@@ -1,3 +1,15 @@
+# [1.1.0](https://github.com/woueziou/liteCodeAgent/compare/v1.0.0...v1.1.0) (2026-09-23)
+
+
+### Bug Fixes
+
+* **cli:** make `upgrade` safe to run unattended, per bug-hunter's pass ([93cf5d0](https://github.com/woueziou/liteCodeAgent/commit/93cf5d0dd54e47d8c716dd04e63e70d360fce118))
+
+
+### Features
+
+* **cli:** `litecode upgrade` brings a project up to date in one command ([b6b1fbd](https://github.com/woueziou/liteCodeAgent/commit/b6b1fbd2365645020ca439fb9a5410523906a97f))
+
 # [1.0.0](https://github.com/woueziou/liteCodeAgent/compare/v0.14.0...v1.0.0) (2026-09-23)
 
 
