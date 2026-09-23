@@ -66,8 +66,10 @@ typing any other command (ticket 0031).
    never deleted.
 7. **Config cleanup edits the file as written**, removing only obsolete keys and keeping
    the file's indentation. It never re-serializes the parsed config, which would add
-   every default the user never set. An angle or domain left with no skill is dropped,
-   because the schema forbids an empty skill list.
+   every default the user never set. A domain that loses its last skill to a removed one
+   is dropped, because the schema forbids a domain with no skill. Angles are never
+   dropped, since an empty skill list is normal for them, and neither is any entry that
+   didn't name a removed skill.
 8. **Changes apply in order and stop at the first failure**, reporting what was already
    applied.
 9. **Exit code 0 means the project ended up fully current.** Anything still pending

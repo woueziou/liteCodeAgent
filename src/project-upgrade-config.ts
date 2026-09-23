@@ -46,8 +46,10 @@ const removedSkill = (skill: unknown) => typeof skill === "string" && REMOVED_SK
 
 /**
  * Removes every removed skill from `agentSkills` lists and from each angle's and domain's
- * `skills`, and drops an angle or domain left with no skill at all — it existed only to
- * load that skill, and the schema rejects an empty list. Mutates `raw`; returns what it did.
+ * `skills`. A domain that loses its last skill is dropped: it existed only to load that
+ * skill, and the schema rejects a domain with none. An angle is never dropped — an empty
+ * skill list is normal for one — and neither is any entry that was already empty or lost
+ * nothing here. Mutates `raw`; returns what it did.
  */
 function stripRemovedSkills(raw: Json): string[] {
   const done: string[] = [];
@@ -65,9 +67,11 @@ function stripRemovedSkills(raw: Json): string[] {
     project[group] = entries.filter((entry, i) => {
       if (!isObject(entry) || !Array.isArray(entry.skills)) return true;
       const label = `project.${group}[${i}]${typeof entry.match === "string" ? ` (${entry.match})` : ""}`;
-      for (const skill of entry.skills.filter(removedSkill)) done.push(`${skill} from ${label}`);
+      const removed = entry.skills.filter(removedSkill);
+      if (removed.length === 0) return true;
+      for (const skill of removed) done.push(`${skill} from ${label}`);
       entry.skills = entry.skills.filter((skill) => !removedSkill(skill));
-      if ((entry.skills as unknown[]).length > 0) return true;
+      if (group === "angles" || (entry.skills as unknown[]).length > 0) return true;
       done.push(`${label}, left with no skill`);
       return false;
     });

@@ -295,3 +295,19 @@ test("deleting a removed skill's file also removes its now-empty folder", async 
   const { readdir } = await import("node:fs/promises");
   expect(await readdir(join(root, ".claude/skills"))).not.toContain("github-project-sync");
 });
+
+test("angles and domains that never named a removed skill are left untouched, even with no skills", async () => {
+  const root = await legacyProject();
+  await editConfig(root, (raw) => {
+    raw.project.angles.push({ name: "no-skills-angle", covers: "API contracts", triggeredBy: "src/api", skills: [] });
+    raw.project.angles.push({ name: "legacy-board-angle", covers: "old board", triggeredBy: "board", skills: ["github-project-sync"] });
+  });
+  const details = (await plan(root)).find((p) => p.id === "config")!.changes[0]!.details!;
+  expect(details.some((d) => d.includes("left with no skill"))).toBe(false);
+  expect(details.some((d) => d.includes("github-project-sync from project.angles"))).toBe(true);
+
+  await applyUpgrade(await plan(root), () => {});
+  const angles = (await Bun.file(join(root, "litecode.config.json")).json()).project.angles;
+  expect(angles.find((a: { name: string }) => a.name === "no-skills-angle").skills).toEqual([]);
+  expect(angles.find((a: { name: string }) => a.name === "legacy-board-angle").skills).toEqual([]);
+});
