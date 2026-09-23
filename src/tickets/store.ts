@@ -74,10 +74,7 @@ export async function writeTicket(root: string, ticket: Ticket): Promise<void> {
 /**
  * Like `writeTicket`, but refuses to overwrite anything already at `ticket.path` — throws
  * an `EEXIST` error instead. `createTicket` needs this to avoid two concurrent drafters
- * silently clobbering each other's file for the same id; `applyTicketHydration`
- * (`src/tickets/sync.ts`) needs the identical guarantee for the same reason (two
- * concurrent `sync` runs, or a hydration racing a concurrent `ticket new`, picking the
- * same next-id).
+ * silently clobbering each other's file for the same id.
  */
 export async function writeTicketExclusive(root: string, ticket: Ticket): Promise<void> {
   const abs = resolve(root, ticket.path);

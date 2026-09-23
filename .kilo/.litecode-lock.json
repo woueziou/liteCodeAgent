@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.14.0",
-  "installedAt": "2026-09-21T19:57:32.549Z",
+  "installedAt": "2026-09-23T08:37:29.700Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -8,7 +8,7 @@
     ".kilo/commands/litecodeagent.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "12bd46423c96e8fa"
+      "hash": "d4ee760afb3eb8da"
     },
     ".kilo/agents/synthesizer.md": {
       "pack": "core",
@@ -18,12 +18,12 @@
     ".kilo/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "31399e1cec64fa6c"
+      "hash": "7052a94e62272d80"
     },
     ".kilo/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "b14a8aeed768d7f9"
+      "hash": "aa2e212d5c8af3ba"
     },
     ".kilo/agents/tracker.md": {
       "pack": "core",
@@ -33,7 +33,7 @@
     ".kilo/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e4a20ec85dfc2986"
+      "hash": "11ed9378c244f862"
     },
     ".kilo/agents/debate-angle.md": {
       "pack": "core",
@@ -48,12 +48,12 @@
     ".kilo/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "7d4f3adaaf6cd274"
+      "hash": "cda3854f7c99fa6a"
     },
     ".kilo/agents/sync.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e5ff07a708d7ffe3"
+      "hash": "4ce79abbb5785219"
     },
     ".kilo/agents/planner.md": {
       "pack": "core",
@@ -68,7 +68,7 @@
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e4dc819ddc844499"
+      "hash": "5dc583830762599e"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
@@ -78,7 +78,7 @@
     ".kilo/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e03f3ba132da3e3d"
+      "hash": "f8080bbcc2bb260e"
     },
     ".kilo/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
@@ -88,7 +88,7 @@
     ".kilo/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "0e1e75de653a3539"
+      "hash": "0641c0da2c0c2175"
     },
     ".kilo/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",

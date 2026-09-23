@@ -23,7 +23,7 @@ la main" — et refuse d'écraser le second sans --force.
 ÉTAT : phases 1 à 5 et distribution bunx terminées, v0.7.0, 52 tests verts,
 tsc propre. Le paquet npm est prêt mais pas encore publié faute de session npm authentifiée.
 Fait : les 11 agents + 13 skills en packs, le moteur de template, install avec
-lockfile et validation des références de skills, board init/doctor (GitHub Projects),
+lockfile et validation des références de skills, board init/doctor (GitHub Projects, supprimés depuis au profit du buffer local de tickets — ADR 0012),
 init assisté avec détection du repo, `bunx litecodeagent setup`, install.sh, litecode upgrade, et installation
 native Claude Code via le marketplace embarqué (`litecode-agent@litecode`). Le runner
 direct supporte OpenAI Responses, Anthropic Messages et DeepSeek Chat Completions, avec
@@ -38,10 +38,8 @@ INVARIANTS À NE PAS CASSER
    troué est pire qu'un build qui casse.
 3. Les packs déclarent `tier: fast|balanced|reasoning`, jamais un nom de modèle.
    C'est ce qui rendra le runner multi-provider possible.
-4. board init n'ajoute JAMAIS une option à un single-select existant. L'input
-   GraphQL ne porte pas d'id d'option, donc toute mise à jour régénère tous les
-   ids et vide le Status de chaque item du board. C'est déjà arrivé en vrai.
-   La commande le signale comme blocker à corriger dans l'UI web.
+4. Le fichier ticket local est la seule source de vérité du statut (ADR 0012).
+   `sync` ne pousse que titre, corps et commentaires vers GitHub, jamais le statut.
 5. Tout ce qui est sous .claude/ et absent du lockfile appartient au projet :
    jamais lu, réécrit ni supprimé.
 
