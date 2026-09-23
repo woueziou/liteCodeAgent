@@ -30,6 +30,9 @@ async function repo(): Promise<string> {
   await sh(root, "git", "config", "user.email", "t@example.com");
   await sh(root, "git", "config", "user.name", "t");
   await sh(root, "git", "config", "core.hooksPath", "/dev/null");
+  // Scratch commits must not depend on the developer's global signing setup (an SSH or GPG
+  // signer that prompts, or is locked, fails every commit here).
+  await sh(root, "git", "config", "commit.gpgsign", "false");
   await Bun.write(join(root, "src/a.ts"), "a\n");
   await commitAll(root, "init");
   await sh(root, "git", "switch", "-q", "-c", "feat/x/issue-7");
