@@ -13,13 +13,17 @@ This skill takes an idea to a `Planned` ticket and nothing further. It never inv
 
 ## What you do
 
-1. Invoke `orchestrator` (via `Agent`, subagent_type `orchestrator`) with the raw idea, exactly as you would for a normal recommendation request.
+1. Invoke `orchestrator` (via {{> delegate orchestrator}}) with the raw idea, exactly as you would for a normal recommendation request.
 2. Read its output.
    - **If `BLOCKING_TENSION` is not "none"**: stop here. Do not invoke `tracker`. Surface the tension to the human — an unresolved tension between debate angles is exactly the kind of judgment call this pipeline was built to route to a human, not to paper over.
    - **If `SIZE` is trivial** (orchestrator skips straight to a one-paragraph description, no ADR): still proceed to `tracker` — trivial doesn't mean "not worth tracking," it means "didn't need the debate panel."
-3. Invoke `tracker` (via `Agent`, subagent_type `tracker`) with the title/body/label/size/priority derived from `orchestrator`'s output — same as the manual flow, just without a separate confirmation round-trip first. Populate the issue body with the plan/recommendation `orchestrator` returned, same as when a human manually asks for a ticket to be created.
-4. Invoke `dispatcher` (via `Agent`, subagent_type `dispatcher`) scoped to the newly created issue — same pattern as `chained-implementation`'s dispatcher step: tell it explicitly which issue to plan, not to run a full-backlog ranking pass.
+3. Invoke `tracker` (via {{> delegate tracker}}) with the title/body/label/size/priority derived from `orchestrator`'s output — same as the manual flow, just without a separate confirmation round-trip first. Populate the issue body with the plan/recommendation `orchestrator` returned, same as when a human manually asks for a ticket to be created.
+4. Invoke `dispatcher` (via {{> delegate dispatcher}}) scoped to the newly created issue — same pattern as `chained-implementation`'s dispatcher step: tell it explicitly which issue to plan, not to run a full-backlog ranking pass.
 5. Report back to the human: the ticket file path (plus the issue URL once `sync` has created it), its Status/Priority/Size, and whether it landed in `Planned` or stayed in `Backlog` (if `dispatcher` judged something else should come first — report that ranking decision, don't override it).
+
+## Delegating
+
+{{> delegation}}
 
 ## Hard rule
 

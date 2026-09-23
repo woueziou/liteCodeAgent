@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0020-fix-packs-les-corps-de-prompts-supposent-des-mec
 title: fix(packs): les corps de prompts supposent des mécanismes Claude Code sur les cinq cibles d'installation
 label: bug
-status: backlog
+status: review
 priority: medium
 size: large
 assignedAgent: human
@@ -50,3 +50,10 @@ Les chiffres ci-dessus proviennent d'un `grep` réel sur `packs/core/agents/*.md
 ---
 
 generated_by: tracker
+
+## Design retenu (choix humain, 2026-09-23) — ADR 0014
+
+- Contrat minimal d'une cible : exécuter des outils et déléguer à un sous-agent en attendant son résultat ; les skills sont optionnelles.
+- Les prompts du pack ne nomment plus aucun outil de délégation : `{{> delegate <agent>}}` et `{{> delegation}}`, traduits par cible dans `src/delegation.ts` (`Agent`, `task`, spawn par nom sur Codex, `litecode run` sur Pi). Les remplacements aveugles de `Agent` dans les renderers disparaissent : la mention `Agent:` des commits survit sur toutes les cibles, et les skills sont enfin traduites.
+- Sans délégation native, repli sur `litecode run <agent>` (runner intégré, synchrone), jamais sur une exécution en ligne ; sans `Bash` ni runner configuré, l'agent s'arrête et le dit.
+- `tests/targets-render.test.ts` rend chaque fichier du pack pour chaque cible et échoue sur toute fuite de vocabulaire d'une autre cible.

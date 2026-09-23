@@ -7,6 +7,8 @@
  *   {{^if a.b}} ... {{/if}}     include block when falsy
  *   {{#each a.b}} ... {{/each}} repeat block; inside, {{.}} is the item,
  *                               {{ field }} resolves against the item first, then the root
+ *   {{> name arg}}              call a helper supplied by the caller (e.g. the install
+ *                               target's delegation wording); an unknown helper is an error
  *
  * Anything unresolved is a hard error, never a silently empty string: a prompt with a
  * hole in it is worse than a build that fails.
@@ -15,6 +17,9 @@
 export class TemplateError extends Error {}
 
 type Ctx = Record<string, unknown>;
+
+/** Text a caller computes at render time, e.g. per install target. `arg` may be empty. */
+export type Helpers = Record<string, (arg: string) => string>;
 
 /**
  * Holds the current {{#each}} item so `{{ . }}` works for primitive items too — an item
@@ -62,9 +67,9 @@ function stringify(v: unknown, path: string, where: string): string {
 
 const BLOCK = /\{\{([#^])(if|each)\s+([^}]+?)\}\}/;
 
-function renderScope(tpl: string, scopes: Ctx[], where: string): string {
+function renderScope(tpl: string, scopes: Ctx[], where: string, helpers: Helpers): string {
   const m = BLOCK.exec(tpl);
-  if (!m) return renderLeaf(tpl, scopes, where);
+  if (!m) return renderLeaf(tpl, scopes, where, helpers);
 
   const [openTag, sigil, kind, rawPath] = m as unknown as [string, string, "if" | "each", string];
   const start = m.index;
@@ -100,7 +105,7 @@ function renderScope(tpl: string, scopes: Ctx[], where: string): string {
   let rendered = "";
   if (kind === "if") {
     const keep = sigil === "#" ? truthy(value) : !truthy(value);
-    if (keep) rendered = renderScope(body, scopes, where);
+    if (keep) rendered = renderScope(body, scopes, where, helpers);
   } else {
     if (sigil === "^") throw new TemplateError(`${where}: {{^each}} is not supported`);
     if (value !== undefined && !Array.isArray(value)) {
@@ -110,15 +115,31 @@ function renderScope(tpl: string, scopes: Ctx[], where: string): string {
       const itemScope: Ctx =
         item !== null && typeof item === "object" ? { ...(item as Ctx) } : {};
       (itemScope as Record<symbol, unknown>)[ITEM] = item;
-      rendered += renderScope(body, [itemScope, ...scopes], where);
+      rendered += renderScope(body, [itemScope, ...scopes], where, helpers);
     }
   }
 
-  return renderLeaf(before, scopes, where) + rendered + renderScope(after, scopes, where);
+  return renderLeaf(before, scopes, where, helpers) + rendered + renderScope(after, scopes, where, helpers);
 }
 
-function renderLeaf(tpl: string, scopes: Ctx[], where: string): string {
+const HELPER = /^>\s*([A-Za-z][\w-]*)(?:\s+(.*))?$/;
+
+function callHelper(expr: string, where: string, helpers: Helpers): string {
+  const call = HELPER.exec(expr);
+  if (!call) throw new TemplateError(`${where}: malformed helper call '{{ ${expr} }}' — expected '{{> name arg}}'`);
+  const name = call[1]!;
+  // Own properties only: `helpers.toString` & co. exist on every object and aren't helpers.
+  if (!Object.hasOwn(helpers, name)) throw new TemplateError(`${where}: unknown helper '{{> ${name}}}'`);
+  try {
+    return helpers[name]!((call[2] ?? "").trim());
+  } catch (e) {
+    throw new TemplateError(`${where}: ${(e as Error).message}`);
+  }
+}
+
+function renderLeaf(tpl: string, scopes: Ctx[], where: string, helpers: Helpers): string {
   return tpl.replace(/\{\{([^#^/][^}]*)\}\}/g, (_full, rawExpr: string) => {
+    if (rawExpr.trim().startsWith(">")) return callHelper(rawExpr.trim(), where, helpers);
     const [rawPath, filter] = rawExpr.split("|").map((s) => s.trim());
     const value = lookup(rawPath ?? "", scopes);
     if (value === undefined) {
@@ -144,8 +165,8 @@ function stripStandaloneTags(tpl: string): string {
   return tpl.replace(/^[ \t]*(\{\{[#^/][^}]*\}\})[ \t]*\r?\n/gm, "$1");
 }
 
-export function render(tpl: string, ctx: Ctx, where = "template"): string {
-  return renderScope(stripStandaloneTags(tpl), [ctx], where);
+export function render(tpl: string, ctx: Ctx, where = "template", helpers: Helpers = {}): string {
+  return renderScope(stripStandaloneTags(tpl), [ctx], where, helpers);
 }
 
 const LEAF = /\{\{([^#^/][^}]*)\}\}/g;
@@ -165,7 +186,8 @@ function collectPaths(tpl: string, insideEach: boolean, out: Set<string>): void 
       const rawExpr = leaf[1] ?? "";
       const [rawPath] = rawExpr.split("|").map((s) => s.trim());
       const path = (rawPath ?? "").trim();
-      if (!path || path === "." || path.startsWith("/")) continue;
+      // Helper calls (`{{> name arg}}`) are computed by the caller, not read from config.
+      if (!path || path === "." || path.startsWith("/") || path.startsWith(">")) continue;
       if (insideEach && !path.startsWith("project.")) continue;
       out.add(path);
     }

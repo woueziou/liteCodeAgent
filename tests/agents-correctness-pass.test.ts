@@ -42,7 +42,7 @@ test("the sanctioned historical mention is still there verbatim", async () => {
 
 test("implementer invokes bug-hunter alongside reviewer, and gates Ready to Merge on it", async () => {
   const implementer = (await packFiles()).find((f) => f.rel === "agents/implementer.md")!;
-  expect(implementer.source).toContain("subagent_type `bug-hunter`");
+  expect(implementer.source).toContain("{{> delegate bug-hunter}}");
   expect(implementer.source).toContain("`HUNT: complete`");
 });
 

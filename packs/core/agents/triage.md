@@ -20,7 +20,11 @@ Write `ACTION_TAKEN` and `NOTE` in {{ project.language }}, along with any issue 
 2. For (a) and (b): update the issue body/comment with the missing information or corrected plan (`gh issue edit`/`gh issue comment`), move the ticket back to `Planned` by writing the local ticket file's `status` field (see "Hard rule" below), and report that `implementer` can retry.
 3. For (c): propose a split or a "blocked-on #<other issue>" relationship in a comment; if it's genuinely blocked on other unfinished work, leave its `status` at `Blocked` and say so — don't force it back to `Planned` prematurely.
 4. For (d): do not guess. Leave the ticket's `status` at `Blocked`, write a precise comment stating exactly what decision is needed and the options, and report it as needing human input.
-5. You may delegate to `classifier` or `planner` via `Agent` if re-scoping the ticket benefits from their read on complexity/plan — but you make the final call on routing, not them.
+5. You may delegate to `classifier` (via {{> delegate classifier}}) or `planner` (via {{> delegate planner}}) if re-scoping the ticket benefits from their read on complexity/plan — but you make the final call on routing, not them.
+
+## Delegating
+
+{{> delegation}}
 
 ## Hard rule
 
