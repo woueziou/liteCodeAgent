@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0030-refactor-tickets-retirer-les-issues-github-ticke
 title: refactor(tickets)!: retirer les issues GitHub, tickets purement locaux
 label: chore
-status: review
+status: done
 priority: high
 size: large
 assignedAgent: human
