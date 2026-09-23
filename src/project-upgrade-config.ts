@@ -46,8 +46,10 @@ const removedSkill = (skill: unknown) => typeof skill === "string" && REMOVED_SK
 
 /**
  * Removes every removed skill from `agentSkills` lists and from each angle's and domain's
- * `skills`, and drops an angle or domain left with no skill at all — it existed only to
- * load that skill, and the schema rejects an empty list. Mutates `raw`; returns what it did.
+ * `skills`. A domain that loses its last skill is dropped: it existed only to load that
+ * skill, and the schema rejects a domain with none. An angle is never dropped — an empty
+ * skill list is normal for one — and neither is any entry that was already empty or lost
+ * nothing here. Mutates `raw`; returns what it did.
  */
 function stripRemovedSkills(raw: Json): string[] {
   const done: string[] = [];
@@ -64,10 +66,13 @@ function stripRemovedSkills(raw: Json): string[] {
     if (!Array.isArray(entries)) continue;
     project[group] = entries.filter((entry, i) => {
       if (!isObject(entry) || !Array.isArray(entry.skills)) return true;
-      const label = `project.${group}[${i}]${typeof entry.match === "string" ? ` (${entry.match})` : ""}`;
-      for (const skill of entry.skills.filter(removedSkill)) done.push(`${skill} from ${label}`);
+      const name = typeof entry.name === "string" ? entry.name : typeof entry.match === "string" ? entry.match : "";
+      const label = `project.${group}[${i}]${name ? ` (${name})` : ""}`;
+      const removed = entry.skills.filter(removedSkill);
+      if (removed.length === 0) return true;
+      for (const skill of removed) done.push(`${skill} from ${label}`);
       entry.skills = entry.skills.filter((skill) => !removedSkill(skill));
-      if ((entry.skills as unknown[]).length > 0) return true;
+      if (group === "angles" || (entry.skills as unknown[]).length > 0) return true;
       done.push(`${label}, left with no skill`);
       return false;
     });
@@ -89,9 +94,27 @@ export function cleanedConfig(raw: Json): Json {
   return copy;
 }
 
-/** The indentation the file already uses (tab or N spaces), so a rewrite keeps it. */
-export function indentOf(text: string): string | number {
-  const indent = /^[ \t]+(?=")/m.exec(text)?.[0];
-  if (!indent) return 2;
-  return indent.startsWith("\t") ? "\t" : indent.length;
+/**
+ * Serializes `value` close to how `original` was written, so a rewrite mostly shows the
+ * keys it removed: the file's indentation unit (the step between consecutive nesting
+ * levels it uses most), minified if it was on one line, CRLF if it had them, and its
+ * trailing newline or lack of one. Standard `JSON.stringify` layout otherwise — a
+ * hand-aligned file will still show some reformatting.
+ */
+export function formatLike(original: string, value: unknown): string {
+  const eol = original.includes("\r\n") ? "\r\n" : "\n";
+  const trailing = /\r?\n$/.test(original) ? eol : "";
+  const body = original.trim();
+  if (!body.includes("\n")) return JSON.stringify(value) + trailing;
+  const indents = [...body.matchAll(/^([ \t]*)\S/gm)].map((m) => m[1]!);
+  const indented = indents.filter((i) => i !== "");
+  const tabs = indented.filter((i) => i.includes("\t")).length > indented.length / 2;
+  const steps = new Map<number, number>();
+  for (let i = 1; i < indents.length; i++) {
+    const step = indents[i]!.length - indents[i - 1]!.length;
+    if (step > 0) steps.set(step, (steps.get(step) ?? 0) + 1);
+  }
+  const unit = [...steps].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 2;
+  const text = JSON.stringify(value, null, tabs ? "\t" : unit);
+  return text.replace(/\n/g, eol) + trailing;
 }
