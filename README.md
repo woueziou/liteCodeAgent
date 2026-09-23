@@ -351,13 +351,15 @@ with the subject in hand:
 
 - **`idea-to-planned`** — idea → orchestrator → tracker → dispatcher, no pauses.
   Stops at `Planned`; never writes code.
-- **`chained-implementation`** — dispatcher → implementer on one named issue.
+- **`chained-implementation`** — dispatcher → implementer on one named issue, then
+  checks the implementer's report with `verify-report` before relaying it.
 
 ### Keeping it healthy
 
 ```bash
 bunx litecodeagent status          # installed packs, versions, files the kit owns
 bunx litecodeagent ticket doctor   # local ticket buffer: malformed/misplaced/duplicate files
+bunx litecodeagent verify-report --file report.txt  # implementer report vs. git, gh, ticket status
 ```
 
 ---

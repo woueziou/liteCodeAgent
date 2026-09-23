@@ -16,7 +16,14 @@ export class NotInteractiveError extends Error {}
 
 let buffered = "";
 const decoder = new TextDecoder();
-const stdinReader = Bun.stdin.stream().getReader();
+/**
+ * One reader for the whole process, so input typed ahead of a later question isn't lost
+ * between prompts — but created on first use, not at import: every CLI command imports
+ * this module, and a reader grabbed eagerly locks stdin for commands that read it
+ * themselves (`run` from a pipe, `verify-report`).
+ */
+const openStdin = () => Bun.stdin.stream().getReader();
+let stdinReader: ReturnType<typeof openStdin> | undefined;
 let stdinEnded = false;
 
 async function readLine(): Promise<string> {
@@ -38,6 +45,7 @@ async function readLine(): Promise<string> {
       throw new NotInteractiveError("stdin is closed");
     }
 
+    stdinReader ??= openStdin();
     const { value, done } = await stdinReader.read();
     if (done) stdinEnded = true;
     else buffered += decoder.decode(value, { stream: true });

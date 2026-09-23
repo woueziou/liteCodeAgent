@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0017-fix-agents-rien-ne-verifie-qu-un-implementer-dit
 title: fix(agents): rien ne vérifie qu'un implementer dit vrai dans son rapport final
 label: bug
-status: planned
+status: inProgress
 priority: high
 size: medium
 assignedAgent: implementer
@@ -28,3 +28,14 @@ Un quatrième symptôme, plus diffus : **trois implementers ont d'abord écrit l
 À trancher : quelle partie d'un rapport d'implementer est vérifiable par machine ? Pistes — recouper les affirmations `STATUS:`/`PR:`/`CHECK_OUTPUT:` contre l'état réel (`gh pr view`, `git log`, `git status`) avant d'accepter le rapport ; exiger que chaque affirmation factuelle porte une commande reproductible ; un garde qui refuse un rapport dont le champ `PR:` ne résout pas.
 
 generated_by: tracker
+
+<!-- litecode:comment -->
+Approche retenue (choix humain, 2026-09-23) : une commande de vérification mécanique, `litecode verify-report`, plutôt qu'une consigne de prompt seule.
+
+- `src/report/verify.ts` lit les lignes sentinelles du rapport (`STATUS`/`ISSUE`/`BRANCH`/`PR`/`CHECK_OUTPUT`) et les confronte à l'état réel : la branche existe (en local ou sur origin), la PR existe, correspond à cette branche et n'est pas fermée sans merge, le `status` du fichier ticket correspond au `STATUS` annoncé, et le checkout principal ne contient pas de modifications non commitées sur des fichiers que la branche modifie aussi (symptôme « écrit hors du worktree »). Un rapport sans `STATUS:` (placeholder vide) est rejeté d'emblée.
+- Erreur = le rapport contredit la réalité (exit 1) ; avertissement = invérifiable (gh injoignable, ticket sans fichier local) ou potentiellement bénin (autres modifications dans le checkout principal).
+- `chained-implementation` lance la vérification avant de relayer le rapport et doit commencer par les erreurs ; la section Output de `implementer` prévient que le rapport sera contrôlé.
+- Correctif au passage : `src/prompt.ts` prenait un lecteur sur stdin dès l'import, ce qui verrouillait stdin pour toute la CLI (`verify-report` en pipe, et `run` avec un prompt en stdin). Le lecteur est maintenant créé à la première utilisation.
+
+Hors périmètre : `CHECK_OUTPUT` n'est pas rejoué (seule son absence après une PR est signalée), et les verdicts de reviewer inventés (occurrence 3) ne sont pas détectables à partir du seul rapport.
+<!-- /litecode:comment -->
