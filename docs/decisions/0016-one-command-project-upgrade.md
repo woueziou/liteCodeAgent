@@ -62,8 +62,10 @@ typing any other command (ticket 0031).
    reference them. A ticket with an unknown frontmatter key isn't migrated, and an
    invalid ticket is listed. Everything left alone is reported with the reason.
 6. **Nothing is deleted outside the project.** Every path read from the config or a
-   lockfile must resolve inside the project root. A path that doesn't is listed and
-   never deleted.
+   lockfile must stay inside the project root, both as written and once symlinks in its
+   directory are resolved. Otherwise a committed symlink could lead a deletion anywhere
+   the user can write. A path that fails either check is listed and never deleted, and
+   a legacy data path that isn't a file is listed too.
 7. **Config cleanup edits the file as written**, removing only obsolete keys and keeping
    the file's indentation. It never re-serializes the parsed config, which would add
    every default the user never set. A domain that loses its last skill to a removed one

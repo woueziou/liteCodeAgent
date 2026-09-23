@@ -10,12 +10,12 @@
  * project, and nothing a user may have edited is deleted without proof it wasn't.
  */
 
-import { readdir, rm, rmdir } from "node:fs/promises";
+import { lstat, readdir, realpath, rm, rmdir } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { CONFIG_FILENAME, ConfigSchema, TARGETS, type Config } from "./config.ts";
 import { applyPlan, buildPlan, lockPath, SKILL_ROOTS } from "./install.ts";
 import { hash, readLockfile } from "./lockfile.ts";
-import { cleanedConfig, indentOf, isObject, obsoleteConfig, REMOVED_SKILLS, type Json } from "./project-upgrade-config.ts";
+import { cleanedConfig, formatLike, isObject, obsoleteConfig, REMOVED_SKILLS, type Json } from "./project-upgrade-config.ts";
 import { listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import { CURRENT_SCHEMA_VERSION, migrateTicket, unknownKeys } from "./tickets/spec.ts";
 
@@ -41,15 +41,39 @@ type Migration = { id: string; title: string; plan: (ctx: UpgradeContext) => Pro
 
 const exists = (path: string) => Bun.file(path).exists();
 
+const isInside = (root: string, path: string) => {
+  const fromRoot = relative(root, path);
+  return fromRoot !== "" && !fromRoot.startsWith("..") && !isAbsolute(fromRoot);
+};
+
+/** The nearest existing ancestor of `path` (itself included), with symlinks resolved. */
+async function realAncestor(path: string): Promise<string> {
+  for (let dir = path; ; dir = dirname(dir)) {
+    try {
+      return await realpath(dir);
+    } catch {
+      if (dirname(dir) === dir) return dir;
+    }
+  }
+}
+
 /**
  * `rel` resolved against the project root, or `null` when it points outside it. Paths come
- * from committed files (config, lockfiles) that nobody reviews for this, so a `../` or an
- * absolute path must never reach `rm`.
+ * from committed files (config, lockfiles) that nobody reviews for this, so a `../`, an
+ * absolute path, or a symlinked directory leading out of the project must never reach
+ * `rm`. The check is made on the real location of the file's directory; the file itself
+ * may be a symlink, since `rm` removes the link, not what it points to.
  */
-function insideProject(root: string, rel: string): string | null {
+async function insideProject(root: string, rel: string): Promise<string | null> {
   const path = resolve(root, rel);
-  const fromRoot = relative(root, path);
-  return fromRoot === "" || fromRoot.startsWith("..") || isAbsolute(fromRoot) ? null : path;
+  if (!isInside(root, path)) return null;
+  const realRoot = await realAncestor(root);
+  return isInside(realRoot, join(await realAncestor(dirname(path)), relative(dirname(path), path))) ? path : null;
+}
+
+/** Removes `dir` if deleting a file left it empty, and only then. */
+async function removeIfEmpty(dir: string): Promise<void> {
+  if ((await readdir(dir)).length === 0) await rmdir(dir);
 }
 
 /**
@@ -63,8 +87,7 @@ async function deleteIfUnchanged(path: string, expected: string, rel: string): P
     throw new Error(`${rel} changed since the plan was shown; left in place`);
   }
   await rm(path);
-  const dir = dirname(path);
-  if ((await readdir(dir)).length === 0) await rmdir(dir);
+  await removeIfEmpty(dirname(path));
 }
 
 /** The re-render plan, shared by `packs` and `orphans`: orphans wait on a clean re-render. */
@@ -153,7 +176,7 @@ const removeOrphans: Migration = {
     const changes: Change[] = [];
     const skipped: Skip[] = [];
     for (const rel of candidates) {
-      const path = insideProject(ctx.root, rel);
+      const path = await insideProject(ctx.root, rel);
       if (!path) {
         skipped.push({ summary: `ignore ${rel}`, reason: "points outside the project; upgrade never deletes there" });
         continue;
@@ -232,8 +255,7 @@ const cleanConfig: Migration = {
               summary: `remove ${found.length} obsolete setting(s)`,
               details: found,
               async apply() {
-                const cleaned = JSON.stringify(cleanedConfig(raw), null, indentOf(text));
-                await Bun.write(resolve(ctx.root, CONFIG_FILENAME), `${cleaned}\n`);
+                await Bun.write(resolve(ctx.root, CONFIG_FILENAME), formatLike(text, cleanedConfig(raw)));
               },
             },
           ];
@@ -267,11 +289,20 @@ const removeLegacyData: Migration = {
     const changes: Change[] = [];
     const skipped: Skip[] = [];
     for (const rel of [...new Set([...LEGACY_DATA_FILES, ...configured])]) {
-      const path = insideProject(ctx.root, rel);
+      const path = await insideProject(ctx.root, rel);
+      const stat = path ? await lstat(path).catch(() => null) : null;
       if (!path) {
         skipped.push({ summary: `ignore ${rel}`, reason: "points outside the project; upgrade never deletes there" });
-      } else if (await exists(path)) {
-        changes.push({ summary: `delete ${rel}`, apply: () => rm(path) });
+      } else if (stat && !stat.isFile() && !stat.isSymbolicLink()) {
+        skipped.push({ summary: `keep ${rel}`, reason: "it's not a file; delete it yourself if it's the old cache" });
+      } else if (stat) {
+        changes.push({
+          summary: `delete ${rel}`,
+          async apply() {
+            await rm(path);
+            await removeIfEmpty(dirname(path));
+          },
+        });
       }
     }
     return { id: this.id, title: this.title, changes, skipped };

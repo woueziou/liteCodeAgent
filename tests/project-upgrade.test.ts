@@ -311,3 +311,63 @@ test("angles and domains that never named a removed skill are left untouched, ev
   expect(angles.find((a: { name: string }) => a.name === "no-skills-angle").skills).toEqual([]);
   expect(angles.find((a: { name: string }) => a.name === "legacy-board-angle").skills).toEqual([]);
 });
+
+test("a symlinked directory can't lead a deletion out of the project", async () => {
+  const root = await legacyProject();
+  const outside = await tempDir("litecode-outside-");
+  await Bun.write(join(outside, "victim.txt"), "keep me\n");
+  const { symlink } = await import("node:fs/promises");
+  await symlink(outside, join(root, "h"));
+  await editConfig(root, (raw) => {
+    raw.project.board.dataFile = "h/victim.txt";
+  });
+  const lock = (await readLockfile(root, lockPath("claude-code")))!;
+  lock.files["h/victim.txt"] = { pack: "core", version: "0.3.0", hash: hash("keep me\n") };
+  await writeLockfile(root, lock, lockPath("claude-code"));
+
+  const plans = await plan(root);
+  expect(plans.flatMap((p) => p.changes.map((c) => c.summary))).not.toContain("delete h/victim.txt");
+  await applyUpgrade(plans, () => {});
+  expect(await Bun.file(join(outside, "victim.txt")).text()).toBe("keep me\n");
+});
+
+test("deleting the last legacy data file removes the emptied data folder; a non-file path is reported", async () => {
+  const root = await legacyProject();
+  await applyUpgrade(await plan(root), () => {});
+  const { readdir } = await import("node:fs/promises");
+  expect(await readdir(join(root, ".claude"))).not.toContain("data");
+
+  const other = await legacyProject();
+  const { mkdir } = await import("node:fs/promises");
+  await mkdir(join(other, "cache/board"), { recursive: true });
+  await editConfig(other, (raw) => {
+    raw.project.board.dataFile = "cache/board";
+  });
+  const data = (await plan(other)).find((p) => p.id === "legacy-data")!;
+  expect(data.skipped.map((s) => s.summary)).toContain("keep cache/board");
+});
+
+test("CRLF line endings survive the config rewrite", async () => {
+  const root = await legacyProject();
+  const path = join(root, "litecode.config.json");
+  await Bun.write(path, (await Bun.file(path).text()).replace(/\n/g, "\r\n"));
+  await applyUpgrade(await plan(root), () => {});
+  const text = await Bun.file(path).text();
+  expect(text.includes("\r\n")).toBe(true);
+  expect(/[^\r]\n/.test(text)).toBe(false);
+});
+
+test("a project freshly set up with this release gets an empty upgrade plan", async () => {
+  const root = await tempDir("litecode-upgrade-fresh-");
+  await Bun.write(join(root, "package.json"), JSON.stringify({ name: "demo", scripts: { test: "bun test" } }));
+  const { init } = await import("../src/init.ts");
+  const path = await init(root, { yes: true, packsRoot: PACKS, targets: ["claude-code", "codex", "opencode", "kilo-code", "pi"] });
+  const raw = await Bun.file(path).json();
+  raw.project.repo = "demo/demo";
+  raw.project.checkCommand = "bun test";
+  await Bun.write(path, JSON.stringify(raw, null, 2) + "\n");
+  await applyPlan(root, await buildPlan(root, PACKS, ConfigSchema.parse(raw)), "1.1.0", { force: false });
+
+  const plans = await plan(root);
+  expect(plans.flatMap((p) => [...p.changes.map((c) => c.summary), ...p.skipped.map((s) => s.summary)])).toEqual([]);
+});

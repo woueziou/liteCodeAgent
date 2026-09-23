@@ -66,7 +66,8 @@ function stripRemovedSkills(raw: Json): string[] {
     if (!Array.isArray(entries)) continue;
     project[group] = entries.filter((entry, i) => {
       if (!isObject(entry) || !Array.isArray(entry.skills)) return true;
-      const label = `project.${group}[${i}]${typeof entry.match === "string" ? ` (${entry.match})` : ""}`;
+      const name = typeof entry.name === "string" ? entry.name : typeof entry.match === "string" ? entry.match : "";
+      const label = `project.${group}[${i}]${name ? ` (${name})` : ""}`;
       const removed = entry.skills.filter(removedSkill);
       if (removed.length === 0) return true;
       for (const skill of removed) done.push(`${skill} from ${label}`);
@@ -93,9 +94,16 @@ export function cleanedConfig(raw: Json): Json {
   return copy;
 }
 
-/** The indentation the file already uses (tab or N spaces), so a rewrite keeps it. */
-export function indentOf(text: string): string | number {
-  const indent = /^[ \t]+(?=")/m.exec(text)?.[0];
-  if (!indent) return 2;
-  return indent.startsWith("\t") ? "\t" : indent.length;
+/**
+ * Serializes `value` the way `original` was written, so a rewrite only shows the keys it
+ * removed: the same indentation unit (the smallest indent the file uses, tabs or spaces),
+ * minified if it was on one line, and CRLF line endings if it had them.
+ */
+export function formatLike(original: string, value: unknown): string {
+  const body = original.trim();
+  if (!body.includes("\n")) return `${JSON.stringify(value)}\n`;
+  const indents = [...body.matchAll(/^([ \t]+)\S/gm)].map((m) => m[1]!);
+  const unit = indents.reduce<string | undefined>((min, i) => (min === undefined || i.length < min.length ? i : min), undefined);
+  const text = `${JSON.stringify(value, null, unit === undefined ? 2 : unit.includes("\t") ? "\t" : unit.length)}\n`;
+  return original.includes("\r\n") ? text.replace(/\n/g, "\r\n") : text;
 }
