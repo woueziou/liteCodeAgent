@@ -75,7 +75,7 @@ test("only documented entry points mention a gh board/issue mutation in an agent
  */
 const SKILL_ITEM_MUTATION_ALLOWED: string[] = [];
 
-test("only the github-project-sync skill's reference doc mentions a gh project item-add/item-edit mutation", async () => {
+test("no pack skill mentions a gh project item-add/item-edit mutation", async () => {
   const violations: string[] = [];
   const mutationPatterns = [FORBIDDEN["gh project item-add"]!.pattern, FORBIDDEN["gh project item-edit"]!.pattern];
   for (const name of await listPacks(PACKS)) {

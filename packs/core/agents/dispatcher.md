@@ -29,7 +29,7 @@ You rank purely from the **local ticket buffer** (`{{ project.tickets.dir }}`) �
 
 1. Read the local ticket buffer (`litecode ticket list` via `Bash`, or `Read` the files directly) to get all `backlog`-status tickets with their Priority/Size/Due Date/Assigned Agent.
 2. Rank per the model above.
-3. Move the top N (caller tells you how many, default a handful) from `Backlog` to `Planned` by writing each ticket's local file — set `status: planned` and mark it dirty (`synced: false`) with `Edit`/`Write`. `sync` reads that dirty file on its next run and pushes the resulting title/body/comment changes, if any, to the issue — `status` itself is never pushed anywhere; it stays pipeline-local. You never call `gh` yourself for any reason — that is `sync`'s job alone.
+3. Move the top N (caller tells you how many, default a handful) from `Backlog` to `Planned` by writing each ticket's local file — set `status: planned` with `Edit`/`Write`. That local write is the whole move: `status` is never pushed anywhere, so leave `synced` alone — flipping it for a status-only change would only make `sync` re-send an unchanged title/body. You never call `gh` yourself for any reason — that is `sync`'s job alone.
 4. Note `Assigned Agent: implementer` in your `PLANNED` output for items you plan (informational only — it does not invoke anything, and it is not something you write anywhere else; `implementer` is triggered manually by a human).
 5. If invoked for a re-plan (human has approved reprioritizing a specific issue, e.g. after a blocking bug report from `reviewer`), update that issue's Priority/Due Date as instructed, then re-run the ranking and move it to the front of `Planned` if warranted.
 

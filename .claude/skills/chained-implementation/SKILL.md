@@ -20,4 +20,4 @@ The human says something like "enchaîne sur #10", "chain dispatcher and impleme
 
 ## Hard rule
 
-This skill is a convenience wrapper around two already-existing human-invoked steps, not a new autonomous trigger. It does not run on a timer, does not scan the board for work to pick up on its own, and does not chain onto any issue that wasn't explicitly named by the human in the current instruction.
+This skill is a convenience wrapper around two already-existing human-invoked steps, not a new autonomous trigger. It does not run on a timer, does not scan the ticket buffer for work to pick up on its own, and does not chain onto any issue that wasn't explicitly named by the human in the current instruction.

@@ -49,7 +49,7 @@
 </head>
 <body>
   <h1>Dashboard tickets — litecodeagent</h1>
-  <p class="meta">Généré le 2026-09-23T08:34:48.143Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
+  <p class="meta">Généré le 2026-09-23T08:44:54.279Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
 
   <div class="tiles"><div class="tile "><div class="tile-value">29</div><div class="tile-label">Tickets totaux</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Bloqués</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">En cours</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Prêts à merger</div></div></div>
 
@@ -60,7 +60,7 @@
     
     <section class="card">
       <h2>Répartition par statut</h2>
-      <div class="badges"><span class="badge" style="background:#e2e8f0;color:#1e293b">Backlog: 3</span> <span class="badge" style="background:#dbeafe;color:#1e3a8a">Planned: 2</span> <span class="badge" style="background:#fef3c7;color:#78350f">In Progress: 0</span> <span class="badge" style="background:#fecaca;color:#7f1d1d">Blocked: 0</span> <span class="badge" style="background:#e9d5ff;color:#581c87">Review: 0</span> <span class="badge" style="background:#bbf7d0;color:#14532b">Ready to Merge: 0</span> <span class="badge" style="background:#d1fae5;color:#065f46">Done: 24</span></div>
+      <div class="badges"><span class="badge" style="background:#e2e8f0;color:#1e293b">Backlog: 3</span> <span class="badge" style="background:#dbeafe;color:#1e3a8a">Planned: 1</span> <span class="badge" style="background:#fef3c7;color:#78350f">In Progress: 0</span> <span class="badge" style="background:#fecaca;color:#7f1d1d">Blocked: 0</span> <span class="badge" style="background:#e9d5ff;color:#581c87">Review: 1</span> <span class="badge" style="background:#bbf7d0;color:#14532b">Ready to Merge: 0</span> <span class="badge" style="background:#d1fae5;color:#065f46">Done: 24</span></div>
       <p class="note">"Ready to Merge" (0) ≠ "Done" (24) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
     </section>
     
@@ -1233,7 +1233,7 @@ Lot: 6/9
         </details>
         <details class="ticket">
           <summary>
-            <span class="badge" style="background:#dbeafe;color:#1e3a8a">planned</span>
+            <span class="badge" style="background:#e9d5ff;color:#581c87">review</span>
             <span class="ticket-id">0027-docs-purger-les-references-au-board-dans-les-adr</span>
             <span class="ticket-title">docs: purger les références au board dans les ADR, prompts et skills</span>
             <span class="tag">medium/medium</span>
@@ -1262,6 +1262,24 @@ Reste à corriger :
 - `packs/core/agents/reviewer.md:53`, `packs/core/agents/orchestrator.md`, `packs/core/workflows/litecodeagent.md`, `packs/core/skills/idea-to-planned/SKILL.md`, `packs/core/skills/chained-implementation/SKILL.md`, `packs/core/agents/dispatcher.md` — vocabulaire « board » / « GitHub Project » à ramener au buffer local.
 - `src/tickets/store.ts:77` — commentaire citant `applyTicketHydration`, supprimé.
 - `docs/tickets/README.md` — décrit encore GitHub comme source de vérité et `status` comme pull-only (corrigé dans le même lot que cette réouverture).
+
+## Complément livré — 2026-09-23
+
+Branche `docs/purge-board-refs-followup/issue-0027` (basée sur `chore/tickets-status-refresh`) :
+
+- Prompts `implementer`/`triage`/`dispatcher` : un déplacement de statut est une simple écriture locale ; plus de `synced: false` pour un changement de statut seul (cela ne faisait que renvoyer un titre/corps inchangé), plus de push de Status ni d&#39;hydratation. Glob des tickets rendu récursif (`**/*.md`) pour les répertoires d&#39;epic.
+- `implementer.md` cite `src/tickets/spec.ts` au lieu de `src/board/spec.ts` ; ADR 0010 remplacé par ADR 0012 partout où il fondait une consigne.
+- `reviewer`, `orchestrator`, workflow `litecodeagent`, skills `idea-to-planned`/`chained-implementation`, description de `pack.json` : vocabulaire « board » ramené au buffer local.
+- `skills/setup/SKILL.md` : l&#39;étape `litecode board init` (commande supprimée) devient `litecode ticket doctor`.
+- `litecode.config.json` : deux leçons propres au code GraphQL du board supprimées ; la leçon générale sur l&#39;encodage des variables `gh api graphql` conservée, reformulée.
+- `.claude/data/board.json` et `.claude/data/github-project-item-ids.json` supprimés (listés comme nettoyage restant par l&#39;ADR 0012) ; `project.board` reste dans le schéma pour la compatibilité, conformément à l&#39;ADR.
+- `HANDOFF.md` : invariant 4 (board init) remplacé par l&#39;invariant du buffer local.
+- Commentaires morts : `src/tickets/store.ts` (`applyTicketHydration`), `src/config-doctor.ts` (`board doctor`) ; titre du test de skills dans `tests/agents-sync-only-gh.test.ts`.
+- Copies installées (`.claude/`, `.kilo/`, `.pi/`) régénérées par `litecode install --apply`.
+
+Volontairement non fait : la clé `board_status` du resume-manifest (ADR 0008) est gardée telle quelle pour ne pas casser la reprise de manifests existants.
+
+`bun run check` propre, `bun test` 156 pass / 0 fail. Non passé par `reviewer`.
 </pre></div>
         </details>
         <details class="ticket">

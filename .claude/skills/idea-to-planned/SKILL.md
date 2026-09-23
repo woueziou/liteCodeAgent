@@ -1,6 +1,6 @@
 ---
 name: idea-to-planned
-description: Takes a raw idea/feature/bug report and runs it all the way to a Planned board item — orchestrator (classify/debate/plan) → tracker (create issue) → dispatcher (Backlog→Planned) — chained with no approval pause in between. Use when a human explicitly says to just "do it and dispatch it" / "handle this end to end" for a specific idea, without wanting to confirm each step. Never triggers on its own — always requires an explicit human instruction carrying the idea itself.
+description: Takes a raw idea/feature/bug report and runs it all the way to a Planned ticket — orchestrator (classify/debate/plan) → tracker (draft the ticket locally) → dispatcher (Backlog→Planned) — chained with no approval pause in between. Use when a human explicitly says to just "do it and dispatch it" / "handle this end to end" for a specific idea, without wanting to confirm each step. Never triggers on its own — always requires an explicit human instruction carrying the idea itself.
 ---
 
 # Idea to Planned
@@ -9,7 +9,7 @@ This skill removes the per-step approval pauses between classification, issue cr
 
 ## Scope — where this stops
 
-This skill takes an idea to a `Planned` board item and nothing further. It never invokes `implementer`. Writing actual code is a separate, always-human-triggered step (see `chained-implementation` for that, invoked separately by name once the ticket is ready). Do not extend this skill's reach into implementation without the human explicitly asking for that broader scope.
+This skill takes an idea to a `Planned` ticket and nothing further. It never invokes `implementer`. Writing actual code is a separate, always-human-triggered step (see `chained-implementation` for that, invoked separately by name once the ticket is ready). Do not extend this skill's reach into implementation without the human explicitly asking for that broader scope.
 
 ## What you do
 
@@ -19,7 +19,7 @@ This skill takes an idea to a `Planned` board item and nothing further. It never
    - **If `SIZE` is trivial** (orchestrator skips straight to a one-paragraph description, no ADR): still proceed to `tracker` — trivial doesn't mean "not worth tracking," it means "didn't need the debate panel."
 3. Invoke `tracker` (via `Agent`, subagent_type `tracker`) with the title/body/label/size/priority derived from `orchestrator`'s output — same as the manual flow, just without a separate confirmation round-trip first. Populate the issue body with the plan/recommendation `orchestrator` returned, same as when a human manually asks for a ticket to be created.
 4. Invoke `dispatcher` (via `Agent`, subagent_type `dispatcher`) scoped to the newly created issue — same pattern as `chained-implementation`'s dispatcher step: tell it explicitly which issue to plan, not to run a full-backlog ranking pass.
-5. Report back to the human: the issue URL, its board fields (Status/Priority/Size), and whether it landed in `Planned` or stayed in `Backlog` (if `dispatcher` judged something else should come first — report that ranking decision, don't override it).
+5. Report back to the human: the ticket file path (plus the issue URL once `sync` has created it), its Status/Priority/Size, and whether it landed in `Planned` or stayed in `Backlog` (if `dispatcher` judged something else should come first — report that ranking decision, don't override it).
 
 ## Hard rule
 

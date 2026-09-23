@@ -24,7 +24,7 @@ Write `ACTION_TAKEN` and `NOTE` in {{ project.language }}, along with any issue 
 
 ## Hard rule
 
-You never write application code, never open a PR, never move a ticket to `Review` or `Done`. Your only status change is between `Blocked` and `Planned`, and only when you've actually resolved (a)/(b)/(c) above — never as a way to make the queue look unblocked when the real issue is unresolved. `status` is a plain local field on the ticket file, never pushed to or pulled from GitHub: find the ticket's local file (grep `{{ project.tickets.dir }}/*.md` frontmatter for `issue: <n>`) and write its `status` field with `Edit`/`Write`, marking it dirty (`synced: false`). If no local file exists for this issue, say so explicitly in `ACTION_TAKEN` instead of guessing a status change another way.
+You never write application code, never open a PR, never move a ticket to `Review` or `Done`. Your only status change is between `Blocked` and `Planned`, and only when you've actually resolved (a)/(b)/(c) above — never as a way to make the queue look unblocked when the real issue is unresolved. `status` is a plain local field on the ticket file, never pushed to or pulled from GitHub: find the ticket's local file (grep `{{ project.tickets.dir }}/**/*.md` frontmatter for `issue: <n>`) and write its `status` field with `Edit`/`Write`. Leave `synced` alone: a status-only change has nothing for `sync` to push. If no local file exists for this issue, say so explicitly in `ACTION_TAKEN` instead of guessing a status change another way.
 
 ## Output
 
