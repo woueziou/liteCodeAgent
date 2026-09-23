@@ -54,11 +54,14 @@ This supersedes the GitHub-publishing parts of ADR 0001 and ADR 0012, all of ADR
   tickets: the pipeline's only `gh` calls are the pull-request ones.
 - Existing GitHub issues are left as they are. The link between a migrated ticket and its
   old issue number survives only in that ticket's git history.
-- Ticket notes and status edits are ordinary file edits. `implementer` makes them in its
-  worktree and commits them on the ticket's branch, so they're durable and show up in
-  `git log`; they reach the default branch when the PR merges — until then, the default
-  branch still shows the ticket's status from before the work started. Edits made by
-  `dispatcher` or `triage` in the main checkout are left for the human to commit.
+- Ticket notes and status edits are ordinary file edits, made by every agent in the main
+  checkout's copy of the ticket so the next agent, the dashboard and `ticket list` see
+  them immediately. No agent commits a ticket file; the human does, like any other change.
+  Until then they are uncommitted work — a `git stash` or `git checkout -- docs/tickets`
+  discards them, including an ADR draft's resume manifest. Committing them on the ticket's
+  branch instead was tried and rejected: the default branch then showed stale statuses,
+  `triage` and `dispatcher` couldn't see a blocker, and a verification-only ticket's `done`
+  never left its unmerged branch.
 - A report from a prompt installed before this change names a GitHub issue
   (`ISSUE: #45`); `verify-report` says so explicitly and skips the ticket-status check
   rather than guessing which ticket it meant.

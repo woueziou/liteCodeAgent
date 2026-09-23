@@ -33,3 +33,7 @@ Changement cassant pour les utilisateurs de la CLI (`ticket sync` disparaît).
 ### 2026-09-23 — claude: relectures
 
 `reviewer` : approve, sans constat. `bug-hunter` : HUNT complete, 6 constats non bloquants, tous corrigés — test « `ticket sync` n'existe plus » qui ne pouvait pas échouer, anciens `ISSUE: #n` confondus avec des tickets et numéros non complétés, migration qui fusionnait des commentaires et modifiait des exemples dans les blocs de code, clés de frontmatter inconnues supprimées sans prévenir, schéma futur non signalé, et notes de ticket jamais commitées (l'implementer écrit désormais statut et notes dans son worktree et les commite sur la branche).
+
+### 2026-09-23 — claude: seconde passe de bug-hunter
+
+La correction précédente (statut et notes commités sur la branche du ticket) introduisait 3 problèmes bloquants : `verify-report` acceptait un `blocked` jamais écrit, le `done` d'un ticket de vérification seule restait sur une branche jamais mergée, et triage ne voyait pas le blocage. Décision humaine : retour au checkout principal — les agents y écrivent statut et notes, visibles tout de suite, et l'humain commite les tickets. Également corrigé : un commentaire contenant un bloc de code n'était plus migré (détection des blocs réécrite selon CommonMark), et toute valeur `ISSUE:` est désormais traitée comme un ancien numéro GitHub.

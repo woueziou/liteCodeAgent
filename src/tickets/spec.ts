@@ -112,16 +112,43 @@ export function unknownKeys(source: string, path: string): string[] {
   return Object.keys(data).filter((key) => !known.has(key) && !LEGACY_KEYS.has(key));
 }
 
-/** A fenced code block, whose content is an example and must come through untouched. */
-const FENCE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm;
+/**
+ * Fenced code blocks, as `[start, end)` offsets, following CommonMark's rules closely
+ * enough for ticket bodies: a fence opens with 3+ backticks or tildes (any indentation,
+ * so fences inside list items count), closes on a line of the same character at least as
+ * long with nothing after it, and an unclosed fence runs to the end of the text.
+ */
+function fenceRegions(text: string): [number, number][] {
+  const regions: [number, number][] = [];
+  let open: { char: string; length: number; start: number } | null = null;
+  let offset = 0;
+  for (const line of text.split("\n")) {
+    const lineEnd = offset + line.length + 1;
+    if (!open) {
+      const m = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+      if (m && !(m[1]![0] === "`" && m[2]!.includes("`"))) open = { char: m[1]![0]!, length: m[1]!.length, start: offset };
+    } else {
+      const m = /^\s*(`{3,}|~{3,})\s*$/.exec(line);
+      if (m && m[1]![0] === open.char && m[1]!.length >= open.length) {
+        regions.push([open.start, Math.min(lineEnd, text.length)]);
+        open = null;
+      }
+    }
+    offset = lineEnd;
+  }
+  if (open) regions.push([open.start, text.length]);
+  return regions;
+}
+
+const insideAny = (regions: [number, number][], at: number) => regions.some(([start, end]) => at >= start && at < end);
 
 /** Applies `fn` to the text outside fenced code blocks only. */
 function outsideFences(text: string, fn: (prose: string) => string): string {
   let out = "";
   let last = 0;
-  for (const fence of text.matchAll(FENCE)) {
-    out += fn(text.slice(last, fence.index)) + fence[0];
-    last = fence.index! + fence[0].length;
+  for (const [start, end] of fenceRegions(text)) {
+    out += fn(text.slice(last, start)) + text.slice(start, end);
+    last = end;
   }
   return out + fn(text.slice(last));
 }
@@ -130,15 +157,18 @@ function outsideFences(text: string, fn: (prose: string) => string): string {
  * Rewrites a v1 ticket as v2: bumps `schemaVersion` (the legacy keys drop out on their
  * own, since `TicketSchema` doesn't know them) and unwraps each staged-comment block into
  * its own paragraph, so a comment `sync` never posted is kept rather than lost or fused
- * into the text around it. Blocks inside a fenced code block are examples, not comments,
- * and are left exactly as written.
+ * into the text around it.
+ *
+ * A block is matched on the whole body first — a comment may itself contain a fenced
+ * block, such as an ADR draft's `resume-manifest` — and is left exactly as written only
+ * when it *starts* inside a fence, where it's an example of the old format, not a comment.
  */
 export function migrateTicket(ticket: Ticket): Ticket {
-  const body = outsideFences(ticket.body, (prose) =>
-    prose
-      .replace(LEGACY_COMMENT_BLOCK, (_, text: string) => `\n\n${text.replace(/^\n+|\s+$/g, "")}\n\n`)
-      .replace(/\n{3,}/g, "\n\n"),
+  const fences = fenceRegions(ticket.body);
+  const unwrapped = ticket.body.replace(LEGACY_COMMENT_BLOCK, (block: string, text: string, at: number) =>
+    insideAny(fences, at) ? block : `\n\n${text.replace(/^\n+|\s+$/g, "")}\n\n`,
   );
+  const body = outsideFences(unwrapped, (prose) => prose.replace(/\n{3,}/g, "\n\n"));
   return { ...ticket, schemaVersion: CURRENT_SCHEMA_VERSION, body: body.replace(/^\n+/, "").trimEnd() + "\n" };
 }
 

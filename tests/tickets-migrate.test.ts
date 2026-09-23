@@ -40,3 +40,20 @@ test("an indented comment keeps its indentation, and migrating twice changes not
   expect(once.body).toBe("  indented line\n  second\n");
   expect(migrateTicket(once).body).toBe(once.body);
 });
+
+test("a comment that itself contains a fenced block (an ADR draft's resume-manifest) is unwrapped", () => {
+  const manifest = "Draft ADR.\n\n```resume-manifest\nworktree: ../w/0031\n```";
+  const out = migrateTicket(v1(`Plan.\n\n${block(manifest)}`)).body;
+  expect(out).not.toContain("litecode:comment");
+  expect(out).toBe(`Plan.\n\n${manifest}\n`);
+});
+
+test("fences follow CommonMark: unclosed, longer, tilde and indented fences all protect their content", () => {
+  const cases = [
+    "```ts\ncode\n" + block("ex"),
+    "````md\n```\n" + block("ex") + "```\n````\n",
+    "~~~\n" + block("ex") + "~~~\n",
+    "- item\n\n    ```\n    " + block("ex").replace(/\n(?=.)/g, "\n    ") + "    ```\n",
+  ];
+  for (const body of cases) expect(migrateTicket(v1(body)).body).toContain("<!-- litecode:comment -->");
+});

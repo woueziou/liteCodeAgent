@@ -186,7 +186,8 @@ test("an ISSUE: #n from an older prompt is a GitHub issue: warned about, never l
   expect(findings).toEqual([{ severity: "warn", message: expect.stringContaining("ISSUE #45 is a GitHub issue number") }]);
 });
 
-test("a report from an older prompt still names its ticket under ISSUE", () => {
-  expect(parsed("STATUS: in-progress-blocked\nISSUE: 0045\nBRANCH: n/a").ticket).toBe("0045");
-  expect(parsed("STATUS: in-progress-blocked\nTICKET: 0030\nISSUE: 0045").ticket).toBe("0030");
+test("any ISSUE value is a legacy GitHub number, `#` or not; TICKET wins when both are present", () => {
+  expect(parsed("STATUS: in-progress-blocked\nISSUE: 30\nBRANCH: n/a").legacyIssue).toBe("30");
+  const both = parsed("STATUS: in-progress-blocked\nTICKET: 0030\nISSUE: #45");
+  expect([both.ticket, both.legacyIssue]).toEqual(["0030", undefined]);
 });

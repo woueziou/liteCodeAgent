@@ -49,7 +49,7 @@
 </head>
 <body>
   <h1>Dashboard tickets — litecodeagent</h1>
-  <p class="meta">Généré le 2026-09-23T10:45:46.713Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
+  <p class="meta">Généré le 2026-09-23T12:01:49.228Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
 
   <div class="tiles"><div class="tile "><div class="tile-value">30</div><div class="tile-label">Tickets totaux</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Bloqués</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">En cours</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Prêts à merger</div></div></div>
 
@@ -1486,6 +1486,10 @@ Changement cassant pour les utilisateurs de la CLI (`ticket sync` disparaît).
 ### 2026-09-23 — claude: relectures
 
 `reviewer` : approve, sans constat. `bug-hunter` : HUNT complete, 6 constats non bloquants, tous corrigés — test « `ticket sync` n&#39;existe plus » qui ne pouvait pas échouer, anciens `ISSUE: #n` confondus avec des tickets et numéros non complétés, migration qui fusionnait des commentaires et modifiait des exemples dans les blocs de code, clés de frontmatter inconnues supprimées sans prévenir, schéma futur non signalé, et notes de ticket jamais commitées (l&#39;implementer écrit désormais statut et notes dans son worktree et les commite sur la branche).
+
+### 2026-09-23 — claude: seconde passe de bug-hunter
+
+La correction précédente (statut et notes commités sur la branche du ticket) introduisait 3 problèmes bloquants : `verify-report` acceptait un `blocked` jamais écrit, le `done` d&#39;un ticket de vérification seule restait sur une branche jamais mergée, et triage ne voyait pas le blocage. Décision humaine : retour au checkout principal — les agents y écrivent statut et notes, visibles tout de suite, et l&#39;humain commite les tickets. Également corrigé : un commentaire contenant un bloc de code n&#39;était plus migré (détection des blocs réécrite selon CommonMark), et toute valeur `ISSUE:` est désormais traitée comme un ancien numéro GitHub.
 </pre></div>
         </details></div>
     </section>

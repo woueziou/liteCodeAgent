@@ -28,7 +28,7 @@ export type Report = {
   status: ReportStatus;
   ticket: string | undefined;
   /**
-   * Set when the ticket came from a pre-ADR-0015 `ISSUE: #n` line: that `n` is a GitHub
+   * Set when the ticket came from a pre-ADR-0015 `ISSUE:` line: its value is a GitHub
    * issue number, which names no ticket file, so it must not be looked up as one.
    */
   legacyIssue?: string;
@@ -99,9 +99,10 @@ export function parseReport(text: string): { report: Report } | { error: Finding
 
 function ticketField(fields: Map<string, string>): Pick<Report, "ticket" | "legacyIssue"> {
   if (fields.has("TICKET")) return { ticket: claimed(fields.get("TICKET")) };
+  // The old prompt only ever wrote a GitHub issue number under ISSUE, `#` or not: looking
+  // it up as a ticket number would match an unrelated ticket.
   const issue = claimed(fields.get("ISSUE"));
-  if (issue && /^#\d+$/.test(issue)) return { ticket: issue, legacyIssue: issue };
-  return { ticket: issue };
+  return issue ? { ticket: issue, legacyIssue: issue } : { ticket: undefined };
 }
 
 export type PrLookup =
