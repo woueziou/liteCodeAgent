@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0016-fix-agents-l-invariant-sync-only-gh-n-est-verifi
 title: fix(agents): l'invariant sync-only-gh n'est vérifié que sur les prompts, jamais à l'exécution
 label: bug
@@ -8,9 +8,6 @@ priority: medium
 size: medium
 assignedAgent: human
 dueDate: 
-issue: 44
-synced: false
-syncedAt: 2026-09-21T15:36:13.172Z
 ---
 
 > **Recadré le 2026-09-23** après la suppression du board (PR #55, 0026) et le rétrécissement de l'invariant (PR #56, 0029). `gh project` n'est plus une capacité : il n'y a plus de board. Le texte d'origine est conservé plus bas pour l'historique.

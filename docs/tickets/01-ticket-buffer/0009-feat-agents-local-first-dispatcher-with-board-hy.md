@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0009-feat-agents-local-first-dispatcher-with-board-hy
 title: feat(agents): local-first dispatcher with board hydration, and enforce the sync-only-gh invariant
 label: feature
@@ -8,9 +8,6 @@ priority: medium
 size: large
 assignedAgent: implementer
 dueDate: 
-issue: 27
-synced: true
-syncedAt: 2026-09-21T15:35:39.222Z
 ---
 
 The local ticket buffer becomes the pipeline's source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls. This work also enforces the "only `sync` talks to gh" invariant at runtime — removing direct gh/Bash board access from all agents.

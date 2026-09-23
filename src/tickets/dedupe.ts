@@ -1,13 +1,10 @@
 /**
- * Anti-duplicate guard for `litecode ticket new`.
+ * Anti-duplicate guard for `litecode ticket new`: compares a proposed title against every
+ * existing ticket before the file is written.
  *
- * The incident this exists for: a local ticket file without an `issue:` field is *by
- * definition* treated as a creation by `planTicketSync` (see src/tickets/sync.ts). Nothing
- * upstream of that ever asked whether the subject was already tracked, so two tickets
- * describing work GitHub already had open (#18/#19) got synced as brand-new duplicate
- * issues (#21/#22). This module runs at draft time, before a ticket file is even written,
- * and compares the proposed title against every existing local ticket and every open board
- * issue.
+ * It exists because two tickets once described work that was already tracked and were
+ * filed again as brand-new duplicates. Nothing upstream had asked whether the subject was
+ * already covered; this check does, at draft time.
  *
  * The matching criterion is deliberately simple and explainable rather than an opaque
  * score: normalize away conventional-commit prefixes/punctuation/case, then either (a) an
@@ -17,13 +14,11 @@
  * fixtures — no ML, no external service.
  */
 
-import { gh } from "../gh.ts";
-
-export type DedupeSource = "local" | "issue";
+export type DedupeSource = "local";
 
 export type DedupeCandidate = {
   source: DedupeSource;
-  /** Local ticket id (e.g. "0004-...") or issue number, stringified. */
+  /** Local ticket id, e.g. "0004-...". */
   ref: string;
   title: string;
 };
@@ -117,22 +112,4 @@ export function findDuplicate(
 /** Dedupe candidates drawn from the local ticket buffer, keyed by their file id. */
 export function localDedupeCandidates(tickets: { id: string; title: string }[]): DedupeCandidate[] {
   return tickets.map((t) => ({ source: "local", ref: t.id, title: t.title }));
-}
-
-/**
- * Dedupe candidates drawn from the board's open issues — the half of the incident that a
- * local-only check would miss: #18/#19 were open issues with no local ticket file at all,
- * so comparing against local tickets alone would not have caught the duplicate created for
- * them.
- */
-export async function fetchOpenIssueDedupeCandidates(repo: string): Promise<DedupeCandidate[]> {
-  const stdout = await gh([
-    "issue", "list",
-    "--repo", repo,
-    "--state", "open",
-    "--json", "number,title",
-    "--limit", "500",
-  ]);
-  const issues = JSON.parse(stdout) as { number: number; title: string }[];
-  return issues.map((i) => ({ source: "issue", ref: String(i.number), title: i.title }));
 }

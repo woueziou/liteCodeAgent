@@ -96,29 +96,29 @@ test("a skill provided only as a local overlay is accepted", async () => {
 
 test("a config missing an agentSkills key a pack requires fails pre-flight with an actionable error, not a raw TemplateError", async () => {
   const config = await exampleConfig();
-  delete (config.project.agentSkills as Record<string, string[]>).sync;
+  delete (config.project.agentSkills as Record<string, string[]>).tracker;
   const error = await buildPlan(await targetRepo(), PACKS, config).catch((e) => e);
   expect(error).toBeInstanceOf(Error);
   expect(error.message).not.toMatch(/is not defined in the project config/);
-  expect(error.message).toMatch(/project\.agentSkills\.sync/);
-  expect(error.message).toMatch(/agents\/sync\.md/);
+  expect(error.message).toMatch(/project\.agentSkills\.tracker/);
+  expect(error.message).toMatch(/agents\/tracker\.md/);
   expect(error.message).toMatch(/config doctor --fix/);
 });
 
 test("a typo'd agentSkills key does not mask the real missing key", async () => {
   const config = await exampleConfig();
   const skills = config.project.agentSkills as Record<string, string[]>;
-  skills.agentSkils = skills.sync ?? [];
-  delete skills.sync;
-  await expect(buildPlan(await targetRepo(), PACKS, config)).rejects.toThrow(/project\.agentSkills\.sync/);
+  skills.agentSkils = skills.tracker ?? [];
+  delete skills.tracker;
+  await expect(buildPlan(await targetRepo(), PACKS, config)).rejects.toThrow(/project\.agentSkills\.tracker/);
 });
 
 test("nothing is written when pre-flight config validation fails", async () => {
   const config = await exampleConfig();
-  delete (config.project.agentSkills as Record<string, string[]>).sync;
+  delete (config.project.agentSkills as Record<string, string[]>).tracker;
   const root = await targetRepo();
   await expect(buildPlan(root, PACKS, config)).rejects.toThrow();
-  expect(await Bun.file(join(root, ".claude", "agents", "sync.md")).exists()).toBe(false);
+  expect(await Bun.file(join(root, ".claude", "agents", "tracker.md")).exists()).toBe(false);
 });
 
 test("renders native agents and the discussion-to-plan command for every configured harness", async () => {
@@ -185,5 +185,5 @@ test("nothing is written when project.web pre-flight validation fails", async ()
   delete (config.project as { web?: unknown }).web;
   const root = await targetRepo();
   await expect(buildPlan(root, PACKS, config)).rejects.toThrow();
-  expect(await Bun.file(join(root, ".claude", "agents", "sync.md")).exists()).toBe(false);
+  expect(await Bun.file(join(root, ".claude", "agents", "tracker.md")).exists()).toBe(false);
 });

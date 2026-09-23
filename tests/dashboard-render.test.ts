@@ -6,7 +6,7 @@ import type { Ticket } from "../src/tickets/spec.ts";
 
 function fixture(overrides: Partial<Ticket> = {}): Ticket {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: "0001-x",
     title: "Ticket 0001-x",
     label: "chore",
@@ -15,12 +15,8 @@ function fixture(overrides: Partial<Ticket> = {}): Ticket {
     size: "medium",
     assignedAgent: "human",
     dueDate: undefined,
-    issue: undefined,
-    synced: false,
-    syncedAt: undefined,
     path: "docs/tickets/0001-x.md",
     body: "Body.\n",
-    pendingComments: [],
     ...overrides,
   };
 }

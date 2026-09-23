@@ -123,7 +123,6 @@ export function deriveAgentSkills(
     triage: [],
     dispatcher: [],
     tracker: attribution,
-    sync: attribution,
   };
 }
 

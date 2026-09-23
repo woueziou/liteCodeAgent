@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0026-feat-tickets-supprimer-src-board-et-couper-le-ch
 title: feat(tickets)!: supprimer src/board/ et couper le chemin d'hydratation
 label: feature
@@ -8,9 +8,6 @@ priority: high
 size: large
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
 ---
 
 **Atomic lot** — an intermediate state where `sync.ts` still imports `board/*` while `board/` is gone will not compile. Deliver in one PR, with no further subdivision.

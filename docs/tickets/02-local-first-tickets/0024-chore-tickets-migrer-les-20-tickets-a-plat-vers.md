@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0024-chore-tickets-migrer-les-20-tickets-a-plat-vers
 title: chore(tickets): migrer les 20 tickets à plat vers les répertoires d'epic
 label: chore
@@ -8,9 +8,6 @@ priority: medium
 size: medium
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
 ---
 
 One-time data migration, not source code. Move the 20 existing `docs/tickets/NNNN-xxx.md` files to `docs/tickets/<epic>/NNNN-xxx.md`.
@@ -29,7 +26,6 @@ One-time data migration, not source code. Move the 20 existing `docs/tickets/NNN
 Epic: local-first-tickets
 Lot: 4/9
 
-<!-- litecode:comment -->
 PR #54 opened, `reviewer` invoked. VERDICT: changes-requested (procedural cap only — no code defect found).
 
 FINDINGS:
@@ -41,5 +37,3 @@ PLAN_FIDELITY: matches — diff does exactly what the PR description and this ti
 REENTRY: no code defect to fix. Either (a) re-run review with a Monitor-capable session so the code-review skill sub-pass can complete, or (b) a human explicitly accepts the manual verification as sufficient for this low-risk, docs-only migration and waives the automated sub-pass, upgrading the verdict to approve with no further diff changes needed.
 
 Full verdict posted verbatim on the PR: https://github.com/woueziou/liteCodeAgent/pull/54#issuecomment-5764802147
-<!-- /litecode:comment -->
-

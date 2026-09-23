@@ -2,7 +2,7 @@
 
 import { readdir, mkdir, open } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
-import { parseTicket, serializeTicket, slugify, type Ticket, type TicketMeta } from "./spec.ts";
+import { CURRENT_SCHEMA_VERSION, parseTicket, serializeTicket, slugify, type Ticket, type TicketMeta } from "./spec.ts";
 
 export function ticketsDir(root: string, dir: string): string {
   return resolve(root, dir);
@@ -41,7 +41,7 @@ export type TicketListing = { tickets: Ticket[]; errors: TicketLoadError[] };
 
 /**
  * A malformed ticket file (hand-edited into an invalid shape, or half-written by a
- * crashed process) must not take down the listing for every other ticket — `sync`/`list`
+ * crashed process) must not take down the listing for every other ticket — `list`/`doctor`/`migrate`
  * need to keep working for the tickets that do parse, and surface the bad one as an
  * error the caller can report instead of an uncaught throw.
  */
@@ -89,16 +89,13 @@ export async function writeTicketExclusive(root: string, ticket: Ticket): Promis
   }
 }
 
-/**
- * Numbers are local file identity only — deliberately not GitHub issue numbers, which do
- * not exist yet at draft time and are assigned by GitHub on sync.
- */
+/** Ticket numbers are the tickets' own identity: sequential within the tickets directory. */
 export function nextNumber(existing: Ticket[]): number {
   const highest = existing.reduce((max, t) => Math.max(max, Number(t.id.slice(0, 4))), 0);
   return highest + 1;
 }
 
-export type NewTicket = Omit<Partial<TicketMeta>, "id" | "issue" | "synced" | "syncedAt"> & {
+export type NewTicket = Omit<Partial<TicketMeta>, "id" | "schemaVersion"> & {
   title: string;
   label: TicketMeta["label"];
   body: string;
@@ -120,7 +117,7 @@ export async function createTicket(root: string, dir: string, input: NewTicket):
     const existing = await listTickets(root, dir);
     const id = `${String(nextNumber(existing)).padStart(4, "0")}-${slugify(input.title)}`;
     const ticket: Ticket = {
-      schemaVersion: 1,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       id,
       title: input.title,
       label: input.label,
@@ -129,12 +126,8 @@ export async function createTicket(root: string, dir: string, input: NewTicket):
       size: input.size ?? "medium",
       assignedAgent: input.assignedAgent ?? "human",
       dueDate: input.dueDate,
-      issue: undefined,
-      synced: false,
-      syncedAt: undefined,
       path: join(dir, `${id}.md`),
       body: input.body.trimEnd() + "\n",
-      pendingComments: [],
     };
 
     try {

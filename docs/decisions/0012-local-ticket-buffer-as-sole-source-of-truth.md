@@ -8,6 +8,11 @@ task: "local-first tickets epic (lot 7/9)"
 Status: proposed
 Date: 2026-09-21
 
+> **Partly superseded (2026-09-23) by ADR 0015.** The local ticket file stays the sole
+> source of truth, but GitHub issues are no longer a place tickets are published to:
+> `sync`, `ticket sync` and the `issue`/`synced` fields are gone. The text below is the
+> historical record.
+
 ## Context
 
 The local-first tickets epic removed the GitHub Project board entirely: `src/board/`

@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0025-feat-tickets-litecode-ticket-doctor-diagnostic-l
 title: feat(tickets): litecode ticket doctor, diagnostic local du buffer
 label: feature
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
 ---
 
 Build a local diagnostic tool before eliminating its board-based predecessor. `litecode board doctor` is today the **only** operator diagnostic tool; it must have a local equivalent **before** being deleted, never after.

@@ -2,6 +2,3 @@ node_modules/
 bun.lockb
 *.log
 .DS_Store
-# Default tickets.autoStateFile (config.ts); a project overriding that path must add its
-# own entry here — this ignore only covers the default.
-.claude/data/ticket-sync-auto-state.json

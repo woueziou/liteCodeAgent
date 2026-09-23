@@ -26,7 +26,12 @@ export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export type Report = {
   status: ReportStatus;
-  issue: string | undefined;
+  ticket: string | undefined;
+  /**
+   * Set when the ticket came from a pre-ADR-0015 `ISSUE:` line: its value is a GitHub
+   * issue number, which names no ticket file, so it must not be looked up as one.
+   */
+  legacyIssue?: string;
   branch: string | undefined;
   pr: string | undefined;
   checkOutput: string | undefined;
@@ -34,7 +39,8 @@ export type Report = {
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
-const KEYS = ["STATUS", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT"] as const;
+/** `ISSUE` is the pre-ADR-0015 name of `TICKET`, still read from older installed prompts. */
+const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT"] as const;
 
 /** Strips the wrapping an agent tends to add around a value: quotes, backticks, bold. */
 function unwrap(value: string): string {
@@ -83,12 +89,20 @@ export function parseReport(text: string): { report: Report } | { error: Finding
   return {
     report: {
       status: status as ReportStatus,
-      issue: claimed(fields.get("ISSUE")),
+      ...ticketField(fields),
       branch: claimed(fields.get("BRANCH")),
       pr: claimed(fields.get("PR")),
       checkOutput: claimed(fields.get("CHECK_OUTPUT")),
     },
   };
+}
+
+function ticketField(fields: Map<string, string>): Pick<Report, "ticket" | "legacyIssue"> {
+  if (fields.has("TICKET")) return { ticket: claimed(fields.get("TICKET")) };
+  // The old prompt only ever wrote a GitHub issue number under ISSUE, `#` or not: looking
+  // it up as a ticket number would match an unrelated ticket.
+  const issue = claimed(fields.get("ISSUE"));
+  return issue ? { ticket: issue, legacyIssue: issue } : { ticket: undefined };
 }
 
 export type PrLookup =
@@ -104,11 +118,12 @@ export type Probes = {
   /** Paths changed by commits only this branch has; `null` when git couldn't tell. */
   branchFiles(branch: string): Promise<string[] | null>;
   /**
-   * Every status the ticket currently has, wherever it lives: the primary checkout (step 2
-   * writes it there, before any worktree exists) and the branch's committed copy (later
-   * moves are written in the worktree). Empty when no ticket file matches the ISSUE.
+   * The ticket's status in the primary checkout — the only copy agents write (ADR 0015).
+   * A copy committed on the branch is deliberately ignored: no agent writes there, so it
+   * only ever holds a stale status that could make a false report pass. `undefined` when
+   * no ticket file matches the TICKET.
    */
-  ticketStatuses(issue: string, branch: string | undefined): Promise<StatusRole[]>;
+  ticketStatus(ticket: string): Promise<StatusRole | undefined>;
 };
 
 /**
@@ -142,7 +157,7 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
   const error = (message: string) => findings.push({ severity: "error", message });
   const warn = (message: string) => findings.push({ severity: "warn", message });
 
-  if (!report.issue) error("ISSUE: is empty — every report names the ticket it was run on");
+  if (!report.ticket) error("TICKET: is empty — every report names the ticket it was run on");
 
   if (report.branch) {
     if (!(await probes.branchExists(report.branch))) {
@@ -176,15 +191,18 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
     error("STATUS pr-opened-for-review, but CHECK_OUTPUT: is empty — a PR was opened without a recorded check run");
   }
 
-  if (report.issue) {
+  if (report.legacyIssue) {
+    warn(
+      `ISSUE ${report.legacyIssue} is a GitHub issue number from an older installed prompt — tickets are named by id now ` +
+        "(ADR 0015), so its status could not be checked; reinstall the packs to get TICKET: lines",
+    );
+  } else if (report.ticket) {
     const expected = EXPECTED_TICKET_STATUS[report.status];
-    const actual = await probes.ticketStatuses(report.issue, report.branch);
-    if (actual.length === 0) {
-      warn(`no local ticket file found for ISSUE ${report.issue} — its status could not be checked`);
-    } else if (expected && !actual.some((s) => expected.includes(s))) {
-      error(
-        `ticket for ISSUE ${report.issue} has status '${actual.join("' / '")}', expected ${expected.join(" or ")} after ${report.status}`,
-      );
+    const actual = await probes.ticketStatus(report.ticket);
+    if (actual === undefined) {
+      warn(`no ticket file found for TICKET ${report.ticket} — its status could not be checked`);
+    } else if (expected && !expected.includes(actual)) {
+      error(`ticket ${report.ticket} has status '${actual}', expected ${expected.join(" or ")} after ${report.status}`);
     }
   }
 

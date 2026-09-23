@@ -2,7 +2,6 @@
 
 import { gh, GhError } from "../gh.ts";
 import { listTickets } from "../tickets/store.ts";
-import { parseTicket, type StatusRole, type Ticket } from "../tickets/spec.ts";
 import type { PrLookup, Probes } from "./verify.ts";
 
 async function git(root: string, args: string[]): Promise<{ stdout: string; code: number }> {
@@ -79,27 +78,12 @@ export function realProbes(ctx: ProbeContext): Probes {
       return [...new Set(log.stdout.split("\0").map((p) => p.trim()).filter(Boolean))];
     },
 
-    async ticketStatuses(issue, branch) {
+    /** A ticket is named by its id (`0030-slug`) or its number (`0030`, `30`, `#0030`). */
+    async ticketStatus(ref) {
       const tickets = await listTickets(root, ticketsDir);
-      const byIssue = /^#(\d+)$/.exec(issue);
-      const match = (t: Ticket) => (byIssue ? t.issue === Number(byIssue[1]) : t.id === issue || t.id.startsWith(`${issue}-`));
-      const statuses = new Set<StatusRole>();
-
-      const local = tickets.find(match);
-      if (local) statuses.add(local.status);
-
-      if (local && branch) {
-        const tip = (await refExists(root, `refs/heads/${branch}`)) ? branch : `origin/${branch}`;
-        const shown = await git(root, ["show", `${tip}:${local.path}`]);
-        if (shown.code === 0) {
-          try {
-            statuses.add(parseTicket(shown.stdout, local.path).status);
-          } catch {
-            // A malformed copy on the branch is `ticket doctor`'s business, not this check's.
-          }
-        }
-      }
-      return [...statuses];
+      const bare = ref.replace(/^#/, "");
+      const key = /^\d{1,4}$/.test(bare) ? bare.padStart(4, "0") : bare;
+      return tickets.find((t) => t.id === key || t.id.startsWith(`${key}-`))?.status;
     },
   };
 }

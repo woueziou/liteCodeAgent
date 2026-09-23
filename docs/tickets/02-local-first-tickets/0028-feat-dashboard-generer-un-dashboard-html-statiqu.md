@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0028-feat-dashboard-generer-un-dashboard-html-statiqu
 title: feat(dashboard): générer un dashboard HTML statique depuis le buffer local
 label: feature
@@ -8,9 +8,6 @@ priority: medium
 size: large
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
 ---
 
 New module `src/dashboard/` (one concern per file: `build.ts` for aggregation from `listTickets`, `render.ts` for HTML templating), plus command `litecode dashboard --build` in `src/cli.ts`. Standalone, committable, no server or process.
@@ -28,7 +25,6 @@ New module `src/dashboard/` (one concern per file: `build.ts` for aggregation fr
 Epic: local-first-tickets
 Lot: 8/9
 
-<!-- litecode:comment -->
 PR #57 (https://github.com/woueziou/liteCodeAgent/pull/57, branch `feat-dashboard/issue-0028`) opened. `reviewer` verdict: **changes-requested**.
 
 VERDICT: changes-requested
@@ -48,9 +44,7 @@ PLAN_FIDELITY: matches, with one caveat — the dueDate/recency axis named in th
 REENTRY:
 - code-review sub-pass not returning: same-PR fixup — re-run `code-review --effort low` (or `medium`) against the branch before this PR is approved, and fold its findings in before merge. Process gap, not a code defect.
 - dueDate/recency gap: no action required to block this PR; a lightweight follow-up ticket (default priority) would cover adding a recency/dueDate section as a small addition, not a rework.
-<!-- /litecode:comment -->
 
-<!-- litecode:comment -->
 Per the owner's decision, `docs/dashboard.html` was un-ignored and committed (was previously in `.gitignore`), with a comment header in the rendered HTML pointing at the rebuild command. Commit `42350ff` on `feat-dashboard/issue-0028`.
 
 Re-ran a `reviewer` pass on that commit; it again capped at `changes-requested` purely because its own `code-review` sub-pass launched as a background task and didn't return within the turn's budget (no code defect found — its own direct checks: tsc clean, tests 156 pass / 0 fail, self-containment of the HTML re-verified, HTML-comment-before-doctype reasoning confirmed safe). It also flagged the newest commit was missing the `Agent:`/`Task:` trailer.
@@ -60,5 +54,3 @@ Both gaps are now resolved: commit amended to `42350ff` with `Agent: implementer
 Full verdict text posted verbatim on the PR: https://github.com/woueziou/liteCodeAgent/pull/57#issuecomment-5767133646
 
 Moving to Ready to Merge: no outstanding code defect across two reviewer passes plus one completed code-review pass, and both process gaps (missing trailer, non-returning sub-pass) are now closed.
-<!-- /litecode:comment -->
-

@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0011-fix-agents-detecter-un-panel-de-debat-degrade-au
 title: fix(agents): détecter un panel de débat dégradé au lieu de rendre un plan silencieusement affaibli
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 29
-synced: true
-syncedAt: 2026-09-18T17:34:29.397Z
 ---
 
 ## Symptôme observé

@@ -39,7 +39,7 @@ INVARIANTS À NE PAS CASSER
 3. Les packs déclarent `tier: fast|balanced|reasoning`, jamais un nom de modèle.
    C'est ce qui rendra le runner multi-provider possible.
 4. Le fichier ticket local est la seule source de vérité du statut (ADR 0012).
-   `sync` ne pousse que titre, corps et commentaires vers GitHub, jamais le statut.
+   Il n'y a pas d'issue GitHub derrière un ticket (ADR 0015) : seule la PR vit sur GitHub.
 5. Tout ce qui est sous .claude/ et absent du lockfile appartient au projet :
    jamais lu, réécrit ni supprimé.
 

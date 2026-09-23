@@ -1,19 +1,15 @@
 /**
- * Local diagnostic for the ticket buffer, the replacement for `litecode board doctor`
- * once the board goes away (see lot 6 of the local-first-tickets epic). Unlike the
- * board's doctor, this never calls GitHub — everything it checks lives on disk, so it
- * stays useful even after `src/board/` is deleted.
+ * Local diagnostic for the ticket directory: malformed, misplaced, duplicate and outdated
+ * files. Everything it checks lives on disk.
  *
- * The real motivation: a ticket file lost its opening `---` delimiter this week, hand-
- * edited via `Edit` instead of the CLI. Only `litecode ticket sync` caught it, by
- * refusing to proceed and naming the offending file. Once the board — and the drift it
- * exposed as a side effect of every `board doctor` run — is gone, nothing else plays
- * that role for the ticket buffer itself. This command is that role.
+ * The motivation: a ticket file once lost its opening `---` delimiter after a hand edit,
+ * and nothing noticed until a later command refused to read it. Agents edit ticket files
+ * directly, so something has to check them on demand; this command is that check.
  */
 
 import { relative } from "node:path";
 import { listTicketsDetailed, type TicketLoadError } from "./store.ts";
-import type { Ticket } from "./spec.ts";
+import { CURRENT_SCHEMA_VERSION, type Ticket } from "./spec.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
@@ -98,6 +94,19 @@ export async function doctor(root: string, dir: string): Promise<Finding[]> {
     if (placement) findings.push(placement);
   }
   findings.push(...checkDuplicateNumbers(tickets));
+  for (const t of tickets) {
+    if (t.schemaVersion > CURRENT_SCHEMA_VERSION) {
+      findings.push({
+        severity: "warn",
+        message: `${t.path}: schema v${t.schemaVersion} is newer than this CLI understands (v${CURRENT_SCHEMA_VERSION}) — upgrade litecodeagent`,
+      });
+    } else if (t.schemaVersion < CURRENT_SCHEMA_VERSION) {
+      findings.push({
+        severity: "warn",
+        message: `${t.path}: schema v${t.schemaVersion} (GitHub-synced format) — run \`litecode ticket migrate --apply\``,
+      });
+    }
+  }
 
   return findings;
 }

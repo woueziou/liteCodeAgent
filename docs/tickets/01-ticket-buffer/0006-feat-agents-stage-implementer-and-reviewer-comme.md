@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0006-feat-agents-stage-implementer-and-reviewer-comme
 title: feat(agents): stage implementer and reviewer comments in the local ticket buffer
 label: feature
@@ -8,9 +8,6 @@ priority: high
 size: small
 assignedAgent: implementer
 dueDate: 
-issue: 24
-synced: true
-syncedAt: 2026-09-18T17:28:21.285Z
 ---
 
 The local ticket buffer becomes the pipeline's source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls.

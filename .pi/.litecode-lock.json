@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.14.0",
-  "installedAt": "2026-09-23T10:17:35.948Z",
+  "installedAt": "2026-09-23T12:01:49.141Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -18,12 +18,12 @@
     ".pi/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e780d053d73a391d"
+      "hash": "904a3555a8f445af"
     },
     ".pi/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "ecdef63ab3f46a42"
+      "hash": "05f096e0e2cdae73"
     },
     ".pi/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
@@ -33,7 +33,7 @@
     ".pi/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "036f4f372b43cd4f"
+      "hash": "82f2ce4747f8e2ba"
     },
     ".pi/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",

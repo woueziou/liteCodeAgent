@@ -13,7 +13,7 @@ Every commit created by an agent (not by the human directly) must end with:
 
 ```
 Agent: <agent-name>
-Task: <issue number or one-line description of what triggered this>
+Task: <ticket id or one-line description of what triggered this>
 ```
 
 on its own trailer lines, same convention as `Co-Authored-By`. Never put this information as an inline code comment — it belongs in git history, not in the source file.
@@ -33,14 +33,14 @@ Any document an agent generates (an ADR under `docs/decisions/`, a flow doc, a g
 
 ```yaml
 generated_by: <agent-name>
-task: <issue number or description>
+task: <ticket id or description>
 ```
 
 in its frontmatter (in addition to whatever other frontmatter that document type requires). Updates to an existing doc append/update this field, they don't just silently rewrite it.
 
 ## Rule 3 — Every mutation ends in a self-report, no exceptions
 
-An agent that edits/writes/commits must, in its final output to whoever invoked it, explicitly list: every file touched, every command run that had a side effect (`git commit`, `gh issue create`/`comment`, `gh pr create`/`comment`), and what was deliberately NOT done. Silence about a touched file is treated as a violation, not an oversight.
+An agent that edits/writes/commits must, in its final output to whoever invoked it, explicitly list: every file touched, every command run that had a side effect (`git commit`, `gh pr create`/`comment`, ticket file edits), and what was deliberately NOT done. Silence about a touched file is treated as a violation, not an oversight.
 
 ## Rule 4 — Mismatch is a stop condition, not a detail to note in passing
 

@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0013-feat-sync-declenchement-automatique-de-la-synchr
 title: feat(sync): déclenchement automatique de la synchronisation, sans sollicitation humaine
 label: feature
@@ -8,9 +8,6 @@ priority: medium
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 31
-synced: true
-syncedAt: 2026-09-21T15:35:48.425Z
 ---
 
 ## Demande

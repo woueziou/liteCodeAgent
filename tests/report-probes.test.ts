@@ -43,7 +43,7 @@ const ctx = (root: string) => ({ root, repo: "o/r", ticketsDir: "docs/tickets" }
 
 function ticket(status: Ticket["status"]): Ticket {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: "0017-fix-something",
     title: "Fix something",
     label: "bug",
@@ -52,12 +52,8 @@ function ticket(status: Ticket["status"]): Ticket {
     size: "medium",
     assignedAgent: "human",
     dueDate: undefined,
-    issue: 45,
-    synced: true,
-    syncedAt: undefined,
     path: "docs/tickets/03-epic/0017-fix-something.md",
     body: "Body.\n",
-    pendingComments: [],
   };
 }
 
@@ -98,22 +94,24 @@ test("non-ASCII paths match between dirtyFiles and branchFiles", async () => {
   expect(await p.branchFiles("feat/x/issue-7")).toContain("docs/écart.md");
 });
 
-test("ticketStatuses finds a ticket by #issue or by local id", async () => {
+test("ticketStatuses finds a ticket by id, number, or #number", async () => {
   const root = await repo();
   await writeTicket(root, ticket("review"));
   const p = realProbes(ctx(root));
-  expect(await p.ticketStatuses("#45", undefined)).toEqual(["review"]);
-  expect(await p.ticketStatuses("0017", undefined)).toEqual(["review"]);
-  expect(await p.ticketStatuses("#46", undefined)).toEqual([]);
+  expect(await p.ticketStatus("0017-fix-something")).toBe("review");
+  expect(await p.ticketStatus("0017")).toBe("review");
+  expect(await p.ticketStatus("#0017")).toBe("review");
+  expect(await p.ticketStatus("17")).toBe("review");
+  expect(await p.ticketStatus("1")).toBeUndefined();
+  expect(await p.ticketStatus("0018")).toBeUndefined();
 });
 
-test("ticketStatuses also reads the branch's committed copy of the ticket", async () => {
+test("ticketStatus reads only the primary checkout, never a stale copy committed on a branch", async () => {
   const root = await repo();
   await sh(root, "git", "switch", "-q", "feat/x/issue-7");
-  await writeTicket(root, ticket("readyToMerge"));
-  await commitAll(root, "move ticket");
+  await writeTicket(root, ticket("planned"));
+  await commitAll(root, "stale ticket copy on the branch");
   await sh(root, "git", "switch", "-q", "main");
   await writeTicket(root, ticket("inProgress"));
-  const statuses = await realProbes(ctx(root)).ticketStatuses("#45", "feat/x/issue-7");
-  expect(statuses.sort()).toEqual(["inProgress", "readyToMerge"]);
+  expect(await realProbes(ctx(root)).ticketStatus("0017")).toBe("inProgress");
 });

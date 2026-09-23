@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0010-fix-agents-rendre-le-gate-d-adr-reprenable-sans
 title: fix(agents): rendre le gate d'ADR reprenable sans reconstruction manuelle
 label: bug
@@ -8,9 +8,6 @@ priority: medium
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 28
-synced: true
-syncedAt: 2026-09-21T15:35:43.433Z
 ---
 
 ## Symptôme observé

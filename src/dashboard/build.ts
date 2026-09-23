@@ -2,8 +2,8 @@
  * Aggregates the local ticket buffer (`listTicketsDetailed`, `src/tickets/store.ts`) into
  * the plain-data shape `render.ts` turns into HTML. Deliberately produces **current-state**
  * snapshots only — counts by status/priority/size/label/epic — never a time series. The
- * ticket frontmatter keeps no transition history (only `syncedAt`, the last sync moment,
- * not a log of status changes), so anything trend-shaped here would have to be invented.
+ * ticket frontmatter keeps no transition history (no log of status changes), so anything
+ * trend-shaped here would have to be invented.
  * See docs/decisions/0012 for the (future) transition-journal design that would make a
  * real trend possible; until that lands, this module has nothing to build one from.
  */
