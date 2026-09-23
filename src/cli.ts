@@ -14,7 +14,7 @@ import { parseReport, verifyReport, type Finding as ReportFinding } from "./repo
 import { realProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
-import { CURRENT_SCHEMA_VERSION, migrateTicket, PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
+import { CURRENT_SCHEMA_VERSION, migrateTicket, PRIORITIES, SIZES, unknownKeys, type Priority, type Size } from "./tickets/spec.ts";
 import { findDuplicate, localDedupeCandidates } from "./tickets/dedupe.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
@@ -70,7 +70,8 @@ function usage(): void {
                                      ticket's — pass --force to create anyway
   ${c.bold("bunx litecodeagent ticket list")}              list ticket files with their status, priority and size
   ${c.bold("bunx litecodeagent ticket doctor")}            check the ticket directory for malformed/misplaced/duplicate/outdated files
-  ${c.bold("bunx litecodeagent ticket migrate")} [--apply] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
+  ${c.bold("bunx litecodeagent ticket migrate")} [--apply] [--force] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
+                                     ${c.dim("refuses to drop unknown frontmatter keys unless --force")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
                                      regenerate the standalone HTML dashboard from the local ticket buffer
@@ -514,7 +515,22 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(c.green(`Every ticket in ${dir} is already schema v${CURRENT_SCHEMA_VERSION}.`));
       return errors.length > 0 ? 1 : 0;
     }
-    for (const t of legacy) console.log(`  ${c.yellow("migrate")} ${t.path} ${c.dim(`(v${t.schemaVersion} → v${CURRENT_SCHEMA_VERSION})`)}`);
+    const dropped = new Map<string, string[]>();
+    for (const t of legacy) {
+      console.log(`  ${c.yellow("migrate")} ${t.path} ${c.dim(`(v${t.schemaVersion} → v${CURRENT_SCHEMA_VERSION})`)}`);
+      const extra = unknownKeys(await Bun.file(resolve(root, t.path)).text(), t.path);
+      if (extra.length > 0) {
+        dropped.set(t.path, extra);
+        console.log(`    ${c.red("drops")} unknown frontmatter key(s): ${extra.join(", ")}`);
+      }
+    }
+    if (dropped.size > 0 && !argv.includes("--force")) {
+      console.log(
+        c.red(`\n${dropped.size} ticket(s) carry frontmatter keys v2 doesn't know; migrating would delete them.`) +
+          c.dim("\nMove that information into the ticket body first, or re-run with --force to drop the keys."),
+      );
+      return 1;
+    }
     if (!argv.includes("--apply")) {
       console.log(c.dim(`\nDry run. Re-run with --apply to rewrite ${legacy.length} ticket(s).`));
       return 0;

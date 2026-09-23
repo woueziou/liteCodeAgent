@@ -178,6 +178,14 @@ test("branch files left dirty in the primary checkout are an error; unrelated di
   ]);
 });
 
+test("an ISSUE: #n from an older prompt is a GitHub issue: warned about, never looked up as a ticket", async () => {
+  const r = parsed("STATUS: in-progress-blocked\nISSUE: #45\nBRANCH: n/a");
+  let lookedUp = false;
+  const findings = await verifyReport(r, probes({ ticketStatuses: async () => ((lookedUp = true), ["planned"]) }));
+  expect(lookedUp).toBe(false);
+  expect(findings).toEqual([{ severity: "warn", message: expect.stringContaining("ISSUE #45 is a GitHub issue number") }]);
+});
+
 test("a report from an older prompt still names its ticket under ISSUE", () => {
   expect(parsed("STATUS: in-progress-blocked\nISSUE: 0045\nBRANCH: n/a").ticket).toBe("0045");
   expect(parsed("STATUS: in-progress-blocked\nTICKET: 0030\nISSUE: 0045").ticket).toBe("0030");

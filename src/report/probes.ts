@@ -79,10 +79,11 @@ export function realProbes(ctx: ProbeContext): Probes {
       return [...new Set(log.stdout.split("\0").map((p) => p.trim()).filter(Boolean))];
     },
 
-    /** A ticket is named by its id (`0030-slug`) or just its number (`0030`, `#0030`). */
+    /** A ticket is named by its id (`0030-slug`) or its number (`0030`, `30`, `#0030`). */
     async ticketStatuses(ref, branch) {
       const tickets = await listTickets(root, ticketsDir);
-      const key = ref.replace(/^#/, "");
+      const bare = ref.replace(/^#/, "");
+      const key = /^\d{1,4}$/.test(bare) ? bare.padStart(4, "0") : bare;
       const match = (t: Ticket) => t.id === key || t.id.startsWith(`${key}-`);
       const statuses = new Set<StatusRole>();
 

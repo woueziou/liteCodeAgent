@@ -27,6 +27,11 @@ export type ReportStatus = (typeof REPORT_STATUSES)[number];
 export type Report = {
   status: ReportStatus;
   ticket: string | undefined;
+  /**
+   * Set when the ticket came from a pre-ADR-0015 `ISSUE: #n` line: that `n` is a GitHub
+   * issue number, which names no ticket file, so it must not be looked up as one.
+   */
+  legacyIssue?: string;
   branch: string | undefined;
   pr: string | undefined;
   checkOutput: string | undefined;
@@ -84,12 +89,19 @@ export function parseReport(text: string): { report: Report } | { error: Finding
   return {
     report: {
       status: status as ReportStatus,
-      ticket: claimed(fields.get("TICKET") ?? fields.get("ISSUE")),
+      ...ticketField(fields),
       branch: claimed(fields.get("BRANCH")),
       pr: claimed(fields.get("PR")),
       checkOutput: claimed(fields.get("CHECK_OUTPUT")),
     },
   };
+}
+
+function ticketField(fields: Map<string, string>): Pick<Report, "ticket" | "legacyIssue"> {
+  if (fields.has("TICKET")) return { ticket: claimed(fields.get("TICKET")) };
+  const issue = claimed(fields.get("ISSUE"));
+  if (issue && /^#\d+$/.test(issue)) return { ticket: issue, legacyIssue: issue };
+  return { ticket: issue };
 }
 
 export type PrLookup =
@@ -177,7 +189,12 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
     error("STATUS pr-opened-for-review, but CHECK_OUTPUT: is empty — a PR was opened without a recorded check run");
   }
 
-  if (report.ticket) {
+  if (report.legacyIssue) {
+    warn(
+      `ISSUE ${report.legacyIssue} is a GitHub issue number from an older installed prompt — tickets are named by id now ` +
+        "(ADR 0015), so its status could not be checked; reinstall the packs to get TICKET: lines",
+    );
+  } else if (report.ticket) {
     const expected = EXPECTED_TICKET_STATUS[report.status];
     const actual = await probes.ticketStatuses(report.ticket, report.branch);
     if (actual.length === 0) {

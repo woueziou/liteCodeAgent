@@ -40,7 +40,11 @@ async function runCliWithExit(cwd: string, args: string[]): Promise<{ output: st
   const proc = Bun.spawn(["bun", "run", CLI, ...args], { cwd, env: process.env, stdout: "pipe", stderr: "pipe" });
   const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
   const exitCode = await proc.exited;
-  return { output: plain(out + err), exitCode };
+  const output = plain(out + err);
+  // The gh stub prints this on any call. A command that shelled out and then swallowed the
+  // failure (try/catch, a fallback) would otherwise pass unnoticed.
+  expect(output).not.toContain("gh must not be called");
+  return { output, exitCode };
 }
 
 async function project(): Promise<string> {
@@ -163,8 +167,37 @@ test("`ticket doctor` flags a v1 ticket, and `ticket migrate --apply` rewrites i
   expect((await runCliWithExit(root, ["ticket", "doctor"])).output).not.toContain("schema v1");
 });
 
-test("`ticket sync` no longer exists", async () => {
+test("`ticket sync` no longer exists: it prints usage instead of planning a push", async () => {
   const root = await project();
-  const { exitCode } = await runCliWithExit(root, ["ticket", "sync", "--apply"]);
+  await runCli(root, ["ticket", "new", "--title", "Something to push", "--label", "bug"]);
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "sync"]);
   expect(exitCode).toBe(1);
+  expect(output).toContain("ticket migrate");
+  expect(output).not.toMatch(/Dry run|create\s+docs\/tickets/);
+});
+
+test("`ticket migrate` refuses to drop unknown frontmatter keys unless --force", async () => {
+  const root = await project();
+  const path = join(root, "docs/tickets/0007-old-synced-ticket.md");
+  const withEpic = V1_TICKET.replace("dueDate:\n", "dueDate:\nepic: payments\n");
+  expect(withEpic).toContain("epic: payments");
+  await Bun.write(path, withEpic);
+
+  const refused = await runCliWithExit(root, ["ticket", "migrate", "--apply"]);
+  expect(refused.exitCode).toBe(1);
+  expect(refused.output).toContain("epic");
+  expect(await Bun.file(path).text()).toContain("schemaVersion: 1");
+
+  const forced = await runCliWithExit(root, ["ticket", "migrate", "--apply", "--force"]);
+  expect(forced.exitCode).toBe(0);
+  expect(await Bun.file(path).text()).not.toContain("epic");
+});
+
+test("`ticket doctor` warns about a ticket from a newer schema", async () => {
+  const root = await project();
+  await Bun.write(
+    join(root, "docs/tickets/0008-from-the-future.md"),
+    V1_TICKET.replace("schemaVersion: 1", "schemaVersion: 3").replace("0007-old-synced-ticket", "0008-from-the-future"),
+  );
+  expect((await runCliWithExit(root, ["ticket", "doctor"])).output).toContain("newer than this CLI understands");
 });

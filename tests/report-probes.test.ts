@@ -101,6 +101,8 @@ test("ticketStatuses finds a ticket by id, number, or #number", async () => {
   expect(await p.ticketStatuses("0017-fix-something", undefined)).toEqual(["review"]);
   expect(await p.ticketStatuses("0017", undefined)).toEqual(["review"]);
   expect(await p.ticketStatuses("#0017", undefined)).toEqual(["review"]);
+  expect(await p.ticketStatuses("17", undefined)).toEqual(["review"]);
+  expect(await p.ticketStatuses("1", undefined)).toEqual([]);
   expect(await p.ticketStatuses("0018", undefined)).toEqual([]);
 });
 

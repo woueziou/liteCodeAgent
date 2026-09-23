@@ -99,14 +99,47 @@ export type Ticket = TicketMeta & {
 
 const LEGACY_COMMENT_BLOCK = /<!-- litecode:comment -->\n?([\s\S]*?)\n?<!-- \/litecode:comment -->/g;
 
+/** Keys a v1 ticket carried that v2 drops on purpose. */
+const LEGACY_KEYS = new Set(["issue", "synced", "syncedAt"]);
+
+/**
+ * Frontmatter keys a migration would drop without them being legacy keys — a hand-added
+ * `epic:`, say. `serializeTicket` only writes known keys, so these would vanish silently.
+ */
+export function unknownKeys(source: string, path: string): string[] {
+  const { data } = parseFrontmatter(source, path);
+  const known = new Set<string>(KEY_ORDER);
+  return Object.keys(data).filter((key) => !known.has(key) && !LEGACY_KEYS.has(key));
+}
+
+/** A fenced code block, whose content is an example and must come through untouched. */
+const FENCE = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm;
+
+/** Applies `fn` to the text outside fenced code blocks only. */
+function outsideFences(text: string, fn: (prose: string) => string): string {
+  let out = "";
+  let last = 0;
+  for (const fence of text.matchAll(FENCE)) {
+    out += fn(text.slice(last, fence.index)) + fence[0];
+    last = fence.index! + fence[0].length;
+  }
+  return out + fn(text.slice(last));
+}
+
 /**
  * Rewrites a v1 ticket as v2: bumps `schemaVersion` (the legacy keys drop out on their
  * own, since `TicketSchema` doesn't know them) and unwraps each staged-comment block into
- * plain text, so a comment `sync` never posted is kept rather than lost.
+ * its own paragraph, so a comment `sync` never posted is kept rather than lost or fused
+ * into the text around it. Blocks inside a fenced code block are examples, not comments,
+ * and are left exactly as written.
  */
 export function migrateTicket(ticket: Ticket): Ticket {
-  const body = ticket.body.replace(LEGACY_COMMENT_BLOCK, (_, text: string) => text.trim());
-  return { ...ticket, schemaVersion: CURRENT_SCHEMA_VERSION, body: body.replace(/\n{3,}/g, "\n\n").trimEnd() + "\n" };
+  const body = outsideFences(ticket.body, (prose) =>
+    prose
+      .replace(LEGACY_COMMENT_BLOCK, (_, text: string) => `\n\n${text.replace(/^\n+|\s+$/g, "")}\n\n`)
+      .replace(/\n{3,}/g, "\n\n"),
+  );
+  return { ...ticket, schemaVersion: CURRENT_SCHEMA_VERSION, body: body.replace(/^\n+/, "").trimEnd() + "\n" };
 }
 
 export function parseTicket(source: string, path: string): Ticket {

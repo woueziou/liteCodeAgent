@@ -29,3 +29,7 @@ Changement cassant pour les utilisateurs de la CLI (`ticket sync` disparaît).
 - `verify-report` lit `TICKET:` (accepte encore `ISSUE:`) et trouve le ticket par son id.
 - Prompts : l'implementer lit le fichier ticket, laisse des notes datées, cite le ticket dans la PR au lieu de « Closes #n » ; triage, tracker, dispatcher, reviewer, orchestrator et les skills n'utilisent plus `gh issue`. Un test de pack interdit ce vocabulaire.
 - Docs : README, `docs/tickets/README.md`, HANDOFF ; ADR 0015, notes de remplacement dans les ADR 0009 et 0012.
+
+### 2026-09-23 — claude: relectures
+
+`reviewer` : approve, sans constat. `bug-hunter` : HUNT complete, 6 constats non bloquants, tous corrigés — test « `ticket sync` n'existe plus » qui ne pouvait pas échouer, anciens `ISSUE: #n` confondus avec des tickets et numéros non complétés, migration qui fusionnait des commentaires et modifiait des exemples dans les blocs de code, clés de frontmatter inconnues supprimées sans prévenir, schéma futur non signalé, et notes de ticket jamais commitées (l'implementer écrit désormais statut et notes dans son worktree et les commite sur la branche).

@@ -95,7 +95,12 @@ export async function doctor(root: string, dir: string): Promise<Finding[]> {
   }
   findings.push(...checkDuplicateNumbers(tickets));
   for (const t of tickets) {
-    if (t.schemaVersion < CURRENT_SCHEMA_VERSION) {
+    if (t.schemaVersion > CURRENT_SCHEMA_VERSION) {
+      findings.push({
+        severity: "warn",
+        message: `${t.path}: schema v${t.schemaVersion} is newer than this CLI understands (v${CURRENT_SCHEMA_VERSION}) — upgrade litecodeagent`,
+      });
+    } else if (t.schemaVersion < CURRENT_SCHEMA_VERSION) {
       findings.push({
         severity: "warn",
         message: `${t.path}: schema v${t.schemaVersion} (GitHub-synced format) — run \`litecode ticket migrate --apply\``,

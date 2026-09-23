@@ -16,7 +16,6 @@ Date: 2026-09-19
 > wholesale rather than partially, to avoid leaving readers to guess which paragraphs
 > still hold. See the forthcoming ADR 0012 for the current model.
 
-
 > **Superseded (2026-09-23) by ADR 0015.** There is no ticket sync any more: tickets are
 > purely local, so there is nothing to trigger. The text below is the historical record.
 
