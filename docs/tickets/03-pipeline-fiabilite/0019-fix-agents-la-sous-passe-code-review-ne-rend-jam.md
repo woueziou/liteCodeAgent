@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0019-fix-agents-la-sous-passe-code-review-ne-rend-jam
 title: fix(agents): la sous-passe `code-review` ne rend jamais, ce qui plafonne tout verdict — et n'existe pas hors Claude Code
 label: bug
-status: review
+status: done
 priority: high
 size: medium
 assignedAgent: human

@@ -49,7 +49,7 @@
 </head>
 <body>
   <h1>Dashboard tickets — litecodeagent</h1>
-  <p class="meta">Généré le 2026-09-23T09:57:43.696Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
+  <p class="meta">Généré le 2026-09-23T10:02:44.371Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
 
   <div class="tiles"><div class="tile "><div class="tile-value">29</div><div class="tile-label">Tickets totaux</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Bloqués</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">En cours</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Prêts à merger</div></div></div>
 
@@ -60,8 +60,8 @@
     
     <section class="card">
       <h2>Répartition par statut</h2>
-      <div class="badges"><span class="badge" style="background:#e2e8f0;color:#1e293b">Backlog: 2</span> <span class="badge" style="background:#dbeafe;color:#1e3a8a">Planned: 0</span> <span class="badge" style="background:#fef3c7;color:#78350f">In Progress: 0</span> <span class="badge" style="background:#fecaca;color:#7f1d1d">Blocked: 0</span> <span class="badge" style="background:#e9d5ff;color:#581c87">Review: 1</span> <span class="badge" style="background:#bbf7d0;color:#14532b">Ready to Merge: 0</span> <span class="badge" style="background:#d1fae5;color:#065f46">Done: 26</span></div>
-      <p class="note">"Ready to Merge" (0) ≠ "Done" (26) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
+      <div class="badges"><span class="badge" style="background:#e2e8f0;color:#1e293b">Backlog: 1</span> <span class="badge" style="background:#dbeafe;color:#1e3a8a">Planned: 0</span> <span class="badge" style="background:#fef3c7;color:#78350f">In Progress: 0</span> <span class="badge" style="background:#fecaca;color:#7f1d1d">Blocked: 0</span> <span class="badge" style="background:#e9d5ff;color:#581c87">Review: 0</span> <span class="badge" style="background:#bbf7d0;color:#14532b">Ready to Merge: 0</span> <span class="badge" style="background:#d1fae5;color:#065f46">Done: 28</span></div>
+      <p class="note">"Ready to Merge" (0) ≠ "Done" (28) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
     </section>
     
     <section class="card">
@@ -101,10 +101,10 @@
         </li>
         <li class="epic-row">
           <div class="epic-head"><strong>03-pipeline-fiabilite</strong> — 7 ticket(s)</div>
-          <div class="epic-bar" role="img" aria-label="03-pipeline-fiabilite: 4/7 terminés">
-            <div class="epic-bar-fill" style="width:57%"></div>
+          <div class="epic-bar" role="img" aria-label="03-pipeline-fiabilite: 6/7 terminés">
+            <div class="epic-bar-fill" style="width:86%"></div>
           </div>
-          <div class="epic-detail">4/7 terminés (57%)</div>
+          <div class="epic-detail">6/7 terminés (86%)</div>
         </li>
         <li class="epic-row">
           <div class="epic-head"><strong>04-install-config</strong> — 5 ticket(s)</div>
@@ -914,7 +914,7 @@ generated_by: tracker
         </details>
         <details class="ticket">
           <summary>
-            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
             <span class="ticket-id">0016-fix-agents-l-invariant-sync-only-gh-n-est-verifi</span>
             <span class="ticket-title">fix(agents): l&#39;invariant sync-only-gh n&#39;est vérifié que sur les prompts, jamais à l&#39;exécution</span>
             <span class="tag">medium/medium</span>
@@ -943,6 +943,10 @@ L&#39;issue #27 avait anticipé exactement ça, en citant la skill `agent-attrib
 À trancher (d&#39;origine) : peut-on vérifier l&#39;invariant ailleurs que dans les prompts ? Pistes non pré-décidées — un hook `PreToolUse` sur `Bash` refusant `gh project` sauf pour `sync` ; un wrapper `gh` dans le PATH des agents ; une détection a posteriori dans le rapport d&#39;agent. Noter que le hook vit dans le `.claude/settings.json` du projet appelant, que ce CLI ne contrôle pas (même raisonnement que l&#39;ADR 0009, décision 1).
 
 generated_by: tracker
+
+## Fermé comme obsolète — 2026-09-23
+
+Décision humaine : la synchronisation GitHub par `sync` n&#39;est plus valable dans l&#39;orientation actuelle du projet, donc l&#39;invariant « seul `sync` utilise `gh` » n&#39;a plus d&#39;objet à faire respecter. Rien à implémenter.
 </pre></div>
         </details>
         <details class="ticket">
@@ -990,7 +994,7 @@ generated_by: tracker
         </details>
         <details class="ticket">
           <summary>
-            <span class="badge" style="background:#e9d5ff;color:#581c87">review</span>
+            <span class="badge" style="background:#d1fae5;color:#065f46">done</span>
             <span class="ticket-id">0019-fix-agents-la-sous-passe-code-review-ne-rend-jam</span>
             <span class="ticket-title">fix(agents): la sous-passe `code-review` ne rend jamais, ce qui plafonne tout verdict — et n&#39;existe pas hors Claude Code</span>
             <span class="tag">high/medium</span>

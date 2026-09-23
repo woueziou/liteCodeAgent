@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0016-fix-agents-l-invariant-sync-only-gh-n-est-verifi
 title: fix(agents): l'invariant sync-only-gh n'est vérifié que sur les prompts, jamais à l'exécution
 label: bug
-status: backlog
+status: done
 priority: medium
 size: medium
 assignedAgent: human
@@ -36,3 +36,7 @@ L'issue #27 avait anticipé exactement ça, en citant la skill `agent-attributio
 À trancher (d'origine) : peut-on vérifier l'invariant ailleurs que dans les prompts ? Pistes non pré-décidées — un hook `PreToolUse` sur `Bash` refusant `gh project` sauf pour `sync` ; un wrapper `gh` dans le PATH des agents ; une détection a posteriori dans le rapport d'agent. Noter que le hook vit dans le `.claude/settings.json` du projet appelant, que ce CLI ne contrôle pas (même raisonnement que l'ADR 0009, décision 1).
 
 generated_by: tracker
+
+## Fermé comme obsolète — 2026-09-23
+
+Décision humaine : la synchronisation GitHub par `sync` n'est plus valable dans l'orientation actuelle du projet, donc l'invariant « seul `sync` utilise `gh` » n'a plus d'objet à faire respecter. Rien à implémenter.
