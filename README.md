@@ -498,17 +498,28 @@ something rather than guessing.
 
 ## Upgrading and undoing
 
-**Coming from 0.x?** 1.0 removes the GitHub board and GitHub issue sync, and migrates
-ticket files to a new schema. Follow [`docs/upgrading-to-1.0.md`](docs/upgrading-to-1.0.md).
+One command brings a project up to date with the latest release:
 
 ```bash
-bunx litecodeagent@latest install          # latest release, dry run shows the delta
-bunx litecodeagent@latest install --apply
+bunx litecodeagent@latest upgrade
 ```
 
-There is no separate CLI upgrade step in the Bun path: `bunx` resolves the npm package and stores
-it in Bun's shared cache. `litecode upgrade` remains available only for the legacy git-clone
-installation made by `install.sh`.
+It shows everything it will do, then asks before touching anything:
+- re-renders the installed agents and skills;
+- deletes files an older release generated and this one no longer produces, but only the
+  ones nobody has edited since;
+- migrates ticket files to the current schema;
+- removes settings and data files of features that no longer exist.
+
+Anything it deliberately leaves alone is listed with the reason. Re-running it when
+there's nothing left to do is harmless. `--yes` applies without asking, for scripts and
+CI. A legacy git-clone install (`install.sh`) updates itself first, then carries on with
+the new version.
+
+Coming from 0.x? [`docs/upgrading-to-1.0.md`](docs/upgrading-to-1.0.md) explains what 1.0
+changes and what `upgrade` does about it.
+
+To re-render only, without the other steps: `bunx litecodeagent@latest install --apply`.
 
 If you edited a managed file by hand, `install` reports it as `DRIFT` and stops. Either
 move your change upstream into the pack (the right answer, so every project gets it), or

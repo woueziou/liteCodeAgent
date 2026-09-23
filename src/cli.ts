@@ -18,8 +18,9 @@ import { CURRENT_SCHEMA_VERSION, migrateTicket, PRIORITIES, SIZES, unknownKeys, 
 import { findDuplicate, localDedupeCandidates } from "./tickets/dedupe.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
-import { isInteractive, multiSelect } from "./prompt.ts";
+import { confirm, isInteractive, multiSelect } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
+import { applyUpgrade, hasChanges, planUpgrade } from "./project-upgrade.ts";
 import {
   RunCancelledError,
   RunnerExecutionError,
@@ -81,7 +82,11 @@ function usage(): void {
                                      check an implementer's final report (STATUS/TICKET/BRANCH/PR/CHECK_OUTPUT)
                                      against git, gh and the ticket buffer; exits 1 on any contradiction
                                      ${c.dim("reads the report from stdin when --file is omitted")}
-  ${c.bold("litecode upgrade")}                   update a legacy git-clone install
+  ${c.bold("bunx litecodeagent upgrade")} [--yes]  bring this project up to date with the running release, in one go:
+                                     re-render agents, remove files older versions generated (unedited ones only),
+                                     migrate tickets, drop obsolete config keys and data files
+                                     ${c.dim("shows the plan, then asks before applying; --yes applies without asking")}
+                                     ${c.dim("a legacy git-clone install (install.sh) updates itself first")}
 
 Global: --project <dir>   target repo (default: cwd)
 `);
@@ -610,6 +615,72 @@ async function cmdVerifyReport(root: string, argv: string[]): Promise<number> {
   return errors === 0 ? 0 : 1;
 }
 
+/**
+ * One command from "new release available" to "project up to date" (ADR 0016). A legacy
+ * git-clone install pulls itself first and hands over to a fresh process, so the project
+ * is migrated by the code it just fetched rather than by the code already running.
+ */
+async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
+  if (!argv.includes("--no-self-update")) {
+    const self = await upgrade(KIT_ROOT);
+    if (self.updated) {
+      for (const line of self.log) console.log(line ? `  ${line}` : "");
+      console.log(c.dim("\nContinuing with the updated version…\n"));
+      const proc = Bun.spawn([process.execPath, join(KIT_ROOT, "src", "cli.ts"), ...argv, "--no-self-update"], {
+        cwd: process.cwd(),
+        stdio: ["inherit", "inherit", "inherit"],
+      });
+      return await proc.exited;
+    }
+  }
+
+  if (!(await Bun.file(join(root, CONFIG_FILENAME)).exists())) {
+    console.log(`No ${CONFIG_FILENAME} in ${root}: nothing to upgrade here. Run \`bunx litecodeagent init\` to set up a project.`);
+    return 0;
+  }
+
+  const { config } = await loadConfig(root);
+  const plans = await planUpgrade({ root, config, packsRoot: PACKS_ROOT, litecodeVersion: VERSION });
+
+  console.log(`${c.bold("Project")}  ${root}`);
+  console.log(`${c.bold("Release")}  ${VERSION}\n`);
+  for (const plan of plans) {
+    if (plan.changes.length === 0 && plan.skipped.length === 0) continue;
+    console.log(c.bold(plan.title));
+    for (const change of plan.changes) {
+      console.log(`  ${c.green("•")} ${change.summary}`);
+      for (const detail of change.details ?? []) console.log(c.dim(`      ${detail}`));
+    }
+    for (const skip of plan.skipped) console.log(`  ${c.yellow("skip")} ${skip.summary} ${c.dim(`— ${skip.reason}`)}`);
+  }
+
+  if (!hasChanges(plans)) {
+    console.log(c.green("Already up to date — nothing to change."));
+    return plans.some((p) => p.skipped.length > 0) ? 1 : 0;
+  }
+
+  if (!argv.includes("--yes") && !argv.includes("-y")) {
+    if (!isInteractive()) {
+      console.log(c.dim("\nNot a terminal, so nothing was applied. Re-run with --yes to apply this plan."));
+      return 0;
+    }
+    console.log("");
+    if (!(await confirm("Apply these changes?", false))) {
+      console.log(c.dim("Nothing changed."));
+      return 0;
+    }
+  }
+
+  await applyUpgrade(plans, () => {});
+  const applied = plans.reduce((n, p) => n + p.changes.length, 0);
+  console.log(c.green(`\nUpgraded: ${applied} change(s) applied.`));
+  if (plans.some((p) => p.skipped.length > 0)) console.log(c.yellow("Some items were left alone — see \"skip\" above."));
+  if (plans.some((p) => p.id === "tickets" && p.changes.length > 0)) {
+    console.log(c.dim("Migrated tickets are uncommitted: review and commit them like any other change."));
+  }
+  return 0;
+}
+
 const argv = process.argv.slice(2);
 const root = resolve(arg(argv, "--project") ?? process.cwd());
 
@@ -637,10 +708,7 @@ try {
         console.log(`\n${summarize(path, !yes && isInteractive())}`);
         return 0;
       }
-      case "upgrade": {
-        for (const line of await upgrade(KIT_ROOT)) console.log(line ? `  ${line}` : "");
-        return 0;
-      }
+      case "upgrade": return cmdUpgrade(root, argv);
       case "targets": return cmdTargets(root);
       case "packs": return cmdPacks();
       case "install": return cmdInstall(root, argv);

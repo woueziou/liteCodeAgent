@@ -43,7 +43,7 @@ const SKILL_ROOTS: Record<InstallTarget, string> = {
   "kilo-code": ".kilo/skills",
 };
 
-function lockPath(target: InstallTarget): string {
+export function lockPath(target: InstallTarget): string {
   return `${ROOTS[target]}/.litecode-lock.json`;
 }
 
