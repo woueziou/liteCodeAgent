@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0017-fix-agents-rien-ne-verifie-qu-un-implementer-dit
 title: fix(agents): rien ne vérifie qu'un implementer dit vrai dans son rapport final
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 45
-synced: true
-syncedAt: 2026-09-21T16:26:04.474Z
 ---
 
 Sur la session du 19-21/09/2026, **trois agents sur une douzaine** ont produit un rapport final faux ou vide. Aucun n'a été détecté par un test : les trois l'ont été par vérification manuelle de la session appelante contre l'état réel de GitHub et du dépôt.
@@ -29,7 +26,6 @@ Un quatrième symptôme, plus diffus : **trois implementers ont d'abord écrit l
 
 generated_by: tracker
 
-<!-- litecode:comment -->
 Approche retenue (choix humain, 2026-09-23) : une commande de vérification mécanique, `litecode verify-report`, plutôt qu'une consigne de prompt seule.
 
 - `src/report/verify.ts` lit les lignes sentinelles du rapport (`STATUS`/`ISSUE`/`BRANCH`/`PR`/`CHECK_OUTPUT`) et les confronte à l'état réel : la branche existe (en local ou sur origin), la PR existe, correspond à cette branche et n'est pas fermée sans merge, le `status` du fichier ticket correspond au `STATUS` annoncé, et le checkout principal ne contient pas de modifications non commitées sur des fichiers que la branche modifie aussi (symptôme « écrit hors du worktree »). Un rapport sans `STATUS:` (placeholder vide) est rejeté d'emblée.
@@ -38,9 +34,7 @@ Approche retenue (choix humain, 2026-09-23) : une commande de vérification méc
 - Correctif au passage : `src/prompt.ts` prenait un lecteur sur stdin dès l'import, ce qui verrouillait stdin pour toute la CLI (`verify-report` en pipe, et `run` avec un prompt en stdin). Le lecteur est maintenant créé à la première utilisation.
 
 Hors périmètre : `CHECK_OUTPUT` n'est pas rejoué (seule son absence après une PR est signalée), et les verdicts de reviewer inventés (occurrence 3) ne sont pas détectables à partir du seul rapport.
-<!-- /litecode:comment -->
 
-<!-- litecode:comment -->
 Corrections après review (`reviewer` puis une passe `code-review` complète) :
 
 - Le statut du ticket est lu à la fois dans le checkout principal (l'étape 2 l'y écrit, avant l'existence du worktree) et dans la copie commitée sur la branche (étapes suivantes) ; il suffit qu'une des deux corresponde. Les fichiers ticket ne comptent plus comme fuite dans le checkout principal.
@@ -51,4 +45,3 @@ Corrections après review (`reviewer` puis une passe `code-review` complète) :
 - Parsing tolérant : fins de ligne CRLF, puces et gras markdown autour des clés, `"n/a"` entre guillemets ou suivi d'une explication.
 - Détection « PR introuvable » restreinte aux formulations de `gh` pour une PR ; un « not found » générique reste un avertissement.
 - Sans `--file` et sans pipe, la commande s'arrête avec un message au lieu d'attendre EOF.
-<!-- /litecode:comment -->

@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0005-feat-init-demander-fournisseur-et-modeles-par-pa
 title: feat(init): demander fournisseur et modèles par palier selon la cible
 label: feature
@@ -8,9 +8,6 @@ priority: medium
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 19
-synced: true
-syncedAt: 2026-09-18T17:28:10.544Z
 ---
 
 ## Le vrai défaut, plus large que le littéral codé en dur

@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0014-fix-install-pre-flight-validate-project-web-conf
 title: fix(install): pre-flight validate project.web config paths required by packs/web templates
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: small
 assignedAgent: implementer
 dueDate: 
-issue: 32
-synced: true
-syncedAt: 2026-09-18T17:35:09.854Z
 ---
 
 ## Bug

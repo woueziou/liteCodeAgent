@@ -1,16 +1,13 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0030-refactor-tickets-retirer-les-issues-github-ticke
 title: refactor(tickets)!: retirer les issues GitHub, tickets purement locaux
 label: chore
-status: backlog
+status: review
 priority: high
 size: large
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
 ---
 
 Décision humaine (2026-09-23) : plus d'issues GitHub. Les tickets vivent uniquement dans le buffer local ; les pull requests GitHub restent (`gh pr create`, verdicts postés sur la PR).
@@ -24,3 +21,11 @@ Décision humaine (2026-09-23) : plus d'issues GitHub. Les tickets vivent unique
 - `tests/agents-sync-only-gh.test.ts`, la doc (README, `docs/tickets/README.md`), et un ADR qui remplace les ADR 0001, 0009 et 0012 sur ce point.
 
 Changement cassant pour les utilisateurs de la CLI (`ticket sync` disparaît).
+
+### 2026-09-23 — claude: implémenté (ADR 0015)
+
+- Schéma v2 : `issue`/`synced`/`syncedAt` supprimés, les notes sont du texte daté dans le ticket. `litecode ticket migrate [--apply]` convertit les fichiers v1 (commentaires en attente conservés en texte) ; `ticket doctor` signale les fichiers v1. Les 30 tickets du dépôt sont migrés.
+- Supprimés : `ticket sync` (et `--auto`), l'agent `sync`, `src/tickets/sync.ts`, `src/tickets/auto-sync.ts`, les clés de config d'auto-sync, la recherche `gh issue list` du contrôle anti-doublon.
+- `verify-report` lit `TICKET:` (accepte encore `ISSUE:`) et trouve le ticket par son id.
+- Prompts : l'implementer lit le fichier ticket, laisse des notes datées, cite le ticket dans la PR au lieu de « Closes #n » ; triage, tracker, dispatcher, reviewer, orchestrator et les skills n'utilisent plus `gh issue`. Un test de pack interdit ce vocabulaire.
+- Docs : README, `docs/tickets/README.md`, HANDOFF ; ADR 0015, notes de remplacement dans les ADR 0009 et 0012.

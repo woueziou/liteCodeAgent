@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0003-fix-install-preflight-validate-config-paths-packs-require
 title: fix(install): pre-flight validate config paths packs require, plus opt-in `config doctor --fix`
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 17
-synced: true
-syncedAt: 2026-09-18T16:39:21.901Z
 ---
 
 ## Problem

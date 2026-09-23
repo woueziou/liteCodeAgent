@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0021-refactor-gh-reloger-le-wrapper-gh-hors-de-src-bo
 title: refactor(gh): reloger le wrapper gh() hors de src/board/
 label: chore
@@ -8,9 +8,6 @@ priority: high
 size: small
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
 ---
 
 Remove the generic `gh()` CLI wrapper from the board module — it has no business being there. `src/board/gh.ts` contains `gh()`, `ensureAuth`, `onGhRetry`, `RateLimitError`, which are a generic wrapper around the `gh` CLI, not a board-specific module; it is stored there only for convenience.

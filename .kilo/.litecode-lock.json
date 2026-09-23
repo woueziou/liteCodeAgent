@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "0.14.0",
-  "installedAt": "2026-09-23T10:17:35.947Z",
+  "installedAt": "2026-09-23T10:30:29.041Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -18,22 +18,22 @@
     ".kilo/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e08ab441ede63f3b"
+      "hash": "ad891c2d4a33b588"
     },
     ".kilo/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "25b05a8884ea45ca"
+      "hash": "383a57a065dc5b04"
     },
     ".kilo/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "ad92948cfd2f8e5e"
+      "hash": "5d6f7bde6db13f17"
     },
     ".kilo/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "0481abc69fa076e8"
+      "hash": "7b64d815e78b9c9c"
     },
     ".kilo/agents/debate-angle.md": {
       "pack": "core",
@@ -48,12 +48,7 @@
     ".kilo/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "0670c8ff487354c0"
-    },
-    ".kilo/agents/sync.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "4ce79abbb5785219"
+      "hash": "3432d8473a587c53"
     },
     ".kilo/agents/planner.md": {
       "pack": "core",
@@ -73,17 +68,17 @@
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "bdaa7774ee8c0ac0"
+      "hash": "e9db6e7512c8df1f"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e780d053d73a391d"
+      "hash": "904a3555a8f445af"
     },
     ".kilo/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "ced71f8e771b2033"
+      "hash": "e411a6daf9d541ba"
     },
     ".kilo/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
@@ -93,7 +88,7 @@
     ".kilo/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e736912df3f94aeb"
+      "hash": "60cc664ff45ed2a7"
     },
     ".kilo/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",

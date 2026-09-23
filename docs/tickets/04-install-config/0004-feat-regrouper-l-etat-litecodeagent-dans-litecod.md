@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0004-feat-regrouper-l-etat-litecodeagent-dans-litecod
 title: feat: regrouper l'état LiteCodeAgent dans .litecodeagent/
 label: feature
@@ -8,9 +8,6 @@ priority: medium
 size: large
 assignedAgent: implementer
 dueDate: 
-issue: 18
-synced: true
-syncedAt: 2026-09-18T17:28:00.262Z
 ---
 
 ## Objectif

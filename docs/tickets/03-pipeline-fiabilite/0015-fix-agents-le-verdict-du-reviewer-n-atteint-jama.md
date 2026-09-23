@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0015-fix-agents-le-verdict-du-reviewer-n-atteint-jama
 title: fix(agents): le verdict du reviewer n'atteint jamais la PR sur le chemin Ready to Merge
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: small
 assignedAgent: implementer
 dueDate: 
-issue: 43
-synced: false
-syncedAt: 2026-09-21T16:26:02.752Z
 ---
 
 Constat reproduit **cinq fois sur cinq** dans la session du 19-21/09/2026, sur les PR #34, #36, #39, #41 et #42 : chacune a été approuvée par `reviewer`, et **aucune ne porte le moindre commentaire sur GitHub**. `gh pr view <n> --json comments` renvoie 0 pour les cinq.
@@ -28,7 +25,6 @@ Piste : le verdict doit être posté sur la PR (`gh pr comment`) sur les DEUX ch
 
 generated_by: tracker
 
-<!-- litecode:comment -->
 Reviewer re-review of PR #47 (commit 47d41a5, fixing the two blocking findings from the prior code-review sub-pass):
 
 VERDICT: changes-requested
@@ -48,4 +44,3 @@ PLAN_FIDELITY: matches — diff does exactly what the PR describes.
 REENTRY:
 - code-review sub-pass didn't return: same-PR — re-invoke it (effort medium) before merge; if it surfaces nothing new, verdict can be upgraded to approve/approve-with-notes without further diff changes.
 - Commit trailer check: confirmed by implementer (47d41a5, e351b1e both carry `Agent: implementer` / `Task: #43`); no action needed.
-<!-- /litecode:comment -->

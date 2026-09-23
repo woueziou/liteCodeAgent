@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0023-fix-tickets-ticketfiles-doit-parcourir-recursive
 title: fix(tickets): ticketFiles doit parcourir récursivement les répertoires d'epic
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: human
 dueDate: 
-issue: 
-synced: false
-syncedAt: 
 ---
 
 Fix silent data loss when tickets are organized into epic directories. `src/tickets/store.ts:11-19` (`ticketFiles`) performs a flat `readdir(abs)` filtered on `.endsWith(".md")`. With a structure `docs/tickets/<epic>/<ticket>.md`, it returns **zero entries** — subdirectories do not end in `.md` and `readdir` is not called with `{ recursive: true }`.

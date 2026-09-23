@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0001-fix-board-detect-non-editable-derived-project-fi
 title: fix(board): detect non-editable derived project fields at plan time instead of failing mid-apply
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 13
-synced: true
-syncedAt: 2026-09-18T12:15:48.249Z
 ---
 
 ## Problem

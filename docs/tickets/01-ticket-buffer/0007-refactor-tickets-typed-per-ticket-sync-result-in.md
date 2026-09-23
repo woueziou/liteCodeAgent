@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0007-refactor-tickets-typed-per-ticket-sync-result-in
 title: refactor(tickets): typed per-ticket sync result instead of Promise<string[]>
 label: chore
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: implementer
 dueDate: 
-issue: 25
-synced: true
-syncedAt: 2026-09-18T17:28:31.647Z
 ---
 
 The local ticket buffer becomes the pipeline's source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls.

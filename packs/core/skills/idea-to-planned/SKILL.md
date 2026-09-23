@@ -5,7 +5,7 @@ description: Takes a raw idea/feature/bug report and runs it all the way to a Pl
 
 # Idea to Planned
 
-This skill removes the per-step approval pauses between classification, issue creation, and backlog planning — but the human's instruction to invoke this skill, with the idea in hand, **is** the approval. It never runs speculatively, on a schedule, or without a human handing it a concrete idea in the current turn.
+This skill removes the per-step approval pauses between classification, ticket drafting, and backlog planning — but the human's instruction to invoke this skill, with the idea in hand, **is** the approval. It never runs speculatively, on a schedule, or without a human handing it a concrete idea in the current turn.
 
 ## Scope — where this stops
 
@@ -17,9 +17,9 @@ This skill takes an idea to a `Planned` ticket and nothing further. It never inv
 2. Read its output.
    - **If `BLOCKING_TENSION` is not "none"**: stop here. Do not invoke `tracker`. Surface the tension to the human — an unresolved tension between debate angles is exactly the kind of judgment call this pipeline was built to route to a human, not to paper over.
    - **If `SIZE` is trivial** (orchestrator skips straight to a one-paragraph description, no ADR): still proceed to `tracker` — trivial doesn't mean "not worth tracking," it means "didn't need the debate panel."
-3. Invoke `tracker` (via {{> delegate tracker}}) with the title/body/label/size/priority derived from `orchestrator`'s output — same as the manual flow, just without a separate confirmation round-trip first. Populate the issue body with the plan/recommendation `orchestrator` returned, same as when a human manually asks for a ticket to be created.
-4. Invoke `dispatcher` (via {{> delegate dispatcher}}) scoped to the newly created issue — same pattern as `chained-implementation`'s dispatcher step: tell it explicitly which issue to plan, not to run a full-backlog ranking pass.
-5. Report back to the human: the ticket file path (plus the issue URL once `sync` has created it), its Status/Priority/Size, and whether it landed in `Planned` or stayed in `Backlog` (if `dispatcher` judged something else should come first — report that ranking decision, don't override it).
+3. Invoke `tracker` (via {{> delegate tracker}}) with the title/body/label/size/priority derived from `orchestrator`'s output — same as the manual flow, just without a separate confirmation round-trip first. Populate the ticket body with the plan/recommendation `orchestrator` returned, same as when a human manually asks for a ticket to be created.
+4. Invoke `dispatcher` (via {{> delegate dispatcher}}) scoped to the newly drafted ticket — same pattern as `chained-implementation`'s dispatcher step: tell it explicitly which ticket to plan, not to run a full-backlog ranking pass.
+5. Report back to the human: the ticket file path, its Status/Priority/Size, and whether it landed in `Planned` or stayed in `Backlog` (if `dispatcher` judged something else should come first — report that ranking decision, don't override it).
 
 ## Delegating
 

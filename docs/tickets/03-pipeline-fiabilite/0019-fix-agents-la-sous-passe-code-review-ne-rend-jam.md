@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0019-fix-agents-la-sous-passe-code-review-ne-rend-jam
 title: fix(agents): la sous-passe `code-review` ne rend jamais, ce qui plafonne tout verdict — et n'existe pas hors Claude Code
 label: bug
@@ -8,9 +8,6 @@ priority: high
 size: medium
 assignedAgent: human
 dueDate: 
-issue: 48
-synced: true
-syncedAt: 2026-09-21T16:26:14.464Z
 ---
 
 ## Symptôme : plus aucune PR ne peut obtenir `approve`
@@ -54,7 +51,6 @@ Six plafonnements consécutifs, tous documentés dans les commentaires de PR : #
 
 **generated_by: tracker**
 
-<!-- litecode:comment -->
 Approche retenue (choix humain, 2026-09-23) : un agent dédié, consigné dans l'ADR 0013.
 
 - Nouvel agent de pack `bug-hunter` : chasse aux bugs par scénarios d'échec concrets, confirmés en exécutant le code, chaque constat marqué `confirmed` ou `plausible`, et `HUNT: complete | partial` pour ne jamais présenter une chasse incomplète comme terminée. Skills déclarées en dur (`critique-expert`, `security-expert`) pour ne pas imposer une nouvelle clé `agentSkills` aux configs existantes.
@@ -63,4 +59,3 @@ Approche retenue (choix humain, 2026-09-23) : un agent dédié, consigné dans l
 - Garde-fou : `tests/agents-correctness-pass.test.ts` interdit à tout fichier de pack de dépendre à nouveau de la skill `code-review`.
 
 Question laissée à 0020 : la dépendance à `Agent`/`subagent_type` sur les cibles non-Claude (le correctif retire la dépendance à une *skill* propre à Claude, pas celle-là).
-<!-- /litecode:comment -->

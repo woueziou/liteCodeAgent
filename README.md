@@ -29,7 +29,7 @@ tool expects. When the agents improve, you pull the update instead of re-copying
 | --- | --- |
 | **agent** | One AI assistant with one job, defined in a Markdown file your coding tool reads |
 | **pack** | A bundle of agents you install together — `core` is the pipeline, `web` adds front-end experts |
-| **ticket** | A local markdown file under `docs/tickets/` tracking one piece of work through the pipeline, synced to a GitHub issue |
+| **ticket** | A markdown file under `docs/tickets/` tracking one piece of work through the pipeline — the file is the ticket, there is no GitHub issue |
 
 The agents are written as templates with blanks in them — your repo name, your test
 command, your coding conventions. Setup fills the blanks from your answers. That's what
@@ -52,8 +52,8 @@ change it is. `panel-selector` decides which angles are worth arguing — securi
 performance? — and `debate-angle` argues each one separately, in parallel. `synthesizer`
 reconciles them and `planner` turns the result into a plan.
 
-Nothing has been created or written yet. **You approve first.** Then `tracker` files the
-issue, `dispatcher` decides what to do next, `implementer` writes the code and opens a
+Nothing has been created or written yet. **You approve first.** Then `tracker` drafts the
+ticket, `dispatcher` decides what to do next, `implementer` writes the code and opens a
 pull request, `reviewer` gives a real verdict on it, and `bug-hunter` independently hunts
 for the inputs that break it. If something goes wrong,
 `triage` picks it up rather than letting an agent guess.
@@ -68,12 +68,12 @@ That gating is deliberate: **no agent creates tracked work or writes code until 
 | --- | --- | --- |
 | [Bun](https://bun.sh) ≥ 1.1 | Runs the setup command. It's a JavaScript runtime, like Node. | `bun --version` |
 | A git repository | The tool reads your remote to learn your project's name | `git remote -v` |
-| [GitHub CLI](https://cli.github.com), signed in | For `ticket sync` and the agents' other GitHub work (issues, PRs) | `gh auth status` |
+| [GitHub CLI](https://cli.github.com), signed in | For the agents' pull requests (`implementer` opens one per ticket) | `gh auth status` |
 | A coding tool | Claude Code, Codex, Pi, OpenCode or Kilo Code — whichever you already use | — |
 | A provider API key | **Only** if you want to run agents outside a coding tool | — |
 
-If `gh auth status` says you're not logged in, run `gh auth login` before running
-`bunx litecodeagent ticket sync --apply`. Everything else works without it.
+If `gh auth status` says you're not logged in, run `gh auth login` before asking
+`implementer` to open a pull request. Everything else works without it.
 
 ---
 
@@ -301,31 +301,22 @@ genuine conflict, it hands you the tension instead of picking a winner.
 
 > "Ok, track it"
 
-`tracker` drafts the ticket **locally**, as a markdown file under `docs/tickets/`
-(configurable via `project.tickets.dir`) — no GitHub call happens yet. It only ever runs
-after you've explicitly approved.
+`tracker` drafts the ticket as a markdown file under `docs/tickets/` (configurable via
+`project.tickets.dir`). That file is the ticket — nothing is created on GitHub. It only
+ever runs after you've explicitly approved.
 
-### Sync tickets to GitHub
+### Work with tickets
 
-> "Sync the tickets"
-
-`sync` runs `litecode ticket sync`, which pushes every dirty ticket in one bounded,
-retryable batch: a ticket with no `issue` yet becomes a real GitHub issue
-(`gh issue create`); an already-created ticket only ever pushes title/body/comment edits
-(`gh issue edit`/`gh issue comment`). `status`/`priority`/`size`/`assignedAgent` are plain
-local fields on the ticket file — the pipeline itself drives `status` as a ticket moves
-through `Planned`/`In Progress`/`Review`/`Ready to Merge`/`Blocked`, and none of the four
-is ever pushed to or pulled from GitHub. See
-`docs/decisions/0001-local-ticket-buffer-and-github-sync.md` for the original reasoning
-(superseded in part — the local ticket buffer is now the sole source of truth for
-pipeline state, not just a staging area in front of a GitHub Project board).
+Tickets are plain files you can read, edit and commit like any other (ADR 0015). Agents
+move them through `Planned`/`In Progress`/`Review`/`Ready to Merge`/`Blocked` by editing
+their `status`, and leave dated notes at the end of their body.
 
 ```bash
-bunx litecodeagent ticket new --title "Fix the flaky sync test" --label bug \
+bunx litecodeagent ticket new --title "Fix the flaky install test" --label bug \
   --priority medium --size small --body "Body goes here."
 bunx litecodeagent ticket list
-bunx litecodeagent ticket sync            # dry run: shows what would create/update/skip
-bunx litecodeagent ticket sync --apply    # pushes the dirty batch
+bunx litecodeagent ticket doctor
+bunx litecodeagent ticket migrate --apply   # once, if your tickets predate schema v2
 ```
 
 ### Plan the queue
@@ -352,7 +343,7 @@ with the subject in hand:
 
 - **`idea-to-planned`** — idea → orchestrator → tracker → dispatcher, no pauses.
   Stops at `Planned`; never writes code.
-- **`chained-implementation`** — dispatcher → implementer on one named issue, then
+- **`chained-implementation`** — dispatcher → implementer on one named ticket, then
   checks the implementer's report with `verify-report` before relaying it.
 
 ### Keeping it healthy
@@ -469,9 +460,9 @@ that parent directory to `runner.skillDirs`. The configured runner output direct
 
 A pack is a bundle of agents and skills installed together. There are two:
 
-- **`core`** — the 13 pipeline agents (`classifier`, `panel-selector`, `debate-angle`,
+- **`core`** — the 12 pipeline agents (`classifier`, `panel-selector`, `debate-angle`,
   `synthesizer`, `planner`, `orchestrator`, `tracker`, `dispatcher`, `implementer`,
-  `reviewer`, `bug-hunter`, `triage`, `sync`) plus `agent-attribution`, `critique-expert`,
+  `reviewer`, `bug-hunter`, `triage`) plus `agent-attribution`, `critique-expert`,
   `security-expert`, and the two chaining skills.
 - **`web`** — expert skills for TypeScript/React work: `typescript-expert`,
   `frontend-expert`, `ui-ux-expert`, `design-expert`, and the three `mobile-*` experts.

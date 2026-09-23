@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0002-feat-packs-langue-configurable
 title: feat(packs): langue de travail configurable pour la prose des agents
 label: feature
@@ -8,9 +8,6 @@ priority: medium
 size: large
 assignedAgent: implementer
 dueDate: 
-issue: 16
-synced: true
-syncedAt: 2026-09-21T15:35:35.144Z
 ---
 
 Une clé `project.language` optionnelle et en texte libre dans `litecode.config.json` (ex. `"French"`, `"Brazilian Portuguese"`) est interpolée dans les prompts de pack, pour que la prose des agents, les contenus GitHub qu'ils écrivent et les ADR suivent la langue choisie.

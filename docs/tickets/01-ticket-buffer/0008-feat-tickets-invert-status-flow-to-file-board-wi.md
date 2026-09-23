@@ -1,5 +1,5 @@
 ---
-schemaVersion: 1
+schemaVersion: 2
 id: 0008-feat-tickets-invert-status-flow-to-file-board-wi
 title: feat(tickets): invert status flow to file→board with detect-and-block and synced-as-lock
 label: feature
@@ -8,9 +8,6 @@ priority: high
 size: large
 assignedAgent: human
 dueDate: 
-issue: 26
-synced: true
-syncedAt: 2026-09-18T17:28:42.079Z
 ---
 
 The local ticket buffer becomes the pipeline's source of truth. `implementer` reads tickets locally; on pickup it writes the status transition into the local file, then `sync` informs the board; on completion it updates the file again and `sync` takes over. Comments are staged locally then synced. `reviewer` uses the same path, including the reviewer→implementer rework round trip. Goal: genuinely reduce GitHub API calls. This REVERSES a documented decision: `src/tickets/spec.ts` documents `status` as board→file only. ADR `docs/decisions/0001-local-ticket-buffer-and-github-sync.md` must be explicitly superseded.
