@@ -103,7 +103,9 @@ export type Probes = {
 const EXPECTED_TICKET_STATUS: Partial<Record<ReportStatus, StatusRole[]>> = {
   "pr-opened-for-review": ["review", "readyToMerge"],
   "in-progress-blocked": ["blocked"],
-  "verified-no-changes-needed": ["done", "review"],
+  // Verification-only path: a reviewer `approve` goes straight to `done`; a disagreement
+  // means a code change after all, which is reported under a different STATUS.
+  "verified-no-changes-needed": ["done"],
   "implemented-pending-github": ["inProgress"],
   "adr-pending-approval": ["inProgress"],
 };

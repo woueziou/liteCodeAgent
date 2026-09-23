@@ -51,6 +51,19 @@ test("dirtyFiles lists modified and untracked paths in the primary checkout", as
   expect((await realProbes(ctx(root)).dirtyFiles()).sort()).toEqual(["new.txt", "src/a.ts"]);
 });
 
+test("non-ASCII paths match between dirtyFiles and branchFiles", async () => {
+  const root = await repo();
+  await sh(root, "git", "switch", "-q", "feat/x/issue-7");
+  await Bun.write(join(root, "docs/écart.md"), "a\n");
+  await sh(root, "git", "add", ".");
+  await sh(root, "git", "commit", "-q", "-m", "accent");
+  await sh(root, "git", "switch", "-q", "main");
+  await Bun.write(join(root, "docs/écart.md"), "leaked\n");
+  const p = realProbes(ctx(root));
+  expect(await p.dirtyFiles()).toEqual(["docs/écart.md"]);
+  expect(await p.branchFiles("feat/x/issue-7")).toContain("docs/écart.md");
+});
+
 test("ticketStatus finds a ticket by #issue or by local id", async () => {
   const root = await repo();
   await writeTicket(root, {

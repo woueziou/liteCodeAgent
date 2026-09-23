@@ -14,7 +14,11 @@ async function refExists(root: string, ref: string): Promise<boolean> {
   return (await git(root, ["rev-parse", "--verify", "--quiet", ref])).code === 0;
 }
 
-const PR_NOT_FOUND = /no pull requests? found|could not resolve to a pullrequest|not found/i;
+/**
+ * Only gh's own "this PR doesn't exist" wordings. A generic "not found" (a mistyped repo,
+ * a visibility or auth problem) says nothing about the report, so it must stay `unknown`.
+ */
+const PR_NOT_FOUND = /no pull requests? found|could not resolve to a pullrequest/i;
 
 export type ProbeContext = { root: string; repo: string; defaultBranch: string; ticketsDir: string };
 
@@ -38,18 +42,27 @@ export function realProbes(ctx: ProbeContext): Probes {
       }
     },
 
+    // `-z` everywhere: without it git quotes and octal-escapes non-ASCII paths, which would
+    // never match between `status` and `diff` and silently downgrade a leak to a warning.
+    // `--untracked-files=all` for the same reason: by default a new file in a new directory
+    // shows up only as that directory, which never matches the branch's file paths.
     async dirtyFiles() {
-      const { stdout } = await git(root, ["status", "--porcelain"]);
-      return stdout
-        .split("\n")
-        .filter((l) => l.length > 3)
-        .map((l) => l.slice(3).split(" -> ").pop()!.replace(/^"|"$/g, ""));
+      const entries = (await git(root, ["status", "--porcelain", "-z", "--untracked-files=all"])).stdout.split("\0");
+      const paths: string[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]!;
+        if (entry.length < 4) continue;
+        paths.push(entry.slice(3));
+        // A rename/copy entry is followed by its original path, which isn't dirty itself.
+        if (entry[0] === "R" || entry[0] === "C") i++;
+      }
+      return paths;
     },
 
     async branchFiles(branch) {
       const ref = (await refExists(root, `refs/heads/${branch}`)) ? branch : `origin/${branch}`;
-      const { stdout, code } = await git(root, ["diff", "--name-only", `${defaultBranch}...${ref}`]);
-      return code === 0 ? stdout.split("\n").filter(Boolean) : [];
+      const { stdout, code } = await git(root, ["diff", "--name-only", "-z", `${defaultBranch}...${ref}`]);
+      return code === 0 ? stdout.split("\0").filter(Boolean) : [];
     },
 
     async ticketStatus(issue) {

@@ -113,6 +113,13 @@ test("a ticket status that contradicts the reported outcome is an error", async 
   ]);
 });
 
+test("verified-no-changes-needed expects the ticket in done", async () => {
+  const r = parsed("STATUS: verified-no-changes-needed\nISSUE: #45\nBRANCH: n/a\nPR: none (verification-only)");
+  expect(await errors(r, probes({ ticketStatus: async () => "review" }))).toEqual([
+    "ticket for ISSUE #45 has status 'review', expected done after verified-no-changes-needed",
+  ]);
+});
+
 test("blocked-github-unavailable has no expected ticket status", async () => {
   const r = parsed("STATUS: blocked-github-unavailable\nISSUE: #45\nBRANCH: n/a");
   expect(await errors(r, probes({ ticketStatus: async () => "planned" }))).toEqual([]);
