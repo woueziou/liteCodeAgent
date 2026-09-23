@@ -44,8 +44,6 @@ test("a config predating the ticket buffer, with no `tickets` key at all, still 
   expect(config.project.tickets).toEqual({
     enabled: true,
     dir: "docs/tickets",
-    autoStateFile: ".claude/data/ticket-sync-auto-state.json",
-    autoMinIntervalMs: 60_000,
   });
 });
 

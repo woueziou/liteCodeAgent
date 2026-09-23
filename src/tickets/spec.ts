@@ -1,29 +1,13 @@
 /**
- * A ticket file is local-first, not a buffer for some other authoritative store.
+ * A ticket file is the ticket — there is nothing else (ADR 0015). It's drafted in the
+ * tickets directory, edited there, moved through the pipeline there, and keeps its own
+ * history as plain text in its body. No GitHub issue mirrors it: the only GitHub artefact
+ * of the pipeline is the pull request that implements a ticket.
  *
- * The tickets directory is where a ticket lives, full stop: it's drafted there (no API
- * call), edited there, moved through the pipeline there, and accumulates pending comments
- * there. `litecode ticket sync` pushes the batch of dirty tickets to GitHub in one bounded
- * run of `gh` calls (issue create/edit, comments) — that's still what turns N agents each
- * doing their own scattered `gh` calls into one durable answer to GitHub's secondary rate
- * limit — but GitHub is a downstream mirror of the file, not the other way around. There
- * is no board to pull from any more; nothing reads state back out of GitHub into the file.
- *
- * `synced` is therefore a dirty flag, not a piece of state anyone should reason from:
- * `false` means "this file holds changes GitHub has not seen yet".
- *
- * `priority`/`size`/`assignedAgent` are plain local fields, same as everything else in the
- * file: set at creation, freely editable afterwards by hand or by any agent, never pushed
- * to GitHub past the initial `gh issue create`. Their old justification ("the board is
- * authoritative for them after creation") no longer applies now that there is no board —
- * they're kept because they're still useful ranking/routing inputs for `dispatcher`, not
- * because anything downstream owns them.
- *
- * `status` works the same way: it's the field the pipeline itself drives
+ * `priority`/`size`/`assignedAgent` are ranking and routing inputs for `dispatcher`, freely
+ * editable by hand or by any agent. `status` is the field the pipeline drives
  * (`dispatcher`/`implementer`/`triage` handing a ticket between `Planned`/`In Progress`/
- * `Review`/`Ready to Merge`/`Blocked`) by writing it directly on the local file. It was
- * already local-first before this file became the sole source of truth; now it's simply
- * never synced anywhere else either.
+ * `Review`/`Ready to Merge`/`Blocked`) by writing it directly on the file.
  */
 
 import { z } from "zod";
@@ -65,11 +49,19 @@ export type Size = (typeof SIZES)[number];
 
 /**
  * Bumped whenever the on-disk shape of a ticket file changes in a way an existing
- * committed file wouldn't already satisfy. `1` is the shape shipped with the initial
- * local ticket buffer (see ADR 0001); no migration exists yet because no ticket file has
- * ever been committed under an earlier shape.
+ * committed file wouldn't already satisfy.
+ *
+ * - `1` — the GitHub-synced buffer (ADR 0001): `issue`/`synced`/`syncedAt` in the
+ *   frontmatter, comments staged in `<!-- litecode:comment -->` blocks until `sync` posted
+ *   them.
+ * - `2` — purely local tickets (ADR 0015): those three keys are gone and a comment is just
+ *   text in the body. A v1 file still parses (the stale keys are ignored);
+ *   `litecode ticket migrate` rewrites it as v2, and `ticket doctor` flags it until then.
  */
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
+
+/** A file with no `schemaVersion` predates the field, i.e. it's v1. */
+const LEGACY_SCHEMA_VERSION = 1;
 
 const optional = (schema: z.ZodString) =>
   z.preprocess((v) => (v === "" || v === undefined ? undefined : v), schema.optional());
@@ -77,32 +69,23 @@ const optional = (schema: z.ZodString) =>
 export const TicketSchema = z.object({
   /** On-disk shape version. Missing on a hand-written file is treated as `1`. */
   schemaVersion: z.preprocess(
-    (v) => (v === "" || v === undefined ? CURRENT_SCHEMA_VERSION : Number(v)),
-    z.number().int().positive().default(CURRENT_SCHEMA_VERSION),
+    (v) => (v === "" || v === undefined ? LEGACY_SCHEMA_VERSION : Number(v)),
+    z.number().int().positive(),
   ),
-  /** Stable file identity, e.g. `0007-ticket-buffer`. Never changes, even after sync. */
+  /** Stable file identity, e.g. `0007-ticket-buffer`. Never changes. */
   id: z.string().regex(/^\d{4}-[a-z0-9-]+$/, "expected NNNN-kebab-slug"),
   title: z.string().min(1),
   label: z.enum(["bug", "feature", "doc", "chore"]),
   /**
    * The pipeline status this ticket asserts — purely local state.
    * `dispatcher`/`implementer`/`triage` move a ticket through the pipeline by writing this
-   * field directly on the file; nothing in `ticket sync` reads or writes it against
-   * GitHub, there is no board left to disagree with.
+   * field directly on the file.
    */
   status: z.enum(TICKET_STATUSES).default("backlog"),
   priority: z.enum(PRIORITIES).default("medium"),
   size: z.enum(SIZES).default("medium"),
   assignedAgent: z.string().default("human"),
   dueDate: optional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")),
-  /** Set by the first successful sync; the link between this file and the GitHub issue. */
-  issue: z.preprocess(
-    (v) => (v === "" || v === undefined ? undefined : Number(v)),
-    z.number().int().positive().optional(),
-  ),
-  /** false = this file holds changes GitHub has not seen yet. */
-  synced: z.preprocess((v) => (typeof v === "string" ? v === "true" : v), z.boolean().default(false)),
-  syncedAt: optional(z.string()),
 });
 
 export type TicketMeta = z.infer<typeof TicketSchema>;
@@ -110,29 +93,20 @@ export type TicketMeta = z.infer<typeof TicketSchema>;
 export type Ticket = TicketMeta & {
   /** Path of the file this was read from, relative to the repo root. */
   path: string;
-  /** The issue body, pending-comment blocks already stripped out. */
+  /** Everything after the frontmatter, the ticket's own history included. */
   body: string;
-  /** Comments staged locally, in file order, not yet posted to the issue. */
-  pendingComments: string[];
 };
 
-const COMMENT_OPEN = "<!-- litecode:comment -->";
-const COMMENT_CLOSE = "<!-- /litecode:comment -->";
-const COMMENT_BLOCK = /<!-- litecode:comment -->\n?([\s\S]*?)\n?<!-- \/litecode:comment -->\n*/g;
+const LEGACY_COMMENT_BLOCK = /<!-- litecode:comment -->\n?([\s\S]*?)\n?<!-- \/litecode:comment -->/g;
 
-/** Renders a comment block, which is how an agent stages a comment without touching gh. */
-export function commentBlock(text: string): string {
-  return `${COMMENT_OPEN}\n${text.trim()}\n${COMMENT_CLOSE}\n`;
-}
-
-export function splitComments(body: string): { body: string; comments: string[] } {
-  const comments: string[] = [];
-  const stripped = body.replace(COMMENT_BLOCK, (_, text: string) => {
-    const trimmed = text.trim();
-    if (trimmed) comments.push(trimmed);
-    return "";
-  });
-  return { body: stripped.replace(/\n{3,}/g, "\n\n").trimEnd() + "\n", comments };
+/**
+ * Rewrites a v1 ticket as v2: bumps `schemaVersion` (the legacy keys drop out on their
+ * own, since `TicketSchema` doesn't know them) and unwraps each staged-comment block into
+ * plain text, so a comment `sync` never posted is kept rather than lost.
+ */
+export function migrateTicket(ticket: Ticket): Ticket {
+  const body = ticket.body.replace(LEGACY_COMMENT_BLOCK, (_, text: string) => text.trim());
+  return { ...ticket, schemaVersion: CURRENT_SCHEMA_VERSION, body: body.replace(/\n{3,}/g, "\n\n").trimEnd() + "\n" };
 }
 
 export function parseTicket(source: string, path: string): Ticket {
@@ -142,12 +116,11 @@ export function parseTicket(source: string, path: string): Ticket {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
     throw new Error(`${path} is not a valid ticket:\n${issues}`);
   }
-  const split = splitComments(body);
-  return { ...parsed.data, path, body: split.body, pendingComments: split.comments };
+  return { ...parsed.data, path, body: body.trimEnd() + "\n" };
 }
 
 /**
- * Keys are written in a fixed order so a synced ticket produces a minimal diff: a file
+ * Keys are written in a fixed order so an edited ticket produces a minimal diff: a file
  * whose key order drifted on every write would make `git log` on a ticket unreadable.
  * `schemaVersion` is first, matching `TicketSchema`'s key order.
  */
@@ -161,9 +134,6 @@ const KEY_ORDER: (keyof TicketMeta)[] = [
   "size",
   "assignedAgent",
   "dueDate",
-  "issue",
-  "synced",
-  "syncedAt",
 ];
 
 export function serializeTicket(ticket: Ticket): string {
@@ -172,9 +142,7 @@ export function serializeTicket(ticket: Ticket): string {
     const value = ticket[key];
     data[key] = value === undefined || value === null ? "" : String(value);
   }
-  const comments = ticket.pendingComments.map(commentBlock).join("\n");
-  const body = comments ? `${ticket.body.trimEnd()}\n\n${comments}` : `${ticket.body.trimEnd()}\n`;
-  return serializeFrontmatter(data, body);
+  return serializeFrontmatter(data, `${ticket.body.trimEnd()}\n`);
 }
 
 /** `Fix the flaky board test!` -> `fix-the-flaky-board-test` */

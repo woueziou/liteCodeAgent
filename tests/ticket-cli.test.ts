@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtemp, writeFile, chmod } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,14 +7,17 @@ import { ConfigSchema } from "../src/config.ts";
 
 const realBin = process.env.LITECODE_GH_BIN;
 
-/** Stands in for `gh issue list`, returning a fixed JSON array of open issues. */
-async function stubGhIssueList(issues: { number: number; title: string }[]): Promise<void> {
+/**
+ * Tickets are purely local (ADR 0015): no `ticket` command may call `gh`. A stub that
+ * fails loudly on any invocation proves it — a command that shelled out would error.
+ */
+beforeEach(async () => {
   const dir = await mkdtemp(join(tmpdir(), "litecode-gh-stub-"));
   const bin = join(dir, "gh");
-  await writeFile(bin, `#!/usr/bin/env bash\necho '${JSON.stringify(issues)}'\n`);
+  await writeFile(bin, `#!/usr/bin/env bash\necho "gh must not be called by ticket commands: $*" >&2\nexit 97\n`);
   await chmod(bin, 0o755);
   process.env.LITECODE_GH_BIN = bin;
-}
+});
 
 afterEach(() => {
   if (realBin) process.env.LITECODE_GH_BIN = realBin;
@@ -51,57 +54,41 @@ async function project(): Promise<string> {
   return root;
 }
 
-test("`ticket new` drafts a file locally, dirty by default, once the duplicate check clears", async () => {
-  await stubGhIssueList([]);
+test("`ticket new` drafts a v2 file locally, without calling gh", async () => {
   const root = await project();
-  const output = await runCli(root, ["ticket", "new", "--title", "Fix the flaky thing", "--label", "bug"]);
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "new", "--title", "Fix the flaky thing", "--label", "bug"]);
+  expect(exitCode).toBe(0);
   expect(output).toContain("created");
-  expect(output).toContain("docs/tickets");
+  expect(output).not.toContain("sync");
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-fix-the-flaky-thing.md")).text();
+  expect(file).toContain("schemaVersion: 2");
+  expect(file).not.toMatch(/^(issue|synced|syncedAt):/m);
 
   const list = await runCli(root, ["ticket", "list"]);
-  expect(list).toContain("dirty");
-  expect(list).toContain("(no issue yet)");
+  expect(list).toContain("backlog");
+  expect(list).toContain("0001-fix-the-flaky-thing");
 });
 
-test("`ticket new` blocks a title that overlaps an open issue (the #18/#19 -> #21/#22 incident)", async () => {
-  await stubGhIssueList([{ number: 18, title: "fix(install): pre-flight validate agentSkills config paths" }]);
-  const root = await project();
-  const output = await runCli(root, [
-    "ticket", "new",
-    "--title", "pre-flight validate agentSkills config paths before install",
-    "--label", "bug",
-  ]);
-  expect(output).toMatch(/duplicate/i);
-  expect(output).toContain("#18");
-
-  const list = await runCli(root, ["ticket", "list"]);
-  expect(list).not.toContain("pre-flight-validate");
-});
-
-test("`ticket new --force` creates the ticket despite an overlapping open issue", async () => {
-  await stubGhIssueList([{ number: 18, title: "fix(install): pre-flight validate agentSkills config paths" }]);
-  const root = await project();
-  const output = await runCli(root, [
-    "ticket", "new",
-    "--title", "pre-flight validate agentSkills config paths before install",
-    "--label", "bug",
-    "--force",
-  ]);
-  expect(output).toContain("created");
-});
-
-test("`ticket new` blocks a title that overlaps an existing local ticket, naming its id", async () => {
-  await stubGhIssueList([]);
+test("`ticket new` blocks a title that overlaps an existing ticket, naming its id", async () => {
   const root = await project();
   await runCli(root, ["ticket", "new", "--title", "Improve error logging for the traveller agent", "--label", "bug"]);
 
-  const output = await runCli(root, [
+  const { output, exitCode } = await runCliWithExit(root, [
     "ticket", "new",
     "--title", "Improve error logging for the traveller agent",
     "--label", "bug",
   ]);
+  expect(exitCode).toBe(1);
   expect(output).toMatch(/duplicate/i);
   expect(output).toContain("0001-improve-error-logging-for-the-traveller-agent");
+});
+
+test("`ticket new --force` creates the ticket despite an overlapping one", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Improve error logging", "--label", "bug"]);
+  const output = await runCli(root, ["ticket", "new", "--title", "Improve error logging", "--label", "bug", "--force"]);
+  expect(output).toContain("created");
 });
 
 test("`ticket new` rejects an unknown label or priority", async () => {
@@ -126,82 +113,58 @@ test("`ticket list` reports a malformed file as an error without losing the othe
   expect(list).toContain("0002-broken.md");
 });
 
-test("`ticket sync --auto` no-ops without touching `gh` when the last attempt is inside the cooldown", async () => {
+const V1_TICKET = `---
+schemaVersion: 1
+id: 0007-old-synced-ticket
+title: Old synced ticket
+label: bug
+status: review
+priority: high
+size: small
+assignedAgent: human
+dueDate:
+issue: 45
+synced: false
+syncedAt: 2026-09-21T15:36:13.172Z
+---
+
+The original body.
+
+<!-- litecode:comment -->
+A comment sync never got to post.
+<!-- /litecode:comment -->
+`;
+
+test("`ticket doctor` flags a v1 ticket, and `ticket migrate --apply` rewrites it as v2", async () => {
   const root = await project();
-  await runCli(root, ["ticket", "new", "--title", "Anything", "--label", "feature"]);
+  const path = join(root, "docs/tickets/0007-old-synced-ticket.md");
+  await Bun.write(path, V1_TICKET);
 
-  await Bun.write(
-    join(root, ".claude/data/ticket-sync-auto-state.json"),
-    JSON.stringify({ lastAttemptAt: new Date().toISOString() }, null, 2) + "\n",
-  );
+  const doctor = await runCliWithExit(root, ["ticket", "doctor"]);
+  expect(doctor.output).toContain("schema v1");
+  expect(doctor.output).toContain("ticket migrate");
 
-  // No `gh` stub installed at all: if the cooldown didn't short-circuit before `ensureAuth`,
-  // this would fail trying to invoke a real `gh` binary instead of just no-op'ing.
-  const output = await runCli(root, ["ticket", "sync", "--auto"]);
-  expect(output).toMatch(/skipping auto-sync/i);
-});
+  const dry = await runCli(root, ["ticket", "migrate"]);
+  expect(dry).toContain("0007-old-synced-ticket.md");
+  expect(dry).toContain("Dry run");
+  expect(await Bun.file(path).text()).toBe(V1_TICKET);
 
-test("`ticket sync --auto` runs (and records the attempt) once the cooldown has passed", async () => {
-  const root = await project();
-
-  await Bun.write(
-    join(root, ".claude/data/ticket-sync-auto-state.json"),
-    JSON.stringify({ lastAttemptAt: new Date(0).toISOString() }, null, 2) + "\n",
-  );
-  await stubGhIssueList([]);
-
-  const output = await runCli(root, ["ticket", "sync", "--auto"]);
-  expect(output).not.toMatch(/skipping auto-sync/i);
-
-  const state = await Bun.file(join(root, ".claude/data/ticket-sync-auto-state.json")).json();
-  expect(Date.now() - Date.parse(state.lastAttemptAt)).toBeLessThan(60_000);
-});
-
-test("`ticket sync` no-ops gracefully on a fresh repo with no tickets at all", async () => {
-  const root = await project();
-  // No `ticket new` ever ran — genuinely fresh, no board.json/board setup involved any more.
-  await stubGhIssueList([]);
-
-  const output = await runCli(root, ["ticket", "sync"]);
-  expect(output).toMatch(/no tickets/i);
-  expect(output).not.toMatch(/does not exist|Error/i);
-});
-
-/**
- * Stands in for the `gh` calls a real `ticket sync --apply` push makes: `auth status`
- * (always ok), `issue create` (echoes a fake issue URL so `applyTicketSync` can read the
- * number back out of it), and `issue comment`/`issue edit`. Anything else fails loudly so
- * an unexpected mutating call is caught rather than silently stubbed away — there is no
- * board left to call into at all.
- */
-async function stubGhForPush(issueNumber: number): Promise<void> {
-  const dir = await mkdtemp(join(tmpdir(), "litecode-gh-stub-"));
-  const bin = join(dir, "gh");
-  await writeFile(
-    bin,
-    `#!/usr/bin/env bash
-if [ "$1" = "auth" ]; then exit 0; fi
-if [ "$1 $2" = "issue create" ]; then echo "https://github.com/demo/demo/issues/${issueNumber}"; exit 0; fi
-if [ "$1 $2" = "issue edit" ]; then exit 0; fi
-if [ "$1 $2" = "issue comment" ]; then exit 0; fi
-echo "unexpected gh call: $*" >&2; exit 1
-`,
-  );
-  await chmod(bin, 0o755);
-  process.env.LITECODE_GH_BIN = bin;
-}
-
-test("`ticket sync --apply` pushes a new ticket with `gh issue create` and records the issue number", async () => {
-  const root = await project();
-  await stubGhIssueList([]);
-  await runCli(root, ["ticket", "new", "--title", "Push me", "--label", "feature"]);
-
-  await stubGhForPush(42);
-  const { output, exitCode } = await runCliWithExit(root, ["ticket", "sync", "--apply"]);
+  const { exitCode } = await runCliWithExit(root, ["ticket", "migrate", "--apply"]);
   expect(exitCode).toBe(0);
-  expect(output).toContain("created #42");
+  const migrated = await Bun.file(path).text();
+  expect(migrated).toContain("schemaVersion: 2");
+  expect(migrated).toContain("status: review");
+  expect(migrated).not.toMatch(/^(issue|synced|syncedAt):/m);
+  expect(migrated).not.toContain("litecode:comment");
+  expect(migrated).toContain("The original body.");
+  expect(migrated).toContain("A comment sync never got to post.");
 
-  const list = await runCli(root, ["ticket", "list"]);
-  expect(list).toContain("#42");
-  expect(list).toContain("synced");
+  expect((await runCli(root, ["ticket", "migrate"]))).toContain("already schema v2");
+  expect((await runCliWithExit(root, ["ticket", "doctor"])).output).not.toContain("schema v1");
+});
+
+test("`ticket sync` no longer exists", async () => {
+  const root = await project();
+  const { exitCode } = await runCliWithExit(root, ["ticket", "sync", "--apply"]);
+  expect(exitCode).toBe(1);
 });

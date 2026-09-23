@@ -24,7 +24,7 @@ afterEach(async () => {
 function fixture(path: string, overrides: Partial<Ticket> = {}): Ticket {
   const id = path.split("/").pop()!.replace(/\.md$/, "");
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     title: `Ticket ${id}`,
     label: "chore",
@@ -33,12 +33,8 @@ function fixture(path: string, overrides: Partial<Ticket> = {}): Ticket {
     size: "medium",
     assignedAgent: "human",
     dueDate: undefined,
-    issue: undefined,
-    synced: false,
-    syncedAt: undefined,
     path,
     body: "Body.\n",
-    pendingComments: [],
     ...overrides,
   };
 }

@@ -48,9 +48,6 @@
       ],
       "triage": [],
       "dispatcher": [],
-      "sync": [
-        "agent-attribution"
-      ],
       "tracker": [
         "agent-attribution"
       ]

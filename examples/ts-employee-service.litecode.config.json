@@ -178,9 +178,6 @@
       "dispatcher": [],
       "tracker": [
         "agent-attribution"
-      ],
-      "sync": [
-        "agent-attribution"
       ]
     },
     "board": {

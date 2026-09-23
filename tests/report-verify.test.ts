@@ -4,7 +4,7 @@ import { parseReport, verifyReport, type Probes, type Report, type VerifyOptions
 const GOOD = `Some prose before the block.
 
 STATUS: pr-opened-for-review
-ISSUE: #45
+TICKET: 0045
 BRANCH: fix/verify/issue-45
 PR: https://github.com/o/r/pull/7
 BLOCKER: none
@@ -42,7 +42,7 @@ test("a placeholder with no STATUS line is rejected as not a report", () => {
 });
 
 test("an unknown STATUS value is rejected", () => {
-  const r = parseReport("STATUS: done-probably\nISSUE: #1");
+  const r = parseReport("STATUS: done-probably\nTICKET: 0001");
   expect("error" in r && r.error.message).toContain("is not one of");
 });
 
@@ -52,7 +52,7 @@ test("the first occurrence of a key wins over prose quoting it later", () => {
 });
 
 test("n/a and none (...) values count as no claim", () => {
-  const r = parsed("STATUS: in-progress-blocked\nISSUE: #3\nBRANCH: n/a\nPR: none (blocked before implementation)\nCHECK_OUTPUT: n/a");
+  const r = parsed("STATUS: in-progress-blocked\nTICKET: 0003\nBRANCH: n/a\nPR: none (blocked before implementation)\nCHECK_OUTPUT: n/a");
   expect([r.branch, r.pr, r.checkOutput]).toEqual([undefined, undefined, undefined]);
 });
 
@@ -88,7 +88,7 @@ test("an unreachable gh is a warning, not an error", async () => {
 });
 
 test("pr-opened-for-review without a PR or a check run is an error", async () => {
-  const r = parsed("STATUS: pr-opened-for-review\nISSUE: #45\nBRANCH: fix/verify/issue-45\nPR: none\nCHECK_OUTPUT: n/a");
+  const r = parsed("STATUS: pr-opened-for-review\nTICKET: 0045\nBRANCH: fix/verify/issue-45\nPR: none\nCHECK_OUTPUT: n/a");
   expect(await errors(r, probes())).toEqual([
     "STATUS pr-opened-for-review, but PR: claims no pull request",
     "STATUS pr-opened-for-review, but CHECK_OUTPUT: is empty — a PR was opened without a recorded check run",
@@ -96,32 +96,32 @@ test("pr-opened-for-review without a PR or a check run is an error", async () =>
 });
 
 test("a status that implies a branch requires one", async () => {
-  const r = parsed("STATUS: implemented-pending-github\nISSUE: #45\nBRANCH: n/a\nPR: none (pending GitHub)");
+  const r = parsed("STATUS: implemented-pending-github\nTICKET: 0045\nBRANCH: n/a\nPR: none (pending GitHub)");
   expect(await errors(r, probes({ ticketStatuses: async () => ["inProgress"] }))).toEqual([
     "STATUS implemented-pending-github implies a branch, but BRANCH: claims none",
   ]);
 });
 
-test("a missing ISSUE is an error", async () => {
-  const r = parsed("STATUS: in-progress-blocked\nISSUE: \nBRANCH: n/a");
-  expect(await errors(r, probes())).toEqual(["ISSUE: is empty — every report names the ticket it was run on"]);
+test("a missing TICKET is an error", async () => {
+  const r = parsed("STATUS: in-progress-blocked\nTICKET: \nBRANCH: n/a");
+  expect(await errors(r, probes())).toEqual(["TICKET: is empty — every report names the ticket it was run on"]);
 });
 
 test("a ticket status that contradicts the reported outcome is an error", async () => {
   expect(await errors(parsed(GOOD), probes({ ticketStatuses: async () => ["inProgress"] }))).toEqual([
-    "ticket for ISSUE #45 has status 'inProgress', expected review or readyToMerge after pr-opened-for-review",
+    "ticket 0045 has status 'inProgress', expected review or readyToMerge after pr-opened-for-review",
   ]);
 });
 
 test("verified-no-changes-needed expects the ticket in done", async () => {
-  const r = parsed("STATUS: verified-no-changes-needed\nISSUE: #45\nBRANCH: n/a\nPR: none (verification-only)");
+  const r = parsed("STATUS: verified-no-changes-needed\nTICKET: 0045\nBRANCH: n/a\nPR: none (verification-only)");
   expect(await errors(r, probes({ ticketStatuses: async () => ["review"] }))).toEqual([
-    "ticket for ISSUE #45 has status 'review', expected done after verified-no-changes-needed",
+    "ticket 0045 has status 'review', expected done after verified-no-changes-needed",
   ]);
 });
 
 test("in-progress-blocked accepts a ticket triage already moved back to planned", async () => {
-  const r = parsed("STATUS: in-progress-blocked\nISSUE: #45\nBRANCH: n/a");
+  const r = parsed("STATUS: in-progress-blocked\nTICKET: 0045\nBRANCH: n/a");
   expect(await errors(r, probes({ ticketStatuses: async () => ["planned"] }))).toEqual([]);
 });
 
@@ -131,14 +131,14 @@ test("the ticket passes when any of its copies has the expected status", async (
 });
 
 test("blocked-github-unavailable has no expected ticket status", async () => {
-  const r = parsed("STATUS: blocked-github-unavailable\nISSUE: #45\nBRANCH: n/a");
+  const r = parsed("STATUS: blocked-github-unavailable\nTICKET: 0045\nBRANCH: n/a");
   expect(await errors(r, probes({ ticketStatuses: async () => ["planned"] }))).toEqual([]);
 });
 
 test("a ticket with no local file is only a warning", async () => {
   const findings = await verifyReport(parsed(GOOD), probes({ ticketStatuses: async () => [] }));
   expect(findings).toEqual([
-    { severity: "warn", message: "no local ticket file found for ISSUE #45 — its status could not be checked" },
+    { severity: "warn", message: "no ticket file found for TICKET 0045 — its status could not be checked" },
   ]);
 });
 
@@ -149,12 +149,12 @@ test("a PR on another repo is an error, whatever its branch", async () => {
 });
 
 test("CRLF line endings and markdown wrapping still parse", () => {
-  const r = parsed("- **STATUS:** `pr-opened-for-review`\r\n- ISSUE: #45\r\n* `BRANCH:` fix/verify/issue-45\r\n");
-  expect([r.status, r.issue, r.branch]).toEqual(["pr-opened-for-review", "#45", "fix/verify/issue-45"]);
+  const r = parsed("- **STATUS:** `pr-opened-for-review`\r\n- TICKET: 0045\r\n* `BRANCH:` fix/verify/issue-45\r\n");
+  expect([r.status, r.ticket, r.branch]).toEqual(["pr-opened-for-review", "0045", "fix/verify/issue-45"]);
 });
 
 test("quoted or annotated n/a counts as no claim", () => {
-  const r = parsed('STATUS: in-progress-blocked\nISSUE: #3\nBRANCH: "n/a"\nCHECK_OUTPUT: n/a (never got that far)');
+  const r = parsed('STATUS: in-progress-blocked\nTICKET: 0003\nBRANCH: "n/a"\nCHECK_OUTPUT: n/a (never got that far)');
   expect([r.branch, r.checkOutput]).toEqual([undefined, undefined]);
 });
 
@@ -176,4 +176,9 @@ test("branch files left dirty in the primary checkout are an error; unrelated di
     },
     { severity: "warn", message: "primary checkout has other uncommitted changes (may be the human's own): notes.txt" },
   ]);
+});
+
+test("a report from an older prompt still names its ticket under ISSUE", () => {
+  expect(parsed("STATUS: in-progress-blocked\nISSUE: 0045\nBRANCH: n/a").ticket).toBe("0045");
+  expect(parsed("STATUS: in-progress-blocked\nTICKET: 0030\nISSUE: 0045").ticket).toBe("0030");
 });

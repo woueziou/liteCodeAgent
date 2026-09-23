@@ -26,7 +26,7 @@ export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export type Report = {
   status: ReportStatus;
-  issue: string | undefined;
+  ticket: string | undefined;
   branch: string | undefined;
   pr: string | undefined;
   checkOutput: string | undefined;
@@ -34,7 +34,8 @@ export type Report = {
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
-const KEYS = ["STATUS", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT"] as const;
+/** `ISSUE` is the pre-ADR-0015 name of `TICKET`, still read from older installed prompts. */
+const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT"] as const;
 
 /** Strips the wrapping an agent tends to add around a value: quotes, backticks, bold. */
 function unwrap(value: string): string {
@@ -83,7 +84,7 @@ export function parseReport(text: string): { report: Report } | { error: Finding
   return {
     report: {
       status: status as ReportStatus,
-      issue: claimed(fields.get("ISSUE")),
+      ticket: claimed(fields.get("TICKET") ?? fields.get("ISSUE")),
       branch: claimed(fields.get("BRANCH")),
       pr: claimed(fields.get("PR")),
       checkOutput: claimed(fields.get("CHECK_OUTPUT")),
@@ -106,9 +107,9 @@ export type Probes = {
   /**
    * Every status the ticket currently has, wherever it lives: the primary checkout (step 2
    * writes it there, before any worktree exists) and the branch's committed copy (later
-   * moves are written in the worktree). Empty when no ticket file matches the ISSUE.
+   * moves are written in the worktree). Empty when no ticket file matches the TICKET.
    */
-  ticketStatuses(issue: string, branch: string | undefined): Promise<StatusRole[]>;
+  ticketStatuses(ticket: string, branch: string | undefined): Promise<StatusRole[]>;
 };
 
 /**
@@ -142,7 +143,7 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
   const error = (message: string) => findings.push({ severity: "error", message });
   const warn = (message: string) => findings.push({ severity: "warn", message });
 
-  if (!report.issue) error("ISSUE: is empty — every report names the ticket it was run on");
+  if (!report.ticket) error("TICKET: is empty — every report names the ticket it was run on");
 
   if (report.branch) {
     if (!(await probes.branchExists(report.branch))) {
@@ -176,14 +177,14 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
     error("STATUS pr-opened-for-review, but CHECK_OUTPUT: is empty — a PR was opened without a recorded check run");
   }
 
-  if (report.issue) {
+  if (report.ticket) {
     const expected = EXPECTED_TICKET_STATUS[report.status];
-    const actual = await probes.ticketStatuses(report.issue, report.branch);
+    const actual = await probes.ticketStatuses(report.ticket, report.branch);
     if (actual.length === 0) {
-      warn(`no local ticket file found for ISSUE ${report.issue} — its status could not be checked`);
+      warn(`no ticket file found for TICKET ${report.ticket} — its status could not be checked`);
     } else if (expected && !actual.some((s) => expected.includes(s))) {
       error(
-        `ticket for ISSUE ${report.issue} has status '${actual.join("' / '")}', expected ${expected.join(" or ")} after ${report.status}`,
+        `ticket ${report.ticket} has status '${actual.join("' / '")}', expected ${expected.join(" or ")} after ${report.status}`,
       );
     }
   }

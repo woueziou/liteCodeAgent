@@ -6,24 +6,16 @@ import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, typ
 import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
-import { ensureAuth, onGhRetry, RateLimitError } from "./gh.ts";
+import { RateLimitError } from "./gh.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { buildDashboard } from "./dashboard/build.ts";
 import { renderDashboard } from "./dashboard/render.ts";
 import { parseReport, verifyReport, type Finding as ReportFinding } from "./report/verify.ts";
 import { realProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
-import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
-import { planTicketSync, applyTicketSync } from "./tickets/sync.ts";
-import {
-  loadAutoSyncState,
-  saveAutoSyncState,
-  shouldSkipForCooldown,
-  recordAttempt,
-  resolveAutoMinIntervalMs,
-} from "./tickets/auto-sync.ts";
-import { PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
-import { findDuplicate, localDedupeCandidates, fetchOpenIssueDedupeCandidates, type DedupeCandidate } from "./tickets/dedupe.ts";
+import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
+import { CURRENT_SCHEMA_VERSION, migrateTicket, PRIORITIES, SIZES, type Priority, type Size } from "./tickets/spec.ts";
+import { findDuplicate, localDedupeCandidates } from "./tickets/dedupe.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
 import { isInteractive, multiSelect } from "./prompt.ts";
@@ -74,21 +66,18 @@ function usage(): void {
                                      run a pack agent through the configured API provider
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
   ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--force]
-                                     draft a ticket file locally; checks the title against local tickets and open
-                                     issues for a likely duplicate first (read-only GitHub call) and blocks if one
-                                     is found — pass --force to create anyway
-  ${c.bold("bunx litecodeagent ticket list")}              list local ticket files and their dirty state
-  ${c.bold("bunx litecodeagent ticket doctor")}            check the local ticket buffer for malformed/misplaced/duplicate files
-  ${c.bold("bunx litecodeagent ticket sync")} [--apply|--auto]    push the dirty ticket batch to GitHub (issue create/edit, comments)
+                                     draft a ticket file; blocks if its title reads like an existing
+                                     ticket's — pass --force to create anyway
+  ${c.bold("bunx litecodeagent ticket list")}              list ticket files with their status, priority and size
+  ${c.bold("bunx litecodeagent ticket doctor")}            check the ticket directory for malformed/misplaced/duplicate/outdated files
+  ${c.bold("bunx litecodeagent ticket migrate")} [--apply] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
                                      ${c.dim("(dry-run by default; --apply writes)")}
-                                     ${c.dim("--auto: for unattended callers — implies --apply, skips the run if the last")}
-                                     ${c.dim("--auto attempt was within tickets.autoMinIntervalMs (tracked in tickets.autoStateFile)")}
   ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
                                      regenerate the standalone HTML dashboard from the local ticket buffer
                                      ${c.dim("current state only (status/priority/size/label/epic) — no trend, purely explicit, no watcher")}
                                      ${c.dim("--out defaults to docs/dashboard.html")}
   ${c.bold("bunx litecodeagent verify-report")} [--file <path>] [--json]
-                                     check an implementer's final report (STATUS/ISSUE/BRANCH/PR/CHECK_OUTPUT)
+                                     check an implementer's final report (STATUS/TICKET/BRANCH/PR/CHECK_OUTPUT)
                                      against git, gh and the ticket buffer; exits 1 on any contradiction
                                      ${c.dim("reads the report from stdin when --file is omitted")}
   ${c.bold("litecode upgrade")}                   update a legacy git-clone install
@@ -476,44 +465,25 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       return 1;
     }
     if (!argv.includes("--force")) {
-      const candidates: DedupeCandidate[] = localDedupeCandidates(await listTickets(root, dir));
-      try {
-        candidates.push(...(await fetchOpenIssueDedupeCandidates(config.project.repo)));
-      } catch (e) {
-        console.log(
-          c.yellow(`Could not fetch open issues to check for duplicates (${(e as Error).message}); checked local tickets only.`),
-        );
-      }
-      const duplicate = findDuplicate(title, candidates);
+      const duplicate = findDuplicate(title, localDedupeCandidates(await listTickets(root, dir)));
       if (duplicate) {
-        const where =
-          duplicate.candidate.source === "issue"
-            ? `issue #${duplicate.candidate.ref}`
-            : `local ticket ${duplicate.candidate.ref}`;
-        console.log(c.red(`Likely duplicate of ${where}: "${duplicate.candidate.title}" (${duplicate.reason}).`));
-        console.log(c.dim("If this is genuinely different work that just reads similarly, re-run with --force to create it anyway."));
         console.log(
-          c.dim(
-            "If the existing ticket/issue actually IS this work and just needs linking, this command cannot attach an `issue:` " +
-              "after the fact — edit the ticket file's `issue:` field by hand instead.",
-          ),
+          c.red(`Likely duplicate of local ticket ${duplicate.candidate.ref}: "${duplicate.candidate.title}" (${duplicate.reason}).`),
         );
+        console.log(c.dim("If this is genuinely different work that just reads similarly, re-run with --force to create it anyway."));
         return 1;
       }
     }
     const body = arg(argv, "--body") ?? `${title}\n`;
     const ticket = await createTicket(root, dir, { title, label, body, priority, size });
     console.log(`${c.green("created")} ${ticket.path}`);
-    console.log(c.dim(`Edit the file, then run \`litecode ticket sync --apply\` to push it.`));
     return 0;
   }
 
   if (sub === "list") {
     const { tickets, errors } = await listTicketsDetailed(root, dir);
     for (const t of tickets) {
-      const state = t.synced && t.pendingComments.length === 0 ? c.dim("synced") : c.yellow("dirty ");
-      const issue = t.issue ? `#${t.issue}` : c.dim("(no issue yet)");
-      console.log(`  ${state} ${t.id.padEnd(40)} ${issue}`);
+      console.log(`  ${t.status.padEnd(12)} ${t.id.padEnd(52)} ${c.dim(`${t.priority}/${t.size}`)}`);
     }
     for (const e of errors) {
       console.log(`  ${c.red("error ")} ${e.path}: ${e.error}`);
@@ -536,76 +506,22 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     return findings.some((f) => f.severity === "error") ? 1 : 0;
   }
 
-  if (sub === "sync") {
-    const auto = argv.includes("--auto");
-    const autoStateFile = config.project.tickets.autoStateFile;
-    const autoMinIntervalMs = resolveAutoMinIntervalMs(config.project.tickets.autoMinIntervalMs);
-    const now = new Date();
-
-    // `--auto` is meant to be called opportunistically by automation (the `sync` agent, a
-    // cron wrapper) without a human deciding each time whether it's a good moment. The
-    // cooldown is what makes that safe: a caller that re-invokes `--auto` on every single
-    // agent action does not turn into a `gh`-call storm just because nothing changed since
-    // the last attempt. See ADR 0009 (issue #31).
-    //
-    // This is a soft, opportunistic guard, not a hard mutex: the load/check/record/save
-    // sequence below is not atomic, so two `--auto` invocations started within milliseconds
-    // of each other could both pass the cooldown check before either persists its attempt.
-    // Acceptable for the "don't retry-storm on repeated single-caller invocations" problem
-    // this exists to solve; true concurrent-run exclusion would need file locking, which is
-    // out of scope here.
-    let autoState = auto ? await loadAutoSyncState(root, autoStateFile) : null;
-    if (autoState) {
-      if (shouldSkipForCooldown(autoState, now, autoMinIntervalMs)) {
-        console.log(c.dim(`Skipping auto-sync: last attempt was within ${autoMinIntervalMs}ms.`));
-        return 0;
-      }
-      // Persisted before any `gh` call: a crash mid-run still counts as an attempt, so a
-      // retry-on-crash-loop is bounded by the same cooldown as an ordinary failure.
-      autoState = recordAttempt(autoState, now);
-      await saveAutoSyncState(root, autoStateFile, autoState);
-    }
-
-    onGhRetry((attempt, waitMs, reason) => {
-      console.log(c.dim(`  ${reason} — retrying in ${Math.round(waitMs / 1000)}s (attempt ${attempt})`));
-    });
-    await ensureAuth();
-
+  if (sub === "migrate") {
     const { tickets, errors } = await listTicketsDetailed(root, dir);
-    if (errors.length > 0) {
-      for (const e of errors) console.log(`  ${c.red("error ")} ${e.path}: ${e.error}`);
-      console.log(c.red("Fix the malformed ticket file(s) above before syncing."));
-      return 1;
+    for (const e of errors) console.log(`  ${c.red("error ")} ${e.path}: ${e.error}`);
+    const legacy = tickets.filter((t) => t.schemaVersion < CURRENT_SCHEMA_VERSION);
+    if (legacy.length === 0) {
+      console.log(c.green(`Every ticket in ${dir} is already schema v${CURRENT_SCHEMA_VERSION}.`));
+      return errors.length > 0 ? 1 : 0;
     }
-
-    if (tickets.length === 0) {
-      console.log(c.dim(`No tickets in ${dir}.`));
+    for (const t of legacy) console.log(`  ${c.yellow("migrate")} ${t.path} ${c.dim(`(v${t.schemaVersion} → v${CURRENT_SCHEMA_VERSION})`)}`);
+    if (!argv.includes("--apply")) {
+      console.log(c.dim(`\nDry run. Re-run with --apply to rewrite ${legacy.length} ticket(s).`));
       return 0;
     }
-
-    const plan = planTicketSync(tickets);
-    for (const a of plan.actions) {
-      console.log(`  ${a.kind === "create" ? c.green("create") : c.yellow("update")} ${a.ticket.path}`);
-    }
-    for (const s of plan.skipped) {
-      console.log(`  ${c.dim("skip  ")} ${s.ticket.path} ${c.dim(`(${s.reason})`)}`);
-    }
-
-    const applying = argv.includes("--apply") || auto;
-    if (!applying) {
-      console.log(c.dim(`\nDry run. Re-run with --apply to push ${plan.actions.length} ticket(s).`));
-      return 0;
-    }
-
-    const results = await applyTicketSync(root, plan, {
-      repo: config.project.repo,
-      onLog: (line) => console.log(`  ${c.green("done")} ${line}`),
-    });
-    for (const r of results) {
-      console.log(`  ${c.green("result")} ${r.ticket.path} [${r.outcome}] ${r.detail}`);
-    }
-    const nothingHappened = results.length === 0 && plan.actions.length > 0;
-    return nothingHappened ? 1 : 0;
+    for (const t of legacy) await writeTicket(root, migrateTicket(t));
+    console.log(c.green(`\nMigrated ${legacy.length} ticket(s).`));
+    return errors.length > 0 ? 1 : 0;
   }
 
   usage();
