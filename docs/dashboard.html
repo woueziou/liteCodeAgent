@@ -49,7 +49,7 @@
 </head>
 <body>
   <h1>Dashboard tickets — litecodeagent</h1>
-  <p class="meta">Généré le 2026-09-23T10:04:01.412Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
+  <p class="meta">Généré le 2026-09-23T10:11:07.869Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
 
   <div class="tiles"><div class="tile "><div class="tile-value">30</div><div class="tile-label">Tickets totaux</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Bloqués</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">En cours</div></div><div class="tile "><div class="tile-value">0</div><div class="tile-label">Prêts à merger</div></div></div>
 
@@ -60,7 +60,7 @@
     
     <section class="card">
       <h2>Répartition par statut</h2>
-      <div class="badges"><span class="badge" style="background:#e2e8f0;color:#1e293b">Backlog: 2</span> <span class="badge" style="background:#dbeafe;color:#1e3a8a">Planned: 0</span> <span class="badge" style="background:#fef3c7;color:#78350f">In Progress: 0</span> <span class="badge" style="background:#fecaca;color:#7f1d1d">Blocked: 0</span> <span class="badge" style="background:#e9d5ff;color:#581c87">Review: 0</span> <span class="badge" style="background:#bbf7d0;color:#14532b">Ready to Merge: 0</span> <span class="badge" style="background:#d1fae5;color:#065f46">Done: 28</span></div>
+      <div class="badges"><span class="badge" style="background:#e2e8f0;color:#1e293b">Backlog: 1</span> <span class="badge" style="background:#dbeafe;color:#1e3a8a">Planned: 0</span> <span class="badge" style="background:#fef3c7;color:#78350f">In Progress: 0</span> <span class="badge" style="background:#fecaca;color:#7f1d1d">Blocked: 0</span> <span class="badge" style="background:#e9d5ff;color:#581c87">Review: 1</span> <span class="badge" style="background:#bbf7d0;color:#14532b">Ready to Merge: 0</span> <span class="badge" style="background:#d1fae5;color:#065f46">Done: 28</span></div>
       <p class="note">"Ready to Merge" (0) ≠ "Done" (28) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
     </section>
     
@@ -1044,7 +1044,7 @@ Six plafonnements consécutifs, tous documentés dans les commentaires de PR : #
         </details>
         <details class="ticket">
           <summary>
-            <span class="badge" style="background:#e2e8f0;color:#1e293b">backlog</span>
+            <span class="badge" style="background:#e9d5ff;color:#581c87">review</span>
             <span class="ticket-id">0020-fix-packs-les-corps-de-prompts-supposent-des-mec</span>
             <span class="ticket-title">fix(packs): les corps de prompts supposent des mécanismes Claude Code sur les cinq cibles d&#39;installation</span>
             <span class="tag">medium/large</span>
@@ -1087,6 +1087,13 @@ Les chiffres ci-dessus proviennent d&#39;un `grep` réel sur `packs/core/agents/
 ---
 
 generated_by: tracker
+
+## Design retenu (choix humain, 2026-09-23) — ADR 0014
+
+- Contrat minimal d&#39;une cible : exécuter des outils et déléguer à un sous-agent en attendant son résultat ; les skills sont optionnelles.
+- Les prompts du pack ne nomment plus aucun outil de délégation : `{{&gt; delegate &lt;agent&gt;}}` et `{{&gt; delegation}}`, traduits par cible dans `src/delegation.ts` (`Agent`, `task`, spawn par nom sur Codex, `litecode run` sur Pi). Les remplacements aveugles de `Agent` dans les renderers disparaissent : la mention `Agent:` des commits survit sur toutes les cibles, et les skills sont enfin traduites.
+- Sans délégation native, repli sur `litecode run &lt;agent&gt;` (runner intégré, synchrone), jamais sur une exécution en ligne ; sans `Bash` ni runner configuré, l&#39;agent s&#39;arrête et le dit.
+- `tests/targets-render.test.ts` rend chaque fichier du pack pour chaque cible et échoue sur toute fuite de vocabulaire d&#39;une autre cible.
 </pre></div>
         </details>
         <details class="ticket">

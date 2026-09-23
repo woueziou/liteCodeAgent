@@ -5,6 +5,7 @@ import { selectedTargets, TARGETS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
 import { render, referencedPaths } from "./template.ts";
+import { delegationHelpers } from "./delegation.ts";
 import { hash, readLockfile, writeLockfile, type Lockfile } from "./lockfile.ts";
 
 export type PlanEntry = {
@@ -73,10 +74,7 @@ function renderCodexAgent(data: Frontmatter, body: string): string {
   const skillNote = skills.length
     ? `\n\nAvailable project skills: ${skills.map((skill) => `\`${skill}\``).join(", ")}. Load the relevant skill instructions before applying them.`
     : "";
-  const instructions = `${body}${skillNote}`
-    .replace(/\bAgent\b/g, "Codex subagent")
-    .replace(/`subagent_type`/g, "`agent name`")
-    .trim();
+  const instructions = `${body}${skillNote}`.trim();
   return [
     `name = ${JSON.stringify(data.name ?? "agent")}`,
     `description = ${JSON.stringify(data.description ?? "")}`,
@@ -102,7 +100,7 @@ function renderOpenCodeAgent(data: Frontmatter, body: string): string {
   const skillNote = skills.length
     ? `\n\nAvailable project skills: ${skills.map((skill) => `\`${skill}\``).join(", ")}. Use the skill tool to load relevant instructions before applying them.`
     : "";
-  const instructions = `${body}${skillNote}`.replace(/\bAgent\b/g, "task").trim();
+  const instructions = `${body}${skillNote}`.trim();
   return [
     "---",
     `description: ${yamlScalar(data.description ?? "")}`,
@@ -133,10 +131,7 @@ function renderKiloAgent(data: Frontmatter, body: string): string {
   const skillNote = skills.length
     ? `\n\nAvailable project skills: ${skills.map((skill) => `\`${skill}\``).join(", ")}. Use the skill tool to load relevant instructions before applying them.`
     : "";
-  const instructions = `${body}${skillNote}`
-    .replace(/\bAgent\b/g, "task")
-    .replace(/`subagent_type`/g, "`mode`")
-    .trim();
+  const instructions = `${body}${skillNote}`.trim();
   return [
     "---",
     `name: ${name}`,
@@ -201,7 +196,7 @@ function renderWorkflow(source: string, target: InstallTarget): string {
     return serializeFrontmatter({
       name: "litecodeagent",
       description: "Run the LiteCodeAgent discussion and planning workflow for an idea, feature, bug, or documentation request. Invoke when the user types /litecodeagent <request> or $litecodeagent <request>.",
-    }, `${workflow}\n\nWhen invoked, treat the text following /litecodeagent or $litecodeagent as the raw request. Delegate to the installed \`orchestrator\` Codex subagent if available; otherwise follow its sequence directly. Stop after presenting the plan. Never create an issue, update a board, or implement the work.\n`);
+    }, `${workflow}\n\nWhen invoked, treat the text following /litecodeagent or $litecodeagent as the raw request. Delegate to the installed \`orchestrator\` Codex subagent and wait for its result; if you can't spawn it, run \`litecode run orchestrator --prompt-file <file>\` via the shell instead (ADR 0014) — never improvise the orchestrator's sequence yourself. Stop after presenting the plan. Never create an issue, update a board, or implement the work.\n`);
   }
   if (target === "opencode" || target === "kilo-code") {
     return [
@@ -321,7 +316,7 @@ function validateRequiredConfigPaths(
 
 /** Returns all generated output paths for a source pack file. */
 function outputFiles(file: PackFile, config: Config, target: InstallTarget): { rel: string; content: string }[] {
-  const rendered = render(file.source, { project: config.project }, `${file.rel}`);
+  const rendered = render(file.source, { project: config.project }, `${file.rel}`, delegationHelpers(target));
   const { data, body } = parseFrontmatter(rendered, file.rel);
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
   const skill = /^(skills\/.+)$/.exec(file.rel);

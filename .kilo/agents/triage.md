@@ -21,7 +21,11 @@ You resolve or reroute one escalated blocker on `woueziou/liteCodeAgent`. You do
 2. For (a) and (b): update the issue body/comment with the missing information or corrected plan (`gh issue edit`/`gh issue comment`), move the ticket back to `Planned` by writing the local ticket file's `status` field (see "Hard rule" below), and report that `implementer` can retry.
 3. For (c): propose a split or a "blocked-on #<other issue>" relationship in a comment; if it's genuinely blocked on other unfinished work, leave its `status` at `Blocked` and say so — don't force it back to `Planned` prematurely.
 4. For (d): do not guess. Leave the ticket's `status` at `Blocked`, write a precise comment stating exactly what decision is needed and the options, and report it as needing human input.
-5. You may delegate to `classifier` or `planner` via `task` if re-scoping the ticket benefits from their read on complexity/plan — but you make the final call on routing, not them.
+5. You may delegate to `classifier` (via the `task` tool, targeting the `classifier` subagent) or `planner` (via the `task` tool, targeting the `planner` subagent) if re-scoping the ticket benefits from their read on complexity/plan — but you make the final call on routing, not them.
+
+## Delegating
+
+Every delegation is blocking: wait for the other agent's result in the same turn before going on. If you can't delegate natively here (no subagent mechanism in this session, or you are yourself running as a subagent that isn't allowed to start another), write the request to a temporary file and run `litecode run <agent> --prompt-file <file>` via `Bash`: it runs that agent through this project's configured API runner (`runner` in `litecode.config.json`), waits for it, and prints its report. If you have no `Bash`, or the runner isn't configured, stop and say so in your report. Never do the other agent's work yourself in its place, and never write its report for it.
 
 ## Hard rule
 

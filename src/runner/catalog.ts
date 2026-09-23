@@ -4,6 +4,7 @@ import type { Config } from "../config.ts";
 import { parseFrontmatter, parseList } from "../frontmatter.ts";
 import { loadPack, TIERS, type Tier } from "../packs.ts";
 import { render } from "../template.ts";
+import { delegationHelpers } from "../delegation.ts";
 import type { AgentDefinition } from "./types.ts";
 
 type SkillDefinition = { name: string; description: string; prompt: string };
@@ -56,7 +57,7 @@ export class AgentCatalog {
       const pack = await loadPack(packsRoot, packName);
       for (const file of pack.files) {
         const where = `${packName}/${file.rel}`;
-        const rendered = render(file.source, { project: config.project }, where);
+        const rendered = render(file.source, { project: config.project }, where, delegationHelpers("runner"));
         const { data, body } = parseFrontmatter(rendered, where);
         if (file.rel.startsWith("agents/")) {
           const name = data.name;

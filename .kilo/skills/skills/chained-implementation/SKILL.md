@@ -13,11 +13,15 @@ The human says something like "enchaîne sur #10", "chain dispatcher and impleme
 
 ## What you do
 
-1. Invoke `dispatcher` (via `Agent`, subagent_type `dispatcher`) scoped to the named issue only — tell it explicitly which issue to plan, not to run its normal full-backlog ranking pass, so it doesn't pull in unrelated items.
+1. Invoke `dispatcher` (via the `task` tool, targeting the `dispatcher` subagent) scoped to the named issue only — tell it explicitly which issue to plan, not to run its normal full-backlog ranking pass, so it doesn't pull in unrelated items.
 2. Read `dispatcher`'s output. If it reports a `CONFLICTS` entry for the named issue (e.g. a Due Date/Priority tension it wouldn't resolve on its own), stop and surface that to the human before continuing — do not proceed past a flagged conflict without human input.
-3. If the issue was successfully moved to `Planned` (or was already there), invoke `implementer` (via `Agent`, subagent_type `implementer`) on that issue number.
+3. If the issue was successfully moved to `Planned` (or was already there), invoke `implementer` (via the `task` tool, targeting the `implementer` subagent) on that issue number.
 4. Verify `implementer`'s report before relaying it — its own account of the run is not evidence. Write its final output verbatim to a temporary file and run `litecode verify-report --file <path>` via `Bash`. That command checks the report's `STATUS`/`ISSUE`/`BRANCH`/`PR`/`CHECK_OUTPUT` against the real branch, the real PR, the ticket file's `status`, and the primary checkout (for changes written outside the worktree). Do not re-derive or soften its findings yourself.
 5. Relay `implementer`'s full output back to the human — including any `blocked` status, since a blocker escalated to `triage` inside `implementer` still needs the human to know about it, not just get silently absorbed — together with `verify-report`'s output, verbatim. If `verify-report` exited non-zero, lead with its errors and say plainly that the report contradicts the repo: never present that run as a success. Warnings are relayed as-is, without being upgraded or dismissed.
+
+## Delegating
+
+Every delegation is blocking: wait for the other agent's result in the same turn before going on. If you can't delegate natively here (no subagent mechanism in this session, or you are yourself running as a subagent that isn't allowed to start another), write the request to a temporary file and run `litecode run <agent> --prompt-file <file>` via `Bash`: it runs that agent through this project's configured API runner (`runner` in `litecode.config.json`), waits for it, and prints its report. If you have no `Bash`, or the runner isn't configured, stop and say so in your report. Never do the other agent's work yourself in its place, and never write its report for it.
 
 ## Hard rule
 
