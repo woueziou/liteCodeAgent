@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0027-docs-purger-les-references-au-board-dans-les-adr
 title: docs: purger les références au board dans les ADR, prompts et skills
 label: doc
-status: planned
+status: review
 priority: medium
 size: medium
 assignedAgent: human
@@ -47,3 +47,21 @@ Reste à corriger :
 - `packs/core/agents/reviewer.md:53`, `packs/core/agents/orchestrator.md`, `packs/core/workflows/litecodeagent.md`, `packs/core/skills/idea-to-planned/SKILL.md`, `packs/core/skills/chained-implementation/SKILL.md`, `packs/core/agents/dispatcher.md` — vocabulaire « board » / « GitHub Project » à ramener au buffer local.
 - `src/tickets/store.ts:77` — commentaire citant `applyTicketHydration`, supprimé.
 - `docs/tickets/README.md` — décrit encore GitHub comme source de vérité et `status` comme pull-only (corrigé dans le même lot que cette réouverture).
+
+## Complément livré — 2026-09-23
+
+Branche `docs/purge-board-refs-followup/issue-0027` (basée sur `chore/tickets-status-refresh`) :
+
+- Prompts `implementer`/`triage`/`dispatcher` : un déplacement de statut est une simple écriture locale ; plus de `synced: false` pour un changement de statut seul (cela ne faisait que renvoyer un titre/corps inchangé), plus de push de Status ni d'hydratation. Glob des tickets rendu récursif (`**/*.md`) pour les répertoires d'epic.
+- `implementer.md` cite `src/tickets/spec.ts` au lieu de `src/board/spec.ts` ; ADR 0010 remplacé par ADR 0012 partout où il fondait une consigne.
+- `reviewer`, `orchestrator`, workflow `litecodeagent`, skills `idea-to-planned`/`chained-implementation`, description de `pack.json` : vocabulaire « board » ramené au buffer local.
+- `skills/setup/SKILL.md` : l'étape `litecode board init` (commande supprimée) devient `litecode ticket doctor`.
+- `litecode.config.json` : deux leçons propres au code GraphQL du board supprimées ; la leçon générale sur l'encodage des variables `gh api graphql` conservée, reformulée.
+- `.claude/data/board.json` et `.claude/data/github-project-item-ids.json` supprimés (listés comme nettoyage restant par l'ADR 0012) ; `project.board` reste dans le schéma pour la compatibilité, conformément à l'ADR.
+- `HANDOFF.md` : invariant 4 (board init) remplacé par l'invariant du buffer local.
+- Commentaires morts : `src/tickets/store.ts` (`applyTicketHydration`), `src/config-doctor.ts` (`board doctor`) ; titre du test de skills dans `tests/agents-sync-only-gh.test.ts`.
+- Copies installées (`.claude/`, `.kilo/`, `.pi/`) régénérées par `litecode install --apply`.
+
+Volontairement non fait : la clé `board_status` du resume-manifest (ADR 0008) est gardée telle quelle pour ne pas casser la reprise de manifests existants.
+
+`bun run check` propre, `bun test` 156 pass / 0 fail. Non passé par `reviewer`.

@@ -29,8 +29,7 @@ export async function findMissingAgentSkills(packsRoot: string, config: Config):
 }
 
 /**
- * Reports what's wrong, mirroring `board doctor`'s shape and output. Never mutates
- * anything — see `computeAgentSkillsFix` for the opt-in repair.
+ * Reports what's wrong. Never mutates anything — see `computeAgentSkillsFix` for the opt-in repair.
  */
 export async function doctor(packsRoot: string, config: Config): Promise<Finding[]> {
   const missing = await findMissingAgentSkills(packsRoot, config);

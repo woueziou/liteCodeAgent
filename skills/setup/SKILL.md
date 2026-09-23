@@ -20,8 +20,8 @@ by this plugin and is available to Bash while the plugin is enabled.
    skill references, and drift as blockers; do not weaken or bypass those checks.
 5. Apply with `litecode install --apply` only after the user approves the concrete dry-run. Never
    add `--force` unless the user explicitly chooses to discard the drifted generated files.
-6. If the config names a board, run `litecode board init` as a dry run. Do not apply a board plan
-   with blockers, and never attempt to add an option to an existing single-select field.
+6. Run `litecode ticket doctor` to check the local ticket buffer is well-formed. There is no
+   board to initialize: ticket status lives only in the local files (ADR 0012).
 
 If the user wants to run agents outside Claude Code, help them add a `runner` block containing the
 provider and concrete model id for each capability tier. Store only the API key's environment
