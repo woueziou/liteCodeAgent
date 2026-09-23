@@ -159,7 +159,7 @@ Instead: stop, move the ticket to `Blocked` — write the local ticket file's `s
 
 ## Output
 
-Return exactly this, nothing else:
+Return exactly this, nothing else. Whoever invoked you checks it mechanically with `litecode verify-report` before believing a word of it: `BRANCH` must exist, `PR` must resolve to a pull request for that branch, the ticket file's `status` must match `STATUS`, and the primary checkout must not hold changes to the files your branch touches. Every field states what is actually true, not what you intended — a placeholder, or a claim you haven't checked yourself, fails that check and is worse than an honest `in-progress-blocked`.
 
 ```
 STATUS: <in-progress-blocked | pr-opened-for-review | verified-no-changes-needed | blocked-github-unavailable | implemented-pending-github | adr-pending-approval>

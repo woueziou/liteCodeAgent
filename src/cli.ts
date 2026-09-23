@@ -10,6 +10,8 @@ import { ensureAuth, onGhRetry, RateLimitError } from "./gh.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { buildDashboard } from "./dashboard/build.ts";
 import { renderDashboard } from "./dashboard/render.ts";
+import { parseReport, verifyReport, type Finding as ReportFinding } from "./report/verify.ts";
+import { realProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import { createTicket, listTickets, listTicketsDetailed } from "./tickets/store.ts";
 import { planTicketSync, applyTicketSync } from "./tickets/sync.ts";
@@ -85,6 +87,10 @@ function usage(): void {
                                      regenerate the standalone HTML dashboard from the local ticket buffer
                                      ${c.dim("current state only (status/priority/size/label/epic) — no trend, purely explicit, no watcher")}
                                      ${c.dim("--out defaults to docs/dashboard.html")}
+  ${c.bold("bunx litecodeagent verify-report")} [--file <path>] [--json]
+                                     check an implementer's final report (STATUS/ISSUE/BRANCH/PR/CHECK_OUTPUT)
+                                     against git, gh and the ticket buffer; exits 1 on any contradiction
+                                     ${c.dim("reads the report from stdin when --file is omitted")}
   ${c.bold("litecode upgrade")}                   update a legacy git-clone install
 
 Global: --project <dir>   target repo (default: cwd)
@@ -633,6 +639,45 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
   return 0;
 }
 
+/**
+ * Never trusts the report on its own: every checkable claim is compared against the repo,
+ * the PR and the ticket file (ticket 0017). Errors mean the report contradicts reality;
+ * warnings mean a claim couldn't be checked, or something looks off but may be benign.
+ */
+async function cmdVerifyReport(root: string, argv: string[]): Promise<number> {
+  const file = arg(argv, "--file");
+  if (!file && process.stdin.isTTY) {
+    console.log(c.red("verify-report needs a report: pass --file <path>, or pipe the report on stdin"));
+    return 1;
+  }
+  const text = file ? await Bun.file(resolve(root, file)).text() : await Bun.stdin.text();
+  const { config } = await loadConfig(root);
+
+  const parsed = parseReport(text);
+  const findings: ReportFinding[] =
+    "error" in parsed
+      ? [parsed.error]
+      : await verifyReport(
+          parsed.report,
+          realProbes({
+            root,
+            repo: config.project.repo,
+            ticketsDir: config.project.tickets.dir,
+          }),
+          { repo: config.project.repo },
+        );
+  const errors = findings.filter((f) => f.severity === "error").length;
+
+  if (argv.includes("--json")) {
+    console.log(JSON.stringify({ ok: errors === 0, findings }, null, 2));
+  } else if (findings.length === 0) {
+    console.log(c.green("Report matches the repo, the PR and the ticket buffer."));
+  } else {
+    for (const f of findings) console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
+  }
+  return errors === 0 ? 0 : 1;
+}
+
 const argv = process.argv.slice(2);
 const root = resolve(arg(argv, "--project") ?? process.cwd());
 
@@ -672,6 +717,7 @@ try {
       case "run": return cmdRun(root, argv);
       case "ticket": return cmdTicket(root, argv);
       case "dashboard": return cmdDashboard(root, argv);
+      case "verify-report": return cmdVerifyReport(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
     }
   })();
