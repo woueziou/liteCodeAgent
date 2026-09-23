@@ -86,13 +86,6 @@
       }
     ],
     "sizeRules": [],
-    "board": {
-      "enabled": true,
-      "owner": "woueziou",
-      "number": 17,
-      "dataFile": ".claude/data/board.json",
-      "itemIdCache": ".claude/data/github-project-item-ids.json"
-    },
     "tickets": {
       "enabled": true,
       "dir": "docs/tickets"

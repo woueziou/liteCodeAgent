@@ -2,8 +2,28 @@
 
 1.0 changes three things that affect an existing install: the GitHub Project board is
 gone, tickets no longer mirror GitHub issues, and pack prompts name no harness's
-delegation tool directly. The steps below take a project on 0.x to 1.0. They are safe to
-re-run.
+delegation tool directly.
+
+## The short version
+
+```bash
+bunx litecodeagent@latest upgrade
+```
+
+It shows its plan, asks for confirmation, and does steps 1 to 3 and 5 below in one go:
+- re-renders the agents;
+- deletes the orphaned `sync` agent and `github-project-sync` skill copies, when you haven't
+  edited them;
+- migrates your tickets;
+- removes the obsolete settings, including `github-project-sync` from `agentSkills`, and
+  the board's data files.
+
+Anything it leaves alone (an edited file, a ticket with an unknown frontmatter key) is
+listed with the reason. Then commit the result and read step 4, which changes how you
+work.
+
+The rest of this page describes each step, for when you want to do them by hand or check
+what `upgrade` did.
 
 The commands below use `bunx litecodeagent@latest`, which always runs the latest release.
 With a global install (`litecode` on your PATH), update it first and write `litecode`

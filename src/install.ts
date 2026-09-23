@@ -34,7 +34,7 @@ const ROOTS: Record<InstallTarget, string> = {
   "kilo-code": ".kilo",
 };
 
-const SKILL_ROOTS: Record<InstallTarget, string> = {
+export const SKILL_ROOTS: Record<InstallTarget, string> = {
   "claude-code": ".claude/skills",
   // Codex and several other harnesses support the cross-tool Agent Skills convention.
   codex: ".agents/skills",
@@ -43,7 +43,7 @@ const SKILL_ROOTS: Record<InstallTarget, string> = {
   "kilo-code": ".kilo/skills",
 };
 
-function lockPath(target: InstallTarget): string {
+export function lockPath(target: InstallTarget): string {
   return `${ROOTS[target]}/.litecode-lock.json`;
 }
 
