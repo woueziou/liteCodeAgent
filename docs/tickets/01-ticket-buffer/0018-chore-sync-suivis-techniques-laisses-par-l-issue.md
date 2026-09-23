@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0018-chore-sync-suivis-techniques-laisses-par-l-issue
 title: chore(sync): suivis techniques laissés par l'issue #27
 label: chore
-status: backlog
+status: done
 priority: low
 size: small
 assignedAgent: human
@@ -21,3 +21,7 @@ Deux suivis non bloquants identifiés par `reviewer` pendant les huit passes de 
 Aucun des deux n'est un défaut de correction — ce sont des finitions.
 
 generated_by: tracker
+
+<!-- litecode:comment -->
+Fermé comme obsolète (vérifié sur `main` @ b160f38) : les deux suivis visaient du code supprimé par la PR #55 (suppression de `src/board/`). Il n'existe plus de résultat `blocked` côté sync (`SyncOutcome` = `synced | skipped`, `src/tickets/sync.ts:59-65`), et `statusEdit`/`statusUnresolved` ont disparu avec le push de `Status`. Rien à implémenter.
+<!-- /litecode:comment -->
