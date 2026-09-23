@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0027-docs-purger-les-references-au-board-dans-les-adr
 title: docs: purger les références au board dans les ADR, prompts et skills
 label: doc
-status: review
+status: done
 priority: medium
 size: medium
 assignedAgent: human

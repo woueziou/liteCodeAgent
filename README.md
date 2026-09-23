@@ -42,7 +42,7 @@ Each arrow is one agent handing off to the next:
 ```
 idea → classifier → panel-selector → debate-angle ×N → synthesizer → planner
                                                                         ↓
-                                              tracker → dispatcher → implementer → reviewer
+                                              tracker → dispatcher → implementer → reviewer + bug-hunter
                                                                         ↑           ↓
                                                                       triage ←──────┘
 ```
@@ -54,7 +54,8 @@ reconciles them and `planner` turns the result into a plan.
 
 Nothing has been created or written yet. **You approve first.** Then `tracker` files the
 issue, `dispatcher` decides what to do next, `implementer` writes the code and opens a
-pull request, and `reviewer` gives a real verdict on it. If something goes wrong,
+pull request, `reviewer` gives a real verdict on it, and `bug-hunter` independently hunts
+for the inputs that break it. If something goes wrong,
 `triage` picks it up rather than letting an agent guess.
 
 That gating is deliberate: **no agent creates tracked work or writes code until you ask.**
@@ -340,8 +341,8 @@ rather than silently resolving it.
 > "Run the implementer on #42"
 
 `implementer` moves the item to `In Progress`, works in a dedicated git worktree, follows
-your `conventions`, runs your `checkCommand`, opens a PR, then invokes `reviewer` for a
-real verdict before moving the item to `Ready to Merge` or `Review`. On a blocker it
+your `conventions`, runs your `checkCommand`, opens a PR, then invokes `reviewer` and
+`bug-hunter` for real verdicts before moving the item to `Ready to Merge` or `Review`. On a blocker it
 escalates to `triage` rather than guessing.
 
 ### Shortcuts
@@ -468,9 +469,9 @@ that parent directory to `runner.skillDirs`. The configured runner output direct
 
 A pack is a bundle of agents and skills installed together. There are two:
 
-- **`core`** — the 11 pipeline agents (`classifier`, `panel-selector`, `debate-angle`,
+- **`core`** — the 13 pipeline agents (`classifier`, `panel-selector`, `debate-angle`,
   `synthesizer`, `planner`, `orchestrator`, `tracker`, `dispatcher`, `implementer`,
-  `reviewer`, `triage`) plus `agent-attribution`, `critique-expert`,
+  `reviewer`, `bug-hunter`, `triage`, `sync`) plus `agent-attribution`, `critique-expert`,
   `security-expert`, and the two chaining skills.
 - **`web`** — expert skills for TypeScript/React work: `typescript-expert`,
   `frontend-expert`, `ui-ux-expert`, `design-expert`, and the three `mobile-*` experts.

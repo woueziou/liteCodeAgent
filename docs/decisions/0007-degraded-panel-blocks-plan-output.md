@@ -103,6 +103,11 @@ this decision follows directly.
 
 ## Decision 4: symmetric treatment for `reviewer`'s `code-review` sub-pass
 
+> **Superseded (2026-09-23) by ADR 0013.** The `code-review` sub-pass never returned when
+> invoked from inside `reviewer`, so this cap fired on every PR. The correctness pass is now
+> a dedicated `bug-hunter` agent invoked by `implementer`, and `reviewer` no longer caps its
+> verdict. The text below is kept as the historical record.
+
 The ticket explicitly asks to check the symmetric case already observed on PR #11:
 `reviewer` invoking the `code-review` skill and that sub-pass not returning within the
 turn's budget. The same principle applies — a sub-pass that started and never returned is

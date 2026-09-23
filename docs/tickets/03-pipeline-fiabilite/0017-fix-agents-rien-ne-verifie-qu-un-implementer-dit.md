@@ -3,7 +3,7 @@ schemaVersion: 1
 id: 0017-fix-agents-rien-ne-verifie-qu-un-implementer-dit
 title: fix(agents): rien ne vérifie qu'un implementer dit vrai dans son rapport final
 label: bug
-status: review
+status: done
 priority: high
 size: medium
 assignedAgent: implementer
