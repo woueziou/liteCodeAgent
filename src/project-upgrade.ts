@@ -71,9 +71,18 @@ async function insideProject(root: string, rel: string): Promise<string | null> 
   return isInside(realRoot, join(await realAncestor(dirname(path)), relative(dirname(path), path))) ? path : null;
 }
 
-/** Removes `dir` if deleting a file left it empty, and only then. */
+/**
+ * Removes `dir` if deleting a file left it empty, and only then — and only a real
+ * directory: a symlinked one is the user's layout, not something this release created.
+ * Best-effort: the file it held is already gone, so a failure here must not be reported
+ * as if that deletion hadn't happened.
+ */
 async function removeIfEmpty(dir: string): Promise<void> {
-  if ((await readdir(dir)).length === 0) await rmdir(dir);
+  try {
+    if ((await lstat(dir)).isDirectory() && (await readdir(dir)).length === 0) await rmdir(dir);
+  } catch {
+    // Leaving an empty folder behind is harmless.
+  }
 }
 
 /**
@@ -176,12 +185,13 @@ const removeOrphans: Migration = {
     const changes: Change[] = [];
     const skipped: Skip[] = [];
     for (const rel of candidates) {
+      // Only files that are actually there are worth judging, or reporting.
+      if (!(await lstat(resolve(ctx.root, rel)).catch(() => null))) continue;
       const path = await insideProject(ctx.root, rel);
       if (!path) {
         skipped.push({ summary: `ignore ${rel}`, reason: "points outside the project; upgrade never deletes there" });
         continue;
       }
-      if (!(await exists(path))) continue;
       const expected = recorded.get(rel);
       if (drifted.length > 0) {
         skipped.push({
@@ -288,7 +298,13 @@ const removeLegacyData: Migration = {
     );
     const changes: Change[] = [];
     const skipped: Skip[] = [];
-    for (const rel of [...new Set([...LEGACY_DATA_FILES, ...configured])]) {
+    const seen = new Set<string>();
+    for (const rel of [...LEGACY_DATA_FILES, ...configured]) {
+      // `./x` and `x` are the same file: plan it once, or the second delete fails.
+      const resolved = resolve(ctx.root, rel);
+      if (seen.has(resolved)) continue;
+      seen.add(resolved);
+      if (!(await lstat(resolved).catch(() => null))) continue;
       const path = await insideProject(ctx.root, rel);
       const stat = path ? await lstat(path).catch(() => null) : null;
       if (!path) {

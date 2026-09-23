@@ -371,3 +371,46 @@ test("a project freshly set up with this release gets an empty upgrade plan", as
   const plans = await plan(root);
   expect(plans.flatMap((p) => [...p.changes.map((c) => c.summary), ...p.skipped.map((s) => s.summary)])).toEqual([]);
 });
+
+test("a tool directory symlinked outside the project raises no skip for files that aren't there", async () => {
+  const root = await tempDir("litecode-upgrade-linked-");
+  const shared = await tempDir("litecode-shared-claude-");
+  await Bun.write(join(root, "package.json"), JSON.stringify({ name: "demo", scripts: { test: "bun test" } }));
+  const { init } = await import("../src/init.ts");
+  const path = await init(root, { yes: true, packsRoot: PACKS, targets: ["claude-code"] });
+  const raw = await Bun.file(path).json();
+  raw.project.repo = "demo/demo";
+  raw.project.checkCommand = "bun test";
+  await Bun.write(path, JSON.stringify(raw, null, 2) + "\n");
+  const { symlink, rename } = await import("node:fs/promises");
+  await applyPlan(root, await buildPlan(root, PACKS, ConfigSchema.parse(raw)), "1.1.0", { force: false });
+  await rename(join(root, ".claude"), join(shared, ".claude"));
+  await symlink(join(shared, ".claude"), join(root, ".claude"));
+  expect((await plan(root)).flatMap((p) => p.skipped)).toEqual([]);
+});
+
+test("a data folder symlinked within the project: the file is deleted, the link is left alone, and the run succeeds", async () => {
+  const root = await legacyProject();
+  const { mkdir, rename, symlink, lstat } = await import("node:fs/promises");
+  await mkdir(join(root, "cache"));
+  await rename(join(root, ".claude/data"), join(root, "cache/data"));
+  await symlink("../cache/data", join(root, ".claude/data"));
+  await editConfig(root, (raw) => {
+    raw.project.board.dataFile = "./.claude/data/board.json";
+  });
+  const plans = await plan(root);
+  expect(plans.find((p) => p.id === "legacy-data")!.changes.map((c) => c.summary)).toEqual([
+    "delete .claude/data/board.json",
+  ]);
+  await applyUpgrade(plans, () => {});
+  expect((await lstat(join(root, ".claude/data"))).isSymbolicLink()).toBe(true);
+  expect(await Bun.file(join(root, "cache/data/board.json")).exists()).toBe(false);
+});
+
+test("the config rewrite follows the file's dominant indent, and its missing trailing newline", async () => {
+  const { formatLike } = await import("../src/project-upgrade-config.ts");
+  const value = { a: { b: 1 }, c: 2 };
+  expect(formatLike('{\n  "a": {\n    "b": 2\n  },\n "c": 2\n}\n', value)).toBe('{\n  "a": {\n    "b": 1\n  },\n  "c": 2\n}\n');
+  expect(formatLike('{\n    "a": 1\n}', value)).toBe('{\n    "a": {\n        "b": 1\n    },\n    "c": 2\n}');
+  expect(formatLike('{\r\n\t"a": 1\r\n}\r\n', value)).toBe('{\r\n\t"a": {\r\n\t\t"b": 1\r\n\t},\r\n\t"c": 2\r\n}\r\n');
+});

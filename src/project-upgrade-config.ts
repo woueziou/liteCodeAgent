@@ -95,15 +95,26 @@ export function cleanedConfig(raw: Json): Json {
 }
 
 /**
- * Serializes `value` the way `original` was written, so a rewrite only shows the keys it
- * removed: the same indentation unit (the smallest indent the file uses, tabs or spaces),
- * minified if it was on one line, and CRLF line endings if it had them.
+ * Serializes `value` close to how `original` was written, so a rewrite mostly shows the
+ * keys it removed: the file's indentation unit (the step between consecutive nesting
+ * levels it uses most), minified if it was on one line, CRLF if it had them, and its
+ * trailing newline or lack of one. Standard `JSON.stringify` layout otherwise — a
+ * hand-aligned file will still show some reformatting.
  */
 export function formatLike(original: string, value: unknown): string {
+  const eol = original.includes("\r\n") ? "\r\n" : "\n";
+  const trailing = /\r?\n$/.test(original) ? eol : "";
   const body = original.trim();
-  if (!body.includes("\n")) return `${JSON.stringify(value)}\n`;
-  const indents = [...body.matchAll(/^([ \t]+)\S/gm)].map((m) => m[1]!);
-  const unit = indents.reduce<string | undefined>((min, i) => (min === undefined || i.length < min.length ? i : min), undefined);
-  const text = `${JSON.stringify(value, null, unit === undefined ? 2 : unit.includes("\t") ? "\t" : unit.length)}\n`;
-  return original.includes("\r\n") ? text.replace(/\n/g, "\r\n") : text;
+  if (!body.includes("\n")) return JSON.stringify(value) + trailing;
+  const indents = [...body.matchAll(/^([ \t]*)\S/gm)].map((m) => m[1]!);
+  const indented = indents.filter((i) => i !== "");
+  const tabs = indented.filter((i) => i.includes("\t")).length > indented.length / 2;
+  const steps = new Map<number, number>();
+  for (let i = 1; i < indents.length; i++) {
+    const step = indents[i]!.length - indents[i - 1]!.length;
+    if (step > 0) steps.set(step, (steps.get(step) ?? 0) + 1);
+  }
+  const unit = [...steps].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 2;
+  const text = JSON.stringify(value, null, tabs ? "\t" : unit);
+  return text.replace(/\n/g, eol) + trailing;
 }
