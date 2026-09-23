@@ -27,7 +27,7 @@ Load only what the diff actually touches — don't load all of these reflexively
    - Write tests, follow TDD pattern
    - No single large file
 3. **Obvious defects you see while reading** — report them, but you are not the correctness pass: `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
-4. **Verification** — run `bun run check` and report actual output.
+4. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `bun run check` and report actual output.
 5. **Attribution** — per `agent-attribution` skill, if the diff includes commits made by an agent, verify the `Agent:` trailer is present.
 
 ## When you find a bug

@@ -18,11 +18,23 @@ async function packFiles() {
   return files;
 }
 
+/**
+ * The one sanctioned mention: implementer's step 8 naming what `bug-hunter` replaced. It's
+ * stripped verbatim before scanning, so anything else that mentions code-review — in any
+ * file, including implementer and reviewer, the two that used to depend on it — fails.
+ */
+const HISTORICAL_MENTION = "it replaces the `code-review` sub-pass `reviewer` used to invoke";
+
 test("no pack file depends on the Claude-only code-review skill", async () => {
   const offenders = (await packFiles())
-    .filter((f) => /`code-review`/.test(f.source) && !/ADR 0013/.test(f.source))
+    .filter((f) => /code[-_ ]review/i.test(f.source.replace(HISTORICAL_MENTION, "")))
     .map((f) => `${f.name}/${f.rel}`);
   expect(offenders).toEqual([]);
+});
+
+test("the sanctioned historical mention is still there verbatim", async () => {
+  const implementer = (await packFiles()).find((f) => f.rel === "agents/implementer.md")!;
+  expect(implementer.source).toContain(HISTORICAL_MENTION);
 });
 
 test("implementer invokes bug-hunter alongside reviewer, and gates Ready to Merge on it", async () => {
