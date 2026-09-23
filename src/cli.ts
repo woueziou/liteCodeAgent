@@ -20,7 +20,7 @@ import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
 import { confirm, isInteractive, multiSelect } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
-import { applyUpgrade, hasChanges, planUpgrade } from "./project-upgrade.ts";
+import { applyUpgrade, hasChanges, hasSkips, planUpgrade } from "./project-upgrade.ts";
 import {
   RunCancelledError,
   RunnerExecutionError,
@@ -86,7 +86,8 @@ function usage(): void {
                                      re-render agents, remove files older versions generated (unedited ones only),
                                      migrate tickets, drop obsolete config keys and data files
                                      ${c.dim("shows the plan, then asks before applying; --yes applies without asking")}
-                                     ${c.dim("a legacy git-clone install (install.sh) updates itself first")}
+                                     ${c.dim("a legacy git-clone install (install.sh) updates itself first; --no-self-update skips that")}
+                                     ${c.dim("exits 0 only when the project is fully up to date, 1 when anything is left pending")}
 
 Global: --project <dir>   target repo (default: cwd)
 `);
@@ -622,7 +623,14 @@ async function cmdVerifyReport(root: string, argv: string[]): Promise<number> {
  */
 async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
   if (!argv.includes("--no-self-update")) {
-    const self = await upgrade(KIT_ROOT);
+    let self: Awaited<ReturnType<typeof upgrade>>;
+    try {
+      self = await upgrade(KIT_ROOT);
+    } catch (e) {
+      console.log(c.red(`Could not update litecodeagent itself (${KIT_ROOT}):\n${(e as Error).message}`));
+      console.log(c.dim("Fix that, or re-run with --no-self-update to upgrade this project with the version you have."));
+      return 1;
+    }
     if (self.updated) {
       for (const line of self.log) console.log(line ? `  ${line}` : "");
       console.log(c.dim("\nContinuing with the updated version…\n"));
@@ -654,31 +662,38 @@ async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
     for (const skip of plan.skipped) console.log(`  ${c.yellow("skip")} ${skip.summary} ${c.dim(`— ${skip.reason}`)}`);
   }
 
+  // Exit code: 0 only when the project ends up fully current. Anything left pending —
+  // a plan not applied, or items skipped that need a human — is 1, so CI can tell.
+  const attention = () => {
+    console.log(c.yellow('Some items were left alone and need your attention — see "skip" above.'));
+    return 1;
+  };
+
   if (!hasChanges(plans)) {
+    if (hasSkips(plans)) return attention();
     console.log(c.green("Already up to date — nothing to change."));
-    return plans.some((p) => p.skipped.length > 0) ? 1 : 0;
+    return 0;
   }
 
   if (!argv.includes("--yes") && !argv.includes("-y")) {
     if (!isInteractive()) {
-      console.log(c.dim("\nNot a terminal, so nothing was applied. Re-run with --yes to apply this plan."));
-      return 0;
+      console.log(c.yellow("\nNot a terminal, so nothing was applied. Re-run with --yes to apply this plan."));
+      return 1;
     }
     console.log("");
     if (!(await confirm("Apply these changes?", false))) {
       console.log(c.dim("Nothing changed."));
-      return 0;
+      return 1;
     }
   }
 
   await applyUpgrade(plans, () => {});
   const applied = plans.reduce((n, p) => n + p.changes.length, 0);
   console.log(c.green(`\nUpgraded: ${applied} change(s) applied.`));
-  if (plans.some((p) => p.skipped.length > 0)) console.log(c.yellow("Some items were left alone — see \"skip\" above."));
   if (plans.some((p) => p.id === "tickets" && p.changes.length > 0)) {
     console.log(c.dim("Migrated tickets are uncommitted: review and commit them like any other change."));
   }
-  return 0;
+  return hasSkips(plans) ? attention() : 0;
 }
 
 const argv = process.argv.slice(2);

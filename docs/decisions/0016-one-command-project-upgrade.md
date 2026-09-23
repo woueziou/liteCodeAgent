@@ -47,21 +47,39 @@ typing any other command (ticket 0031).
 4. **The plan is shown, then confirmed** (owner's choice). Nothing is written before the
    user answers yes. `--yes` skips the question for scripts. Outside a terminal and
    without `--yes`, the command shows the plan and applies nothing.
-5. **Orphans are deleted only when intact** (owner's choice): their content must still
-   match the hash their lockfile recorded. An edited orphan is kept and listed.
-   Likewise, a hand-edited managed file stops the re-render, and a ticket with an
-   unknown frontmatter key isn't migrated. Everything left alone is reported with the
-   reason.
-6. **Config cleanup edits the file as written**, removing only obsolete keys. It never
-   re-serializes the parsed config, which would add every default the user never set.
-7. **Changes apply in order and stop at the first failure**, reporting what was already
+5. **Orphans are deleted only when intact** (owner's choice). Their content must match
+   the hash their lockfile recorded, both when the plan is made and again just before
+   deleting. An empty folder left behind is removed too.
+
+   Orphans are found in two places:
+   - the lockfile;
+   - the known install locations of removed agents and skills, because a project that
+     already ran `install --apply` on 1.0 no longer has them in its lockfile.
+
+   A file only the known locations turn up has no recorded hash, so it is kept and
+   listed. So is an edited orphan. While a hand-edited managed file blocks the
+   re-render, no orphan is deleted, because agents that weren't re-rendered may still
+   reference them. A ticket with an unknown frontmatter key isn't migrated, and an
+   invalid ticket is listed. Everything left alone is reported with the reason.
+6. **Nothing is deleted outside the project.** Every path read from the config or a
+   lockfile must resolve inside the project root. A path that doesn't is listed and
+   never deleted.
+7. **Config cleanup edits the file as written**, removing only obsolete keys and keeping
+   the file's indentation. It never re-serializes the parsed config, which would add
+   every default the user never set. An angle or domain left with no skill is dropped,
+   because the schema forbids an empty skill list.
+8. **Changes apply in order and stop at the first failure**, reporting what was already
    applied.
+9. **Exit code 0 means the project ended up fully current.** Anything still pending
+   gives 1: a plan that wasn't applied (declined, or no terminal and no `--yes`) or
+   items left for a human. CI can tell "done" from "needs attention".
 
 ## Consequences
 
 - One command replaces the four manual steps. The 1.0 guide leads with it and keeps the
   manual steps as a reference.
-- After a successful upgrade, the lockfile no longer lists the orphans. An edited orphan
-  that was kept is therefore reported once, not on every later run.
+- An orphan kept because it was edited, or because no lockfile vouches for it, keeps
+  being listed on every run, with exit code 1, until the user deletes it. That is on
+  purpose: the command never treats it as done.
 - Migrated tickets and the cleaned config are left uncommitted, like any other change
   (ADR 0015).

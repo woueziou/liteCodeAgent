@@ -6,14 +6,16 @@
  * migration to `MIGRATIONS` rather than asking users for another manual step.
  *
  * Planning never writes anything; `applyUpgrade` runs the planned changes in order. The
- * CLI shows the plan and asks before applying it.
+ * CLI shows the plan and asks before applying it. Nothing is ever deleted outside the
+ * project, and nothing a user may have edited is deleted without proof it wasn't.
  */
 
-import { rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { readdir, rm, rmdir } from "node:fs/promises";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { CONFIG_FILENAME, ConfigSchema, TARGETS, type Config } from "./config.ts";
-import { applyPlan, buildPlan, lockPath } from "./install.ts";
+import { applyPlan, buildPlan, lockPath, SKILL_ROOTS } from "./install.ts";
 import { hash, readLockfile } from "./lockfile.ts";
+import { cleanedConfig, indentOf, isObject, obsoleteConfig, REMOVED_SKILLS, type Json } from "./project-upgrade-config.ts";
 import { listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import { CURRENT_SCHEMA_VERSION, migrateTicket, unknownKeys } from "./tickets/spec.ts";
 
@@ -39,13 +41,44 @@ type Migration = { id: string; title: string; plan: (ctx: UpgradeContext) => Pro
 
 const exists = (path: string) => Bun.file(path).exists();
 
+/**
+ * `rel` resolved against the project root, or `null` when it points outside it. Paths come
+ * from committed files (config, lockfiles) that nobody reviews for this, so a `../` or an
+ * absolute path must never reach `rm`.
+ */
+function insideProject(root: string, rel: string): string | null {
+  const path = resolve(root, rel);
+  const fromRoot = relative(root, path);
+  return fromRoot === "" || fromRoot.startsWith("..") || isAbsolute(fromRoot) ? null : path;
+}
+
+/**
+ * Deletes `path` only if its content still hashes to `expected` — checked again at apply
+ * time, since the user may have edited the file while reading the plan — then removes
+ * its directory if that left it empty (a removed skill's folder, say).
+ */
+async function deleteIfUnchanged(path: string, expected: string, rel: string): Promise<void> {
+  if (!(await exists(path))) return;
+  if (hash(await Bun.file(path).text()) !== expected) {
+    throw new Error(`${rel} changed since the plan was shown; left in place`);
+  }
+  await rm(path);
+  const dir = dirname(path);
+  if ((await readdir(dir)).length === 0) await rmdir(dir);
+}
+
+/** The re-render plan, shared by `packs` and `orphans`: orphans wait on a clean re-render. */
+async function renderPlan(ctx: UpgradeContext) {
+  const plan = await buildPlan(ctx.root, ctx.packsRoot, ctx.config);
+  return { plan, drifted: plan.entries.filter((e) => e.status === "drift") };
+}
+
 /** Re-renders every installed agent, skill and command for the configured tools. */
 const renderPacks: Migration = {
   id: "packs",
   title: "Re-render installed agents and skills",
   async plan(ctx) {
-    const plan = await buildPlan(ctx.root, ctx.packsRoot, ctx.config);
-    const drifted = plan.entries.filter((e) => e.status === "drift");
+    const { plan, drifted } = await renderPlan(ctx);
     const changed = plan.entries.filter((e) => e.status === "create" || e.status === "update");
     const base = { id: this.id, title: this.title };
     if (drifted.length > 0) {
@@ -57,7 +90,7 @@ const renderPacks: Migration = {
             summary: `${changed.length + drifted.length} file(s) not re-rendered`,
             reason:
               `${drifted.length} were edited by hand (${drifted.map((e) => e.rel).join(", ")}). ` +
-              "Move those edits upstream into the pack, or run `litecode install --apply --force` to discard them.",
+              "Move those edits upstream into the pack, or run `litecode install --apply --force` to discard them, then run `upgrade` again.",
           },
         ],
       };
@@ -77,30 +110,72 @@ const renderPacks: Migration = {
   },
 };
 
+/** Agents no release produces any more. */
+const REMOVED_AGENTS = ["sync"];
+
+/**
+ * Where earlier releases installed the removed agents and skills, per tool — needed on
+ * top of the lockfile, because a project that ran `install --apply` on a newer release
+ * already had those entries dropped from its lockfile while the files stayed on disk.
+ */
+function removedFileLocations(config: Config): string[] {
+  const agents = REMOVED_AGENTS.flatMap((name) => [
+    join(config.outDir, "agents", `${name}.md`),
+    `.codex/agents/${name}.toml`,
+    `.opencode/agents/${name}.md`,
+    `.kilo/agents/${name}.md`,
+  ]);
+  const skills = [...REMOVED_SKILLS].flatMap((name) => [
+    join(config.outDir, "skills", name, "SKILL.md"),
+    ...TARGETS.filter((t) => t !== "claude-code").map((t) => join(SKILL_ROOTS[t], "skills", name, "SKILL.md")),
+  ]);
+  return [...agents, ...skills];
+}
+
 /**
  * Removes files an earlier version generated and this one no longer produces (the `sync`
  * agent's copies, say) — but only when they still match the hash their lockfile recorded.
- * A file someone edited since is kept: deleting it would lose their work.
+ * A file someone edited since is kept, and so is one no lockfile vouches for any more: no
+ * hash, no proof it's untouched. Nothing is deleted while the re-render is blocked by a
+ * hand-edited file, since the agents it would have rewritten may still reference them.
  */
 const removeOrphans: Migration = {
   id: "orphans",
   title: "Remove files earlier versions generated",
   async plan(ctx) {
-    const plan = await buildPlan(ctx.root, ctx.packsRoot, ctx.config);
+    const { plan, drifted } = await renderPlan(ctx);
     const recorded = new Map<string, string>();
     for (const target of TARGETS) {
       const lock = await readLockfile(ctx.root, lockPath(target));
       for (const [rel, entry] of Object.entries(lock?.files ?? {})) recorded.set(rel, entry.hash);
     }
+    const candidates = [...new Set([...plan.orphans, ...removedFileLocations(ctx.config)])];
     const changes: Change[] = [];
     const skipped: Skip[] = [];
-    for (const rel of plan.orphans) {
-      const path = resolve(ctx.root, rel);
+    for (const rel of candidates) {
+      const path = insideProject(ctx.root, rel);
+      if (!path) {
+        skipped.push({ summary: `ignore ${rel}`, reason: "points outside the project; upgrade never deletes there" });
+        continue;
+      }
       if (!(await exists(path))) continue;
-      if (hash(await Bun.file(path).text()) === recorded.get(rel)) {
-        changes.push({ summary: `delete ${rel}`, apply: () => rm(path) });
-      } else {
+      const expected = recorded.get(rel);
+      if (drifted.length > 0) {
+        skipped.push({
+          summary: `keep ${rel} for now`,
+          reason: "the re-render is blocked (see above); run `upgrade` again once it can go ahead",
+        });
+      } else if (expected === undefined) {
+        skipped.push({
+          summary: `keep ${rel}`,
+          reason:
+            "left by an earlier release, but no lockfile records it any more, so upgrade can't tell " +
+            "whether you edited it — delete it yourself if you don't need it",
+        });
+      } else if (hash(await Bun.file(path).text()) !== expected) {
         skipped.push({ summary: `keep ${rel}`, reason: "edited since it was generated; delete it yourself if you don't need it" });
+      } else {
+        changes.push({ summary: `delete ${rel}`, apply: () => deleteIfUnchanged(path, expected, rel) });
       }
     }
     return { id: this.id, title: this.title, changes, skipped };
@@ -114,9 +189,12 @@ const migrateTickets: Migration = {
   async plan(ctx) {
     const base = { id: this.id, title: this.title };
     if (!ctx.config.project.tickets.enabled) return { ...base, changes: [], skipped: [] };
-    const { tickets } = await listTicketsDetailed(ctx.root, ctx.config.project.tickets.dir);
+    const { tickets, errors } = await listTicketsDetailed(ctx.root, ctx.config.project.tickets.dir);
     const changes: Change[] = [];
-    const skipped: Skip[] = [];
+    const skipped: Skip[] = errors.map((e) => ({
+      summary: `leave ${e.path} as it is`,
+      reason: `it isn't a valid ticket — run \`litecode ticket doctor\` for details, fix it, then run \`upgrade\` again`,
+    }));
     for (const ticket of tickets.filter((t) => t.schemaVersion < CURRENT_SCHEMA_VERSION)) {
       const extra = unknownKeys(await Bun.file(resolve(ctx.root, ticket.path)).text(), ticket.path);
       if (extra.length > 0) {
@@ -134,91 +212,17 @@ const migrateTickets: Migration = {
   },
 };
 
-/** Config keys nothing reads any more, as paths under the config file's root object. */
-const OBSOLETE_CONFIG_KEYS = [
-  ["project", "tickets", "autoStateFile"],
-  ["project", "tickets", "autoMinIntervalMs"],
-  ["project", "agentSkills", "sync"],
-  ["project", "board"],
-] as const;
-
-/**
- * Skills earlier packs shipped and this one doesn't. A config still naming one keeps
- * rendering it into agents' frontmatter, and install only accepts it because the old
- * installed copy passes for a local overlay — until that orphan is deleted.
- */
-const REMOVED_SKILLS = new Set(["github-project-sync"]);
-
-type Json = Record<string, unknown>;
-
-function isObject(value: unknown): value is Json {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+async function readRawConfig(root: string): Promise<{ raw: Json; text: string }> {
+  const text = await Bun.file(resolve(root, CONFIG_FILENAME)).text();
+  return { raw: JSON.parse(text) as Json, text };
 }
 
-/** The parent object holding `path`'s last key, when the whole path exists. */
-function parentOf(raw: Json, path: readonly string[]): Json | undefined {
-  let node: unknown = raw;
-  for (const key of path.slice(0, -1)) {
-    if (!isObject(node)) return undefined;
-    node = node[key];
-  }
-  return isObject(node) && path.at(-1)! in node ? node : undefined;
-}
-
-/** Every skill list in the config: agentSkills values, and each angle's and domain's skills. */
-function skillLists(raw: Json): { where: string; list: unknown[] }[] {
-  const project = isObject(raw.project) ? raw.project : {};
-  const lists: { where: string; list: unknown[] }[] = [];
-  if (isObject(project.agentSkills)) {
-    for (const [agent, list] of Object.entries(project.agentSkills)) {
-      if (Array.isArray(list)) lists.push({ where: `project.agentSkills.${agent}`, list });
-    }
-  }
-  for (const group of ["angles", "domains"] as const) {
-    const entries = project[group];
-    if (!Array.isArray(entries)) continue;
-    entries.forEach((entry, i) => {
-      if (isObject(entry) && Array.isArray(entry.skills)) lists.push({ where: `project.${group}[${i}].skills`, list: entry.skills });
-    });
-  }
-  return lists;
-}
-
-/** What `cleanConfig` would remove from a raw config, as human-readable paths. */
-function obsoleteConfig(raw: Json): string[] {
-  const found = OBSOLETE_CONFIG_KEYS.filter((path) => parentOf(raw, path)).map((path) => path.join("."));
-  // Skill lists under a key that is itself going away aren't worth listing twice.
-  const survivors = structuredClone(raw);
-  for (const path of OBSOLETE_CONFIG_KEYS) delete parentOf(survivors, path)?.[path.at(-1)!];
-  for (const { where, list } of skillLists(survivors)) {
-    for (const skill of list) if (typeof skill === "string" && REMOVED_SKILLS.has(skill)) found.push(`${skill} from ${where}`);
-  }
-  return found;
-}
-
-/** A copy of the raw config with every obsolete key and removed skill taken out. */
-export function cleanedConfig(raw: Json): Json {
-  const copy = structuredClone(raw);
-  for (const path of OBSOLETE_CONFIG_KEYS) delete parentOf(copy, path)?.[path.at(-1)!];
-  for (const { list } of skillLists(copy)) {
-    for (let i = list.length - 1; i >= 0; i--) if (REMOVED_SKILLS.has(list[i] as string)) list.splice(i, 1);
-  }
-  return copy;
-}
-
-async function readRawConfig(root: string): Promise<Json> {
-  return (await Bun.file(resolve(root, CONFIG_FILENAME)).json()) as Json;
-}
-
-/**
- * Removes obsolete keys and skill names from the config file as written — not from the
- * parsed config, which would also write out every default the user never set.
- */
+/** Removes obsolete settings and removed skills from the config file, keeping its indentation. */
 const cleanConfig: Migration = {
   id: "config",
   title: `Remove obsolete settings from ${CONFIG_FILENAME}`,
   async plan(ctx) {
-    const raw = await readRawConfig(ctx.root);
+    const { raw, text } = await readRawConfig(ctx.root);
     const found = obsoleteConfig(raw);
     const changes: Change[] =
       found.length === 0
@@ -228,7 +232,8 @@ const cleanConfig: Migration = {
               summary: `remove ${found.length} obsolete setting(s)`,
               details: found,
               async apply() {
-                await Bun.write(resolve(ctx.root, CONFIG_FILENAME), `${JSON.stringify(cleanedConfig(raw), null, 2)}\n`);
+                const cleaned = JSON.stringify(cleanedConfig(raw), null, indentOf(text));
+                await Bun.write(resolve(ctx.root, CONFIG_FILENAME), `${cleaned}\n`);
               },
             },
           ];
@@ -236,30 +241,40 @@ const cleanConfig: Migration = {
   },
 };
 
+/** Default locations of the data files the board commands and the ticket sync wrote. */
+const LEGACY_DATA_FILES = [
+  ".claude/data/board.json",
+  ".claude/data/github-project-item-ids.json",
+  ".claude/data/ticket-sync-auto-state.json",
+];
+
 /**
- * Data files the board commands and the ticket sync wrote, at the paths the config named
- * for them (read before `cleanConfig` removes those keys) or their defaults.
+ * Data files the board commands and the ticket sync wrote, at their default paths or the
+ * ones the config named for them (read before `cleanConfig` removes those keys). They're
+ * caches nobody edits by hand, but a configured path is still held to the project.
  */
 const removeLegacyData: Migration = {
   id: "legacy-data",
   title: "Delete data files of removed features",
   async plan(ctx) {
-    const raw = await readRawConfig(ctx.root);
+    const { raw } = await readRawConfig(ctx.root);
     const project = isObject(raw.project) ? raw.project : {};
     const board = isObject(project.board) ? project.board : {};
     const tickets = isObject(project.tickets) ? project.tickets : {};
-    const str = (value: unknown, fallback: string) => (typeof value === "string" && value ? value : fallback);
-    const candidates = [
-      str(board.dataFile, ".claude/data/board.json"),
-      str(board.itemIdCache, ".claude/data/github-project-item-ids.json"),
-      str(tickets.autoStateFile, ".claude/data/ticket-sync-auto-state.json"),
-    ];
+    const configured = [board.dataFile, board.itemIdCache, tickets.autoStateFile].filter(
+      (v): v is string => typeof v === "string" && v !== "",
+    );
     const changes: Change[] = [];
-    for (const rel of [...new Set(candidates)]) {
-      const path = resolve(ctx.root, rel);
-      if (await exists(path)) changes.push({ summary: `delete ${rel}`, apply: () => rm(path) });
+    const skipped: Skip[] = [];
+    for (const rel of [...new Set([...LEGACY_DATA_FILES, ...configured])]) {
+      const path = insideProject(ctx.root, rel);
+      if (!path) {
+        skipped.push({ summary: `ignore ${rel}`, reason: "points outside the project; upgrade never deletes there" });
+      } else if (await exists(path)) {
+        changes.push({ summary: `delete ${rel}`, apply: () => rm(path) });
+      }
     }
-    return { id: this.id, title: this.title, changes, skipped: [] };
+    return { id: this.id, title: this.title, changes, skipped };
   },
 };
 
@@ -275,14 +290,19 @@ export const MIGRATIONS: Migration[] = [cleanConfig, renderPacks, removeOrphans,
  * `cleanConfig` has run, so nothing later is planned against settings about to go away.
  */
 export async function planUpgrade(ctx: UpgradeContext): Promise<MigrationPlan[]> {
-  const config = ConfigSchema.parse(cleanedConfig(await readRawConfig(ctx.root)));
-  const planned = { ...ctx, config };
+  const cleaned = ConfigSchema.safeParse(cleanedConfig((await readRawConfig(ctx.root)).raw));
+  if (!cleaned.success) {
+    const issues = cleaned.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
+    throw new Error(`${CONFIG_FILENAME} wouldn't be valid once its obsolete settings are removed:\n${issues}`);
+  }
+  const planned = { ...ctx, config: cleaned.data };
   const plans: MigrationPlan[] = [];
   for (const migration of MIGRATIONS) plans.push(await migration.plan(planned));
   return plans;
 }
 
 export const hasChanges = (plans: MigrationPlan[]) => plans.some((p) => p.changes.length > 0);
+export const hasSkips = (plans: MigrationPlan[]) => plans.some((p) => p.skipped.length > 0);
 
 /**
  * Applies every planned change in order and stops at the first failure, reporting what

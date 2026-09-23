@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0031-feat-cli-litecode-upgrade-met-un-projet-a-jour-e
 title: feat(cli): litecode upgrade met un projet à jour en une seule commande
 label: feature
-status: inProgress
+status: review
 priority: high
 size: medium
 assignedAgent: human

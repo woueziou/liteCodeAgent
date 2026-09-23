@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { mkdtemp } from "node:fs/promises";
+import { afterAll, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ConfigSchema } from "../src/config.ts";
@@ -33,6 +33,18 @@ A comment never posted.
 <!-- /litecode:comment -->
 `;
 
+const scratch: string[] = [];
+
+async function tempDir(prefix: string): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), prefix));
+  scratch.push(dir);
+  return dir;
+}
+
+afterAll(async () => {
+  await Promise.all(scratch.map((dir) => rm(dir, { recursive: true, force: true })));
+});
+
 /**
  * A project installed by a 0.x release, as far as `upgrade` can tell: current packs
  * installed, plus everything 0.x left behind — the `sync` agent and `github-project-sync`
@@ -40,7 +52,7 @@ A comment never posted.
  * skill and the removed settings, a v1 ticket, and the board's data file.
  */
 async function legacyProject(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "litecode-upgrade-"));
+  const root = await tempDir("litecode-upgrade-");
   await Bun.write(join(root, ".claude/skills/orpc-expert/SKILL.md"), "---\nname: orpc-expert\n---\n");
   const raw = await Bun.file(EXAMPLE).json();
   await Bun.write(join(root, "litecode.config.json"), `${JSON.stringify(raw, null, 2)}\n`);
@@ -160,22 +172,126 @@ async function runCli(cwd: string, args: string[]) {
 test("`upgrade` outside a terminal shows the plan and applies nothing; `--yes` applies it", async () => {
   const root = await legacyProject();
   const shown = await runCli(root, ["upgrade", "--no-self-update"]);
-  expect(shown.exitCode).toBe(0);
+  expect(shown.exitCode).toBe(1);
   expect(shown.output).toContain("delete .claude/agents/sync.md");
   expect(shown.output).toContain("Re-run with --yes");
   expect(await Bun.file(join(root, ".claude/agents/sync.md")).exists()).toBe(true);
 
+  // The edited github-project-sync copy is kept and reported, so the run ends at 1.
   const applied = await runCli(root, ["upgrade", "--no-self-update", "--yes"]);
-  expect(applied.exitCode).toBe(0);
+  expect(applied.exitCode).toBe(1);
   expect(applied.output).toContain("Upgraded:");
+  expect(applied.output).toContain("need your attention");
   expect(await Bun.file(join(root, ".claude/agents/sync.md")).exists()).toBe(false);
 
-  expect((await runCli(root, ["upgrade", "--no-self-update"])).output).toContain("Already up to date");
+  await rm(join(root, ".claude/skills/github-project-sync"), { recursive: true });
+  const current = await runCli(root, ["upgrade", "--no-self-update"]);
+  expect(current.output).toContain("Already up to date");
+  expect(current.exitCode).toBe(0);
 });
 
 test("`upgrade` in a directory that isn't a LiteCodeAgent project says so and changes nothing", async () => {
-  const root = await mkdtemp(join(tmpdir(), "litecode-upgrade-empty-"));
+  const root = await tempDir("litecode-upgrade-empty-");
   const { output, exitCode } = await runCli(root, ["upgrade", "--no-self-update"]);
   expect(exitCode).toBe(0);
   expect(output).toContain("nothing to upgrade here");
+});
+
+async function editConfig(root: string, edit: (raw: any) => void, indent: string | number = 2) {
+  const path = join(root, "litecode.config.json");
+  const raw = await Bun.file(path).json();
+  edit(raw);
+  await Bun.write(path, `${JSON.stringify(raw, null, indent)}\n`);
+}
+
+test("nothing outside the project is ever deleted, whatever the config or a lockfile says", async () => {
+  const root = await legacyProject();
+  const victim = await tempDir("litecode-victim-");
+  await Bun.write(join(victim, "notes.txt"), "keep me\n");
+  await Bun.write(join(victim, "empty.keep"), "");
+  await editConfig(root, (raw) => {
+    raw.project.board.dataFile = join(victim, "notes.txt");
+    raw.project.board.itemIdCache = "../" + join("..", victim, "notes.txt");
+  });
+  const lock = (await readLockfile(root, lockPath("claude-code")))!;
+  lock.files["../outside/empty.keep"] = { pack: "core", version: "0.3.0", hash: hash("") };
+  lock.files[join(victim, "empty.keep")] = { pack: "core", version: "0.3.0", hash: hash("") };
+  await writeLockfile(root, lock, lockPath("claude-code"));
+
+  const plans = await plan(root);
+  const deletes = plans.flatMap((p) => p.changes.map((c) => c.summary)).filter((s) => s.startsWith("delete"));
+  expect(deletes.some((s) => s.includes("victim") || s.includes(".."))).toBe(false);
+  expect(plans.flatMap((p) => p.skipped).some((s) => s.reason.includes("outside the project"))).toBe(true);
+
+  await applyUpgrade(plans, () => {});
+  expect(await Bun.file(join(victim, "notes.txt")).text()).toBe("keep me\n");
+  expect(await Bun.file(join(victim, "empty.keep")).exists()).toBe(true);
+});
+
+test("a hand-edited agent blocks the re-render, and then nothing it may reference is deleted", async () => {
+  const root = await legacyProject();
+  await Bun.write(join(root, ".claude/agents/reviewer.md"), "---\nname: reviewer\n---\nmy own reviewer\n");
+  const plans = await plan(root);
+  expect(plans.find((p) => p.id === "packs")!.changes).toEqual([]);
+  expect(plans.find((p) => p.id === "packs")!.skipped[0]!.reason).toContain("edited by hand");
+  const orphans = plans.find((p) => p.id === "orphans")!;
+  expect(orphans.changes).toEqual([]);
+  expect(orphans.skipped.map((s) => s.summary)).toContain("keep .claude/agents/sync.md for now");
+});
+
+test("orphans a newer `install --apply` already dropped from the lockfile are still reported, never silently kept", async () => {
+  const root = await legacyProject();
+  const config = ConfigSchema.parse(await Bun.file(join(root, "litecode.config.json")).json());
+  await applyPlan(root, await buildPlan(root, PACKS, config), "1.0.0", { force: false });
+  expect((await readLockfile(root, lockPath("claude-code")))!.files[".claude/agents/sync.md"]).toBeUndefined();
+
+  const orphans = (await plan(root)).find((p) => p.id === "orphans")!;
+  expect(orphans.changes).toEqual([]);
+  const kept = orphans.skipped.find((s) => s.summary === "keep .claude/agents/sync.md")!;
+  expect(kept.reason).toContain("no lockfile records it");
+  expect(await Bun.file(join(root, ".claude/agents/sync.md")).exists()).toBe(true);
+});
+
+test("a domain whose only skill was removed is dropped, instead of failing the whole upgrade", async () => {
+  const root = await legacyProject();
+  await editConfig(root, (raw) => raw.project.domains.push({ match: "board automation", skills: ["github-project-sync"] }));
+  const config = (await plan(root)).find((p) => p.id === "config")!;
+  expect(config.changes[0]!.details!.some((d) => /^project\.domains\[\d+\] \(board automation\), left with no skill$/.test(d))).toBe(true);
+  await applyUpgrade(await plan(root), () => {});
+  const domains = (await Bun.file(join(root, "litecode.config.json")).json()).project.domains;
+  expect(domains.some((d: { match: string }) => d.match === "board automation")).toBe(false);
+});
+
+test("the config keeps its own indentation when obsolete settings are removed", async () => {
+  const root = await legacyProject();
+  await editConfig(root, () => {}, "\t");
+  await applyUpgrade(await plan(root), () => {});
+  const text = await Bun.file(join(root, "litecode.config.json")).text();
+  expect(text).toMatch(/^\t"project"/m);
+  expect(text).not.toMatch(/^  "project"/m);
+});
+
+test("an invalid ticket is reported, not silently skipped", async () => {
+  const root = await legacyProject();
+  await Bun.write(join(root, "docs/tickets/0002-broken.md"), V1_TICKET.replace("priority: medium", "priority: urgent").replace("0001-old-ticket", "0002-broken"));
+  const tickets = (await plan(root)).find((p) => p.id === "tickets")!;
+  expect(tickets.skipped.map((s) => s.summary)).toContain("leave docs/tickets/0002-broken.md as it is");
+});
+
+test("an orphan edited after the plan was shown is not deleted", async () => {
+  const root = await legacyProject();
+  const plans = await plan(root);
+  await Bun.write(join(root, ".claude/agents/sync.md"), "edited while the prompt was open\n");
+  const err = await applyUpgrade(plans, () => {}).catch((e: Error) => e);
+  expect((err as Error).message).toContain("changed since the plan was shown");
+  expect(await Bun.file(join(root, ".claude/agents/sync.md")).text()).toBe("edited while the prompt was open\n");
+});
+
+test("deleting a removed skill's file also removes its now-empty folder", async () => {
+  const root = await legacyProject();
+  await Bun.write(join(root, ".claude/skills/github-project-sync/SKILL.md"), "---\nname: github-project-sync\n---\nold skill\n");
+  await applyUpgrade(await plan(root), () => {});
+  expect(await Bun.file(join(root, ".claude/skills/github-project-sync/SKILL.md")).exists()).toBe(false);
+  const { readdir } = await import("node:fs/promises");
+  expect(await readdir(join(root, ".claude/skills"))).not.toContain("github-project-sync");
 });
