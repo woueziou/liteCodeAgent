@@ -1,6 +1,6 @@
 ---
 name: agent-attribution
-description: Mandatory traceability rule for any agent that mutates files, commits, or GitHub state. Use whenever an agent's tools include Write, Edit, or Bash(git commit)/Bash(gh *). Ensures every mutation is attributable after the fact, independent of which agent or plugin actually performed it — because tool restrictions declared in an agent's frontmatter are not a reliable enforcement boundary in this environment (verified: an agent without Edit/Write/Bash declared was still able to modify a file, so intent-only restrictions cannot be trusted).
+description: "Mandatory traceability rule for any agent that mutates files, commits, or GitHub state. Use whenever an agent's tools include Write, Edit, or Bash(git commit)/Bash(gh *). Ensures every mutation is attributable after the fact, independent of which agent or plugin actually performed it — because tool restrictions declared in an agent's frontmatter are not a reliable enforcement boundary in this environment (verified: an agent without Edit/Write/Bash declared was still able to modify a file, so intent-only restrictions cannot be trusted)."
 ---
 
 # Agent attribution
