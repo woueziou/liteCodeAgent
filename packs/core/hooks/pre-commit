@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Rendered by litecodeagent (packs/core/hooks/pre-commit, ticket 0033) — do not edit by
+# hand, edit the source and re-render with `litecode install --apply`.
+#
+# Refuses a commit landing directly on the project's default branch, per
+# project.defaultBranch in litecode.config.json — the rule agent prose already states
+# ("never commit on the default branch") enforced here in code instead of only in a
+# prompt. `project.allowDefaultBranchCommits: true` or a one-off
+# `LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT=1` lets a specific commit through.
+set -euo pipefail
+
+if command -v bunx >/dev/null 2>&1; then
+  bunx --yes litecodeagent@__LITECODE_VERSION__ guard-branch
+else
+  echo "pre-commit: bunx not found, skipping the branch guard (install Bun to enforce it)." >&2
+fi

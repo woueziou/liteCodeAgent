@@ -41,6 +41,38 @@ export const STATUS_ROLES: { role: StatusRole; label: string; description: strin
 
 export const TICKET_STATUSES = STATUS_ROLES.map((s) => s.role) as [StatusRole, ...StatusRole[]];
 
+/**
+ * The pipeline's status machine (ticket 0033): which `status` transitions `litecode
+ * ticket move` accepts, so the rule "inProgress before review/readyToMerge" lives in code
+ * instead of only in agent prose. Encodes the pipeline as it's actually driven today:
+ *
+ * - `dispatcher` moves `backlog -> planned`.
+ * - `implementer` moves `planned -> inProgress`, then `inProgress -> review | readyToMerge`
+ *   (or straight to `done` for a verification-only ticket with no code change), and can
+ *   escalate any active status to `blocked`.
+ * - `triage` un-blocks back to `planned` (re-scoped) or `inProgress` (resumed in place).
+ * - A human moves `review -> readyToMerge | done` and `readyToMerge -> done` once merged.
+ * - `implementer` can also move `review -> inProgress` (and `readyToMerge -> inProgress`) to
+ *   apply a same-PR fixup requested by a reviewer/bug-hunter finding, per the resume flow.
+ *
+ * `done` is terminal: nothing reopens a done ticket by moving its status (a regression
+ * gets its own new ticket).
+ */
+export const ALLOWED_TRANSITIONS: Record<StatusRole, StatusRole[]> = {
+  backlog: ["planned", "blocked"],
+  planned: ["inProgress", "blocked"],
+  inProgress: ["review", "readyToMerge", "done", "blocked"],
+  blocked: ["planned", "inProgress"],
+  review: ["readyToMerge", "done", "blocked", "inProgress"],
+  readyToMerge: ["done", "blocked", "inProgress"],
+  done: [],
+};
+
+/** Whether `litecode ticket move` would accept `from -> to`. `from === to` is always a no-op allowed. */
+export function isTransitionAllowed(from: StatusRole, to: StatusRole): boolean {
+  return from === to || (ALLOWED_TRANSITIONS[from] ?? []).includes(to);
+}
+
 export const PRIORITIES = ["low", "medium", "high"] as const;
 export const SIZES = ["trivial", "small", "medium", "large"] as const;
 

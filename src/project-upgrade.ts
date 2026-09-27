@@ -102,7 +102,12 @@ async function deleteIfUnchanged(path: string, expected: string, rel: string): P
 /** The re-render plan, shared by `packs` and `orphans`: orphans wait on a clean re-render. */
 async function renderPlan(ctx: UpgradeContext) {
   const plan = await buildPlan(ctx.root, ctx.packsRoot, ctx.config);
-  return { plan, drifted: plan.entries.filter((e) => e.status === "drift") };
+  const drifted = plan.entries.filter((e) => e.status === "drift");
+  // The `.githooks/pre-commit` branch guard (ticket 0033) lives outside `plan.entries`
+  // (see `HookPlanEntry`'s doc comment in install.ts), so it's folded in here by hand —
+  // otherwise a hand-edited hook's drift would never block `upgrade`.
+  if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, status: "drift", harness: "claude-code" });
+  return { plan, drifted };
 }
 
 /** Re-renders every installed agent, skill and command for the configured tools. */
@@ -112,6 +117,11 @@ const renderPacks: Migration = {
   async plan(ctx) {
     const { plan, drifted } = await renderPlan(ctx);
     const changed = plan.entries.filter((e) => e.status === "create" || e.status === "update");
+    // Counted alongside `entries` so a release where only the hook's content changed
+    // still gets re-rendered instead of `upgrade` reporting "nothing to do".
+    if (plan.hook && (plan.hook.status === "create" || plan.hook.status === "update")) {
+      changed.push({ ...plan.hook, status: plan.hook.status, harness: "claude-code" });
+    }
     const base = { id: this.id, title: this.title };
     if (drifted.length > 0) {
       return {

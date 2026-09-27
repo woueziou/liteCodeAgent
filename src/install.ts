@@ -1,5 +1,5 @@
-import { resolve, dirname, join } from "node:path";
-import { mkdir } from "node:fs/promises";
+import { resolve, dirname, join, relative } from "node:path";
+import { mkdir, chmod, readdir, realpath } from "node:fs/promises";
 import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
@@ -24,7 +24,108 @@ export type InstallPlan = {
   orphans: string[];
   packVersions: Record<string, string>;
   lockfilePaths: Partial<Record<InstallTarget, string>>;
+  /** The rendered `.githooks/pre-commit` branch guard (ticket 0033), if the `core` pack provides one. */
+  hook: HookPlanEntry | null;
 };
+
+/**
+ * The `.githooks/pre-commit` branch guard is harness-agnostic (git hooks aren't a
+ * per-coding-tool concept the way agents/skills are), so it's tracked outside the
+ * per-`InstallTarget` `PlanEntry`/lockfile machinery above rather than forcing it through
+ * `outputFiles`, which would otherwise render (and race to write) the same physical file
+ * once per selected target.
+ */
+export type HookPlanEntry = {
+  rel: string;
+  target: string;
+  pack: string;
+  version: string;
+  content: string;
+  /**
+   * The litecodeagent CLI version (`kitVersion()`, off the kit's own `package.json`) used
+   * to pin `content`'s `bunx` call — *not* `version` above, which is the core **pack**'s
+   * own version and is a different number (e.g. pack `0.4.0` vs. CLI `1.1.1`). Any notice
+   * telling a human to add a `bunx --yes litecodeagent@<version> guard-branch` line by
+   * hand must use this field, or it prints a version that was never published.
+   */
+  kitVersion: string;
+  /**
+   * `preexisting` is distinct from `drift`: `drift` means litecodeagent installed this
+   * file before and it was since hand-edited (still requires `--force` to overwrite, same
+   * as any other managed file). `preexisting` means litecodeagent never installed this
+   * file at all — the project already had its own `.githooks/pre-commit` before ever
+   * running `litecode install`. That file must never be replaced or deleted, `--force`
+   * included: it isn't ours to overwrite. See the "leave it alone" handling in
+   * `applyPlan`.
+   */
+  status: PlanEntry["status"] | "preexisting";
+};
+
+const HOOK_LOCK_PATH = ".githooks/.litecode-hook-lock.json";
+const HOOK_REL = ".githooks/pre-commit";
+
+/**
+ * The litecodeagent version doing the rendering, read off the kit's own `package.json`
+ * (one directory up from `packsRoot`, same layout `cli.ts`'s `KIT_ROOT`/`VERSION` use) —
+ * not a parameter threaded through `buildPlan`, so this stays an internal detail instead
+ * of a breaking change to `buildPlan`'s signature and its many existing call sites.
+ */
+async function kitVersion(packsRoot: string): Promise<string> {
+  const file = Bun.file(join(dirname(packsRoot), "package.json"));
+  if (!(await file.exists())) return "latest";
+  const pkg = (await file.json()) as { version?: string };
+  return pkg.version ?? "latest";
+}
+
+async function planHook(
+  projectRoot: string,
+  packsRoot: string,
+  packs: { packName: string; pack: Awaited<ReturnType<typeof loadPack>> }[],
+): Promise<HookPlanEntry | null> {
+  // Not a `.md` pack file (`loadPack` only walks those), so it's read straight off disk
+  // rather than through `pack.files` — a pre-commit hook is a plain shell script, not
+  // agent/skill prose that needs frontmatter or template rendering.
+  for (const { packName, pack } of packs) {
+    const source = Bun.file(join(packsRoot, packName, "hooks", "pre-commit"));
+    if (!(await source.exists())) continue;
+    // The rendered hook pins `bunx` to the litecodeagent version doing the rendering:
+    // an unpinned `bunx litecodeagent guard-branch` would resolve to whatever's cached
+    // or published, and an older/newer CLI that doesn't know `guard-branch` would fail
+    // `set -e` and refuse every commit, not just ones on the default branch.
+    const pinnedVersion = await kitVersion(packsRoot);
+    const content = (await source.text()).replaceAll("__LITECODE_VERSION__", pinnedVersion);
+    const target = resolve(projectRoot, HOOK_REL);
+    const existing = Bun.file(target);
+    const prior = await readLockfile(projectRoot, HOOK_LOCK_PATH);
+    const priorEntry = prior?.files[HOOK_REL];
+    let status: HookPlanEntry["status"];
+    if (!(await existing.exists())) status = "create";
+    else {
+      const onDisk = hash(await existing.text());
+      if (onDisk === hash(content)) status = "unchanged";
+      // No prior lock entry at all means litecodeagent never wrote this file — it's a
+      // project's own pre-existing hook (this repo's own `.githooks/pre-commit` is one).
+      // Never replace or delete it, `--force` included: it isn't ours to overwrite.
+      // `applyPlan` reports it as skipped and prints the exact line to add instead.
+      else if (!priorEntry) status = "preexisting";
+      // A prior lock entry exists but its hash no longer matches: litecodeagent installed
+      // this file before and it's since been hand-edited. Same rule as any other managed
+      // file — blocks unless `--force`.
+      else if (onDisk !== priorEntry.hash) status = "drift";
+      else status = "update";
+    }
+    return {
+      rel: HOOK_REL,
+      target,
+      pack: packName,
+      version: pack.manifest.version,
+      kitVersion: pinnedVersion,
+      content,
+      status,
+    };
+  }
+  return null;
+}
 
 const ROOTS: Record<InstallTarget, string> = {
   "claude-code": ".claude",
@@ -489,7 +590,8 @@ export async function buildPlan(projectRoot: string, packsRoot: string, config: 
       if (!produced.has(rel)) orphans.push(rel);
     }
   }
-  return { entries, orphans, packVersions, lockfilePaths };
+  const hook = await planHook(projectRoot, packsRoot, packs);
+  return { entries, orphans, packVersions, lockfilePaths, hook };
 }
 
 export async function applyPlan(
@@ -499,6 +601,7 @@ export async function applyPlan(
   opts: { force: boolean },
 ): Promise<void> {
   const drifted = plan.entries.filter((entry) => entry.status === "drift");
+  if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, status: "drift", harness: "claude-code" });
   if (drifted.length > 0 && !opts.force) {
     throw new Error(
       `Refusing to overwrite ${drifted.length} file(s) edited by hand since the last install:\n` +
@@ -526,4 +629,160 @@ export async function applyPlan(
       files,
     }, plan.lockfilePaths[target]);
   }
+
+  if (plan.hook?.status === "preexisting") {
+    const guardLine = await guardBranchLine(projectRoot, plan.hook.kitVersion);
+    console.log(
+      `\nSkipping ${plan.hook.rel}: it already exists and wasn't installed by litecodeagent, so it's left untouched.\n` +
+        `To enable the branch guard, add this line to your existing ${plan.hook.rel}:\n\n` +
+        `  ${guardLine}\n`,
+    );
+  } else if (plan.hook) {
+    if (plan.hook.status !== "unchanged") {
+      await mkdir(dirname(plan.hook.target), { recursive: true });
+      await Bun.write(plan.hook.target, plan.hook.content);
+      await chmod(plan.hook.target, 0o755);
+    }
+    await writeLockfile(
+      projectRoot,
+      {
+        litecodeVersion,
+        installedAt: new Date().toISOString(),
+        packs: plan.packVersions,
+        files: { [plan.hook.rel]: { pack: plan.hook.pack, version: plan.hook.version, hash: hash(plan.hook.content) } },
+      },
+      HOOK_LOCK_PATH,
+    );
+    await activateGitHooksPath(projectRoot, plan.hook.kitVersion);
+  }
+}
+
+/**
+ * Writing `.githooks/pre-commit` does nothing on its own — git only runs hooks from
+ * `core.hooksPath` (default `.git/hooks`, never version-controlled). Without this, the
+ * rendered branch guard silently never runs for any consumer project, which is exactly
+ * the gap ticket 0033 exists to close. Best-effort and non-destructive: skipped outside a
+ * git repo, and it never sets `core.hooksPath` when doing so could break something
+ * already there — a `core.hooksPath` set on purpose to something else, or real hooks
+ * already living under `.git/hooks` (the layout used by `pre-commit`-the-framework,
+ * lefthook, overcommit, a hand-written secret scanner, ...). In every case where it
+ * doesn't act, it warns and prints how to wire the guard in manually instead of silently
+ * doing nothing.
+ */
+/** Single-quotes a shell argument, escaping any embedded single quotes POSIX-style. */
+function shellQuote(arg: string): string {
+  return `'${arg.replaceAll("'", `'\\''`)}'`;
+}
+
+/**
+ * The exact `bunx --yes litecodeagent@<kitVersion> guard-branch` line to hand a human for
+ * their own pre-commit hook — `cd`-qualified (and shell-quoted) when `projectRoot` is a
+ * subdirectory of the git repo, since the hook always runs with cwd at the repo's git
+ * top-level while `guard-branch` reads `litecode.config.json` relative to its own cwd.
+ * Shared by both the "preexisting hook" notice and `activateGitHooksPath`'s manual notice
+ * so a fix to one doesn't leave the other suggesting a line that breaks every commit.
+ */
+async function guardBranchLine(projectRoot: string, kitVersion: string): Promise<string> {
+  // Pinned to the litecodeagent CLI version, same reasoning as the rendered hook itself
+  // (see `planHook`'s comment): an unpinned `bunx` call can resolve to a stale cached CLI
+  // that doesn't know `guard-branch` and, under `set -e`, refuse every commit rather than
+  // just the ones this is meant to guard.
+  const base = `bunx --yes litecodeagent@${kitVersion} guard-branch`;
+
+  const toplevel = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
+    cwd: projectRoot,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const gitRoot = (await new Response(toplevel.stdout).text()).trim();
+  await toplevel.exited;
+  if (!gitRoot) return base;
+  // `git rev-parse --show-toplevel` resolves symlinks (e.g. macOS's /tmp -> /private/tmp),
+  // so `projectRoot` must be resolved the same way before comparing, or every project
+  // under a symlinked ancestor would misfire as "subdirectory of the repo".
+  const resolvedProjectRoot = await realpath(projectRoot).catch(() => resolve(projectRoot));
+  if (gitRoot === resolvedProjectRoot) return base;
+  const relProjectDir = relative(gitRoot, resolvedProjectRoot) || ".";
+  return `(cd ${shellQuote(relProjectDir)} && ${base})`;
+}
+
+async function activateGitHooksPath(projectRoot: string, kitVersion: string): Promise<void> {
+  const check = Bun.spawn(["git", "rev-parse", "--is-inside-work-tree"], {
+    cwd: projectRoot,
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  if ((await check.exited) !== 0) return;
+
+  const guardLine = await guardBranchLine(projectRoot, kitVersion);
+  const manualNotice = `To enable it manually, add this line to your pre-commit hook (create it if missing):\n\n  ${guardLine}\n`;
+
+  const toplevel = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
+    cwd: projectRoot,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const gitRoot = (await new Response(toplevel.stdout).text()).trim();
+  await toplevel.exited;
+  // `git rev-parse --show-toplevel` resolves symlinks (e.g. macOS's /tmp -> /private/tmp),
+  // so `projectRoot` must be resolved the same way before comparing, or every project
+  // under a symlinked ancestor would misfire as "subdirectory of the repo".
+  const resolvedProjectRoot = await realpath(projectRoot).catch(() => resolve(projectRoot));
+  if (gitRoot && gitRoot !== resolvedProjectRoot) {
+    // The hook always runs with cwd at the repo's top level, not the project subdirectory,
+    // and `guard-branch` looks for `litecode.config.json` in its cwd — so the suggested
+    // line must `cd` into the project first (see `guardBranchLine`), or it fails (and
+    // refuses every commit in the whole repo) instead of doing anything useful.
+    console.warn(
+      `\nWarning: ${projectRoot} is a subdirectory of the git repo at ${gitRoot}. ` +
+        "core.hooksPath is repo-wide, so litecodeagent won't change it from here.\n" + manualNotice,
+    );
+    return;
+  }
+
+  const current = Bun.spawn(["git", "config", "--get", "core.hooksPath"], {
+    cwd: projectRoot,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const existing = (await new Response(current.stdout).text()).trim();
+  await current.exited;
+  if (existing === ".githooks") return;
+  if (existing) {
+    console.warn(
+      `\nWarning: core.hooksPath is already set to '${existing}'. Leaving it as-is.\n` + manualNotice,
+    );
+    return;
+  }
+
+  const hooksPathOutput = Bun.spawn(["git", "rev-parse", "--git-path", "hooks"], {
+    cwd: projectRoot,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const hooksDirRel = (await new Response(hooksPathOutput.stdout).text()).trim();
+  await hooksPathOutput.exited;
+  if (hooksDirRel) {
+    const hooksDir = resolve(projectRoot, hooksDirRel);
+    let realHooks: string[] = [];
+    try {
+      realHooks = (await readdir(hooksDir)).filter((f) => !f.endsWith(".sample"));
+    } catch {
+      // No .git/hooks directory at all — nothing to protect, fall through to activation.
+    }
+    if (realHooks.length > 0) {
+      console.warn(
+        `\nWarning: ${hooksDirRel} already has hook(s) installed (${realHooks.join(", ")}) — ` +
+          "leaving core.hooksPath unset so they keep running.\n" + manualNotice,
+      );
+      return;
+    }
+  }
+
+  console.log(`\nSetting core.hooksPath to .githooks so the branch guard runs.`);
+  await Bun.spawn(["git", "config", "core.hooksPath", ".githooks"], {
+    cwd: projectRoot,
+    stdout: "ignore",
+    stderr: "ignore",
+  }).exited;
 }
