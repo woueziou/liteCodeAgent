@@ -104,7 +104,7 @@
     </nav>
   </header>
   <main>
-    <p class="meta">Généré le 2026-09-27T13:34:36.145Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
+    <p class="meta">Généré le 2026-09-27T13:51:42.548Z · état courant uniquement, aucune tendance temporelle (le frontmatter ne conserve pas l'historique des transitions — voir ADR 0012).</p>
 
     
     <div class="card"><h3>Tickets bloqués</h3><p class="note">Aucun ticket bloqué.</p></div>
@@ -112,7 +112,7 @@
     
     <section id="accueil" class="screen">
       <h2 class="screen-title">Accueil</h2>
-      <div class="tiles"><div class="tile"><div class="tile-value">40</div><div class="tile-label">Tickets totaux</div></div><div class="tile"><div class="tile-value">0</div><div class="tile-label">Bloqués</div></div><div class="tile"><div class="tile-value">0</div><div class="tile-label">En cours</div></div><div class="tile"><div class="tile-value">0</div><div class="tile-label">Prêts à merger</div></div><div class="tile"><div class="tile-value">31</div><div class="tile-label">Terminés</div></div><div class="tile"><div class="tile-value">14</div><div class="tile-label">ADRs</div></div></div>
+      <div class="tiles"><div class="tile"><div class="tile-value">40</div><div class="tile-label">Tickets totaux</div></div><div class="tile"><div class="tile-value">0</div><div class="tile-label">Bloqués</div></div><div class="tile"><div class="tile-value">1</div><div class="tile-label">En cours</div></div><div class="tile"><div class="tile-value">0</div><div class="tile-label">Prêts à merger</div></div><div class="tile"><div class="tile-value">31</div><div class="tile-label">Terminés</div></div><div class="tile"><div class="tile-value">14</div><div class="tile-label">ADRs</div></div></div>
       <p class="note">"Ready to Merge" (0) ≠ "Done" (31) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
       <p class="cmd-hint">Recherche et filtres : voir <a href="#file-dattente">File d'attente</a>.</p>
     </section>
@@ -121,7 +121,7 @@
     <section id="file-dattente" class="screen screen-queue">
       <h2 class="screen-title">File d'attente</h2>
       <div class="queue-layout">
-        <aside><ul class="side-rail"><li><span class="rail-label">Backlog</span><span class="rail-count">2</span></li><li><span class="rail-label">Planned</span><span class="rail-count">7</span></li><li><span class="rail-label">In Progress</span><span class="rail-count">0</span></li><li><span class="rail-label">Blocked</span><span class="rail-count">0</span></li><li><span class="rail-label">Review</span><span class="rail-count">0</span></li><li><span class="rail-label">Ready to Merge</span><span class="rail-count">0</span></li><li><span class="rail-label">Done</span><span class="rail-count">31</span></li></ul></aside>
+        <aside><ul class="side-rail"><li><span class="rail-label">Backlog</span><span class="rail-count">2</span></li><li><span class="rail-label">Planned</span><span class="rail-count">6</span></li><li><span class="rail-label">In Progress</span><span class="rail-count">1</span></li><li><span class="rail-label">Blocked</span><span class="rail-count">0</span></li><li><span class="rail-label">Review</span><span class="rail-count">0</span></li><li><span class="rail-label">Ready to Merge</span><span class="rail-count">0</span></li><li><span class="rail-label">Done</span><span class="rail-count">31</span></li></ul></aside>
         <div class="queue-main">
           
     <form class="command-bar" method="get" action="#file-dattente">
@@ -1833,7 +1833,7 @@ Demande humaine (2026-09-23) : l&#39;utilisateur doit pouvoir migrer avec l&#39;
     </details>
     <details class="ticket-detail" id="ticket-0032-feat-dashboard-read-only-litecode-dashboard-serv">
       <summary>
-        <span class="badge badge-planned">planned</span>
+        <span class="badge badge-inProgress">inProgress</span>
         <span class="ticket-id">0032-feat-dashboard-read-only-litecode-dashboard-serv</span>
         <span class="ticket-title">feat(dashboard): read-only `litecode dashboard --serve` with live ADR screen (Bun.serve, no generated file)</span>
         <span class="tag">high/large</span>
@@ -1870,17 +1870,17 @@ The dashboard must be dynamic and reflect the real state. The owner has decided 
    - Tests go first, in `tests/dashboard/serve.test.ts`.
 6. `src/cli.ts` (the dashboard command and the usage text) — implement the flag contract the ADR settles (`--serve`, `--port`/`--host`, how it interacts with `--build`). Replacing the &quot;dashboard requires --build...&quot; message must be documented as a breaking change.
 7. Add a regression test showing a symlink escape in `docs/tickets/` or `docs/decisions/` is rejected on every one of several sequential reads, not only on the first (see `cc2af74`).
-8. Handle `--build` and `docs/dashboard.html` according to the ADR decision: either keep them as a shared snapshot or delete them. `buildDashboard` and `renderDashboard` stay shared, so either choice is a small diff.
+8. Keep `--build` and the committed `docs/dashboard.html` (ADR 0017): update the module docs to say both modes coexist and share `buildDashboard`/`renderDashboard`, and regenerate the snapshot.
 9. Run `bun run check` and `bun test` after each step.
 
-## Decisions ADR 0017 must settle before implementation
-- **(Owner question)** Keep `--build` and the committed `docs/dashboard.html` as a GitHub snapshot, or delete them?
-- If both `--build` and `--serve` are kept: are they mutually exclusive, or does one take precedence? What error results from passing both?
-- `--port`/`--host`: their defaults.
-- What message replaces &quot;dashboard requires --build...&quot;, and is the change documented as breaking?
-- Are `DashboardData.adrs`/`adrLoadErrors` optional or required? Is the build.ts scope statement extended?
-- HTTP status codes and body format (HTML, text or JSON) for partial versus fatal failures.
-- Server lifecycle logging convention.
+## Decisions (settled in ADR 0017)
+`docs/decisions/0017-read-only-dashboard-server-supersedes-committed-build.md` settles the open points; follow it:
+- `--build` and the committed `docs/dashboard.html` stay as a snapshot; `--serve` and `--build` are mutually exclusive (usage error, exit 1).
+- `--port` defaults to `4173`, `--host` to `127.0.0.1`.
+- `litecode dashboard` with no flag prints usage and exits 1; dropping the old &quot;requires --build&quot; message is a documented breaking change.
+- `DashboardData.adrs` and `adrLoadErrors` are required.
+- Partial load errors: 200, listed in the page. `docs/` missing or unreadable: 500 with a short HTML page, no stack trace.
+- Logging through `console.log`/`console.error` on listen, on bind failure (exit 1) and on SIGINT (exit 0).
 
 ## Panel
 Classifier: large. Angles: correctness, contract, operability. All three returned blocking, with no conflict between them. The synthesizer returned blocked-compatible, with no blocking tension.
@@ -2146,7 +2146,7 @@ Déplacer le 0032 : décision humaine séparée.
       
     <div class="card">
       <h3>Répartition par statut</h3>
-      <div class="badges"><span class="badge badge-backlog">Backlog: 2</span> <span class="badge badge-planned">Planned: 7</span> <span class="badge badge-inProgress">In Progress: 0</span> <span class="badge badge-blocked">Blocked: 0</span> <span class="badge badge-review">Review: 0</span> <span class="badge badge-readyToMerge">Ready to Merge: 0</span> <span class="badge badge-done">Done: 31</span></div>
+      <div class="badges"><span class="badge badge-backlog">Backlog: 2</span> <span class="badge badge-planned">Planned: 6</span> <span class="badge badge-inProgress">In Progress: 1</span> <span class="badge badge-blocked">Blocked: 0</span> <span class="badge badge-review">Review: 0</span> <span class="badge badge-readyToMerge">Ready to Merge: 0</span> <span class="badge badge-done">Done: 31</span></div>
       <p class="note">"Ready to Merge" (0) ≠ "Done" (31) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
     </div>
     </div>
