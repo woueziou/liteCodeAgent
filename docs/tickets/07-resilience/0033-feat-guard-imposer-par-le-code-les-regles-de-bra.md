@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0033-feat-guard-imposer-par-le-code-les-regles-de-bra
 title: "feat(guard): imposer par le code les règles de branche et de statut"
 label: feature
-status: review
+status: inProgress
 priority: high
 size: medium
 assignedAgent: human
