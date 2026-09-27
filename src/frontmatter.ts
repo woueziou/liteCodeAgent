@@ -35,13 +35,38 @@ export function parseFrontmatter(source: string, where: string): { data: Frontma
     if (!line.trim() || line.trimStart().startsWith("#")) continue;
     const sep = line.indexOf(":");
     if (sep === -1) throw new Error(`${where}: unparseable frontmatter line: ${line}`);
-    data[line.slice(0, sep).trim()] = line.slice(sep + 1).trim();
+    data[line.slice(0, sep).trim()] = unquote(line.slice(sep + 1).trim());
   }
   return { data, body };
 }
 
+/** Reads back a value `quote` wrapped, or one a human quoted by hand. */
+function unquote(value: string): string {
+  if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+    try {
+      return JSON.parse(value) as string;
+    } catch {
+      return value;
+    }
+  }
+  if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) {
+    return value.slice(1, -1).replaceAll("''", "'");
+  }
+  return value;
+}
+
+/**
+ * Our parser is lenient, but editors and other tools read these files as real YAML, where
+ * `title: fix(cli): x` is a nested mapping, not a string. Anything a YAML plain scalar
+ * can't carry is written double-quoted; a JSON string is a valid YAML double-quoted one.
+ */
+function quote(value: string): string {
+  const unsafe = /: |:$| #|^\s|\s$/.test(value) || /^[-?:,[\]{}#&*!|>'"%@`]/.test(value);
+  return unsafe ? JSON.stringify(value) : value;
+}
+
 export function serializeFrontmatter(data: Frontmatter, body: string): string {
-  const lines = Object.entries(data).map(([k, v]) => `${k}: ${v}`);
+  const lines = Object.entries(data).map(([k, v]) => `${k}: ${quote(v)}`);
   return `---\n${lines.join("\n")}\n---\n\n${body.replace(/^\n+/, "")}`;
 }
 

@@ -60,6 +60,20 @@ describe("parseFrontmatter", () => {
     expect(parsed.body.trim()).toBe(body.trim());
   });
 
+  test("quotes values YAML would misread, and reads them back unchanged", () => {
+    const data = { title: "fix(birth): filtre avancé", dueDate: "", tools: "Read, Grep", note: 'say "hi" # not a comment' };
+    const serialized = serializeFrontmatter(data, "body\n");
+    expect(serialized).toContain('title: "fix(birth): filtre avancé"');
+    expect(serialized).toContain("tools: Read, Grep");
+    expect(serialized).toContain("dueDate: \n");
+    expect(parseFrontmatter(serialized, "quoted").data).toEqual(data);
+  });
+
+  test("reads hand-written single-quoted values", () => {
+    const { data } = parseFrontmatter("---\ntitle: 'it''s: fine'\n---\n", "test");
+    expect(data.title).toBe("it's: fine");
+  });
+
   test("still throws on missing frontmatter", () => {
     expect(() => parseFrontmatter("no frontmatter here", "test")).toThrow(/missing frontmatter/);
   });
