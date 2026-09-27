@@ -29,7 +29,7 @@ You rank purely from the **local ticket buffer** (`{{ project.tickets.dir }}`) �
 
 1. Read the local ticket buffer (`litecode ticket list` via `Bash`, or `Read` the files directly) to get all `backlog`-status tickets with their Priority/Size/Due Date/Assigned Agent.
 2. Rank per the model above.
-3. Move the top N (caller tells you how many, default a handful) from `Backlog` to `Planned` by writing each ticket's local file — set `status: planned` with `Edit`/`Write`. That local write is the whole move.
+3. Move the top N (caller tells you how many, default a handful) from `Backlog` to `Planned` by running `bunx litecodeagent ticket move <id> planned` via `Bash` for each (ticket 0033 — validates the transition against the pipeline's status machine and writes it, instead of hand-editing frontmatter). That write is the whole move.
 4. Note `Assigned Agent: implementer` in your `PLANNED` output for items you plan (informational only — it does not invoke anything, and it is not something you write anywhere else; `implementer` is triggered manually by a human).
 5. If invoked for a re-plan (human has approved reprioritizing a specific ticket, e.g. after a blocking bug report from `reviewer`), update that ticket's Priority/Due Date as instructed, then re-run the ranking and move it to the front of `Planned` if warranted.
 

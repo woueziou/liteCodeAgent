@@ -82,6 +82,40 @@ test("a hand-edited managed file is reported as drift and never silently overwri
   expect(await Bun.file(victim).text()).not.toContain("local tweak");
 });
 
+test("install renders an executable .githooks/pre-commit branch guard (ticket 0033)", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  const plan = await buildPlan(root, PACKS, config);
+  expect(plan.hook).not.toBeNull();
+  expect(plan.hook!.status).toBe("create");
+  await applyPlan(root, plan, "0.0.0-test", { force: false });
+
+  const hookPath = join(root, ".githooks", "pre-commit");
+  const content = await Bun.file(hookPath).text();
+  expect(content).toContain("guard-branch");
+  const mode = (await Bun.file(hookPath).stat()).mode;
+  expect(mode & 0o111).not.toBe(0);
+
+  // Re-planning with nothing changed reports the hook as already up to date.
+  const second = await buildPlan(root, PACKS, config);
+  expect(second.hook!.status).toBe("unchanged");
+});
+
+test("a hand-edited .githooks/pre-commit is reported as drift and never silently overwritten", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", { force: false });
+
+  const hookPath = join(root, ".githooks", "pre-commit");
+  await Bun.write(hookPath, `${await Bun.file(hookPath).text()}\n# local tweak\n`);
+
+  const plan = await buildPlan(root, PACKS, config);
+  expect(plan.hook!.status).toBe("drift");
+  await expect(applyPlan(root, plan, "0.0.0-test", { force: false })).rejects.toThrow(/hand/);
+  await applyPlan(root, plan, "0.0.0-test", { force: true });
+  expect(await Bun.file(hookPath).text()).not.toContain("local tweak");
+});
+
 test("a skill reference that resolves to nothing fails the install", async () => {
   const config = await exampleConfig();
   config.project.agentSkills.planner = ["typescript-expert", "nonexistent-expert"];

@@ -106,6 +106,44 @@ test("`ticket new` rejects an unknown label or priority", async () => {
   expect(badPriority).toMatch(/priority/i);
 });
 
+test("`ticket move` writes an allowed transition", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Move me", "--label", "feature"]);
+  await runCli(root, ["ticket", "move", "0001-move-me", "planned"]);
+  const output = await runCli(root, ["ticket", "move", "0001-move-me", "inProgress"]);
+  expect(output).toContain("moved");
+  expect(output).toContain("planned -> inProgress");
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-move-me.md")).text();
+  expect(file).toMatch(/^status: inProgress$/m);
+});
+
+test("`ticket move` refuses planned -> review: inProgress is required first", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Cannot skip", "--label", "feature"]);
+  await runCli(root, ["ticket", "move", "0001-cannot-skip", "planned"]);
+
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "move", "0001-cannot-skip", "review"]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/refusing/i);
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-cannot-skip.md")).text();
+  expect(file).toMatch(/^status: planned$/m);
+});
+
+test("`ticket move` rejects an unknown status and an unknown id", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Known ticket", "--label", "feature"]);
+
+  const badStatus = await runCliWithExit(root, ["ticket", "move", "0001-known-ticket", "nonsense"]);
+  expect(badStatus.exitCode).toBe(1);
+  expect(badStatus.output).toMatch(/status/i);
+
+  const badId = await runCliWithExit(root, ["ticket", "move", "9999-nope", "planned"]);
+  expect(badId.exitCode).toBe(1);
+  expect(badId.output).toMatch(/no ticket/i);
+});
+
 test("`ticket list` reports a malformed file as an error without losing the others", async () => {
   const root = await project();
   await runCli(root, ["ticket", "new", "--title", "Good ticket", "--label", "feature"]);

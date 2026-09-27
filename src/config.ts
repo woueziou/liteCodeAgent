@@ -64,6 +64,15 @@ export const ProjectSchema = z.object({
   /** owner/repo */
   repo: z.string().regex(/^[^/]+\/[^/]+$/, "expected owner/repo"),
   defaultBranch: z.string().default("main"),
+  /**
+   * Escape hatch for the `pre-commit` branch guard (ticket 0033): when true, a commit on
+   * `defaultBranch` is allowed rather than refused. Defaults to false — the guard is
+   * opt-out, not opt-in, since the rule it enforces ("agents never commit on the default
+   * branch") is meant to hold by default. An individual commit can still be let through
+   * without changing this at the project level via the `LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT`
+   * env var, for a human's own one-off commit.
+   */
+  allowDefaultBranchCommits: z.boolean().default(false),
 
   /** The command that must pass before any agent calls work done. */
   checkCommand: z.string(),

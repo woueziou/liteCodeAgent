@@ -1,5 +1,5 @@
 import { resolve, dirname, join } from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, chmod } from "node:fs/promises";
 import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
@@ -24,7 +24,57 @@ export type InstallPlan = {
   orphans: string[];
   packVersions: Record<string, string>;
   lockfilePaths: Partial<Record<InstallTarget, string>>;
+  /** The rendered `.githooks/pre-commit` branch guard (ticket 0033), if the `core` pack provides one. */
+  hook: HookPlanEntry | null;
 };
+
+/**
+ * The `.githooks/pre-commit` branch guard is harness-agnostic (git hooks aren't a
+ * per-coding-tool concept the way agents/skills are), so it's tracked outside the
+ * per-`InstallTarget` `PlanEntry`/lockfile machinery above rather than forcing it through
+ * `outputFiles`, which would otherwise render (and race to write) the same physical file
+ * once per selected target.
+ */
+export type HookPlanEntry = {
+  rel: string;
+  target: string;
+  pack: string;
+  version: string;
+  content: string;
+  status: PlanEntry["status"];
+};
+
+const HOOK_LOCK_PATH = ".githooks/.litecode-hook-lock.json";
+const HOOK_REL = ".githooks/pre-commit";
+
+async function planHook(
+  projectRoot: string,
+  packsRoot: string,
+  packs: { packName: string; pack: Awaited<ReturnType<typeof loadPack>> }[],
+): Promise<HookPlanEntry | null> {
+  // Not a `.md` pack file (`loadPack` only walks those), so it's read straight off disk
+  // rather than through `pack.files` — a pre-commit hook is a plain shell script, not
+  // agent/skill prose that needs frontmatter or template rendering.
+  for (const { packName, pack } of packs) {
+    const source = Bun.file(join(packsRoot, packName, "hooks", "pre-commit"));
+    if (!(await source.exists())) continue;
+    const content = await source.text();
+    const target = resolve(projectRoot, HOOK_REL);
+    const existing = Bun.file(target);
+    const prior = await readLockfile(projectRoot, HOOK_LOCK_PATH);
+    const priorEntry = prior?.files[HOOK_REL];
+    let status: PlanEntry["status"];
+    if (!(await existing.exists())) status = "create";
+    else {
+      const onDisk = hash(await existing.text());
+      if (priorEntry && onDisk !== priorEntry.hash) status = "drift";
+      else if (onDisk === hash(content)) status = "unchanged";
+      else status = "update";
+    }
+    return { rel: HOOK_REL, target, pack: packName, version: pack.manifest.version, content, status };
+  }
+  return null;
+}
 
 const ROOTS: Record<InstallTarget, string> = {
   "claude-code": ".claude",
@@ -489,7 +539,8 @@ export async function buildPlan(projectRoot: string, packsRoot: string, config: 
       if (!produced.has(rel)) orphans.push(rel);
     }
   }
-  return { entries, orphans, packVersions, lockfilePaths };
+  const hook = await planHook(projectRoot, packsRoot, packs);
+  return { entries, orphans, packVersions, lockfilePaths, hook };
 }
 
 export async function applyPlan(
@@ -499,6 +550,7 @@ export async function applyPlan(
   opts: { force: boolean },
 ): Promise<void> {
   const drifted = plan.entries.filter((entry) => entry.status === "drift");
+  if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, harness: "claude-code" });
   if (drifted.length > 0 && !opts.force) {
     throw new Error(
       `Refusing to overwrite ${drifted.length} file(s) edited by hand since the last install:\n` +
@@ -525,5 +577,23 @@ export async function applyPlan(
       packs: plan.packVersions,
       files,
     }, plan.lockfilePaths[target]);
+  }
+
+  if (plan.hook) {
+    if (plan.hook.status !== "unchanged") {
+      await mkdir(dirname(plan.hook.target), { recursive: true });
+      await Bun.write(plan.hook.target, plan.hook.content);
+      await chmod(plan.hook.target, 0o755);
+    }
+    await writeLockfile(
+      projectRoot,
+      {
+        litecodeVersion,
+        installedAt: new Date().toISOString(),
+        packs: plan.packVersions,
+        files: { [plan.hook.rel]: { pack: plan.hook.pack, version: plan.hook.version, hash: hash(plan.hook.content) } },
+      },
+      HOOK_LOCK_PATH,
+    );
   }
 }

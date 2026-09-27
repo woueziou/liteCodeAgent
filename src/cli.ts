@@ -15,7 +15,20 @@ import { parseReport, verifyReport, type Finding as ReportFinding } from "./repo
 import { realProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
-import { CURRENT_SCHEMA_VERSION, migrateTicket, PRIORITIES, SIZES, unknownKeys, type Priority, type Size } from "./tickets/spec.ts";
+import {
+  ALLOWED_TRANSITIONS,
+  CURRENT_SCHEMA_VERSION,
+  isTransitionAllowed,
+  migrateTicket,
+  PRIORITIES,
+  SIZES,
+  TICKET_STATUSES,
+  unknownKeys,
+  type Priority,
+  type Size,
+  type StatusRole,
+} from "./tickets/spec.ts";
+import { checkBranchGuard } from "./guard-branch.ts";
 import { findDuplicate, localDedupeCandidates } from "./tickets/dedupe.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
@@ -75,6 +88,11 @@ function usage(): void {
   ${c.bold("bunx litecodeagent ticket migrate")} [--apply] [--force] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
                                      ${c.dim("refuses to drop unknown frontmatter keys unless --force")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
+  ${c.bold("bunx litecodeagent ticket move")} <id> <status>    validate and write a ticket's status transition
+                                     ${c.dim(`refuses a transition the pipeline's status machine doesn't allow (e.g. planned -> review)`)}
+                                     ${c.dim(`statuses: ${TICKET_STATUSES.join(", ")}`)}
+  ${c.bold("bunx litecodeagent guard-branch")}              refuse (exit 1) if the current branch is the project's default branch
+                                     ${c.dim("called from .githooks/pre-commit; not meant to be run by a human")}
   ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
                                      regenerate the committed standalone HTML dashboard snapshot from the local
                                      ticket buffer and docs/decisions/ — goes stale as soon as either changes
@@ -445,6 +463,30 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
   return 0;
 }
 
+async function cmdGuardBranch(root: string, argv: string[]): Promise<number> {
+  const { config } = await loadConfig(root);
+  const branchArg = arg(argv, "--branch");
+  const branch =
+    branchArg ??
+    (await (async () => {
+      const proc = Bun.spawn(["git", "branch", "--show-current"], { cwd: root, stdout: "pipe", stderr: "pipe" });
+      const out = (await new Response(proc.stdout).text()).trim();
+      await proc.exited;
+      return out;
+    })());
+  const result = checkBranchGuard({
+    branch,
+    defaultBranch: config.project.defaultBranch,
+    allowDefaultBranchCommits: config.project.allowDefaultBranchCommits,
+    envOverride: process.env.LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT,
+  });
+  if (!result.allowed) {
+    console.log(c.red(`guard-branch: ${result.reason}`));
+    return 1;
+  }
+  return 0;
+}
+
 async function cmdTicket(root: string, argv: string[]): Promise<number> {
   const sub = argv[1];
   const { config } = await loadConfig(root);
@@ -550,6 +592,35 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     for (const t of legacy) await writeTicket(root, migrateTicket(t));
     console.log(c.green(`\nMigrated ${legacy.length} ticket(s).`));
     return errors.length > 0 ? 1 : 0;
+  }
+
+  if (sub === "move") {
+    const id = argv[2];
+    const to = argv[3] as StatusRole | undefined;
+    if (!id || !to) {
+      console.log(c.red("ticket move requires <id> <status>"));
+      return 1;
+    }
+    if (!(TICKET_STATUSES as readonly string[]).includes(to)) {
+      console.log(c.red(`--status must be one of ${TICKET_STATUSES.join(", ")}`));
+      return 1;
+    }
+    const { tickets } = await listTicketsDetailed(root, dir);
+    const ticket = tickets.find((t) => t.id === id);
+    if (!ticket) {
+      console.log(c.red(`No ticket with id ${id} in ${dir}.`));
+      return 1;
+    }
+    if (!isTransitionAllowed(ticket.status, to)) {
+      console.log(
+        c.red(`Refusing ${ticket.status} -> ${to} for ${id}: not an allowed transition.`) +
+          c.dim(`\nAllowed from ${ticket.status}: ${ALLOWED_TRANSITIONS[ticket.status].join(", ") || "(none — terminal status)"}`),
+      );
+      return 1;
+    }
+    await writeTicket(root, { ...ticket, status: to });
+    console.log(`${c.green("moved")} ${id}: ${ticket.status} -> ${to}`);
+    return 0;
   }
 
   usage();
@@ -771,6 +842,7 @@ try {
       case "config": return cmdConfig(root, argv);
       case "run": return cmdRun(root, argv);
       case "ticket": return cmdTicket(root, argv);
+      case "guard-branch": return cmdGuardBranch(root, argv);
       case "dashboard": return cmdDashboard(root, argv);
       case "verify-report": return cmdVerifyReport(root, argv);
       default: usage(); return argv[0] ? 1 : 0;

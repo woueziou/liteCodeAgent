@@ -23,3 +23,12 @@ for role in AUTHOR COMMITTER; do
     exit 1
   fi
 done
+
+# Ticket 0033: no agent commits directly on the default branch — enforced in code
+# (`litecode guard-branch`, src/guard-branch.ts) rather than only in agent prose. This repo
+# is litecodeagent itself, so the CLI is run straight from source rather than via `bunx`.
+if command -v bun >/dev/null 2>&1; then
+  bun run src/cli.ts guard-branch
+else
+  echo "pre-commit: bun not found, skipping the branch guard (install Bun to enforce it)." >&2
+fi
