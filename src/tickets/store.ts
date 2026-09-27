@@ -48,7 +48,7 @@ export type TicketListing = { tickets: Ticket[]; errors: TicketLoadError[] };
  *
  * Two error shapes are handled differently. A file that disappears between `readdir` and
  * this read (`ENOENT`) is dropped silently: it was being deleted or rewritten mid-scan,
- * which is not a data problem worth reporting. A symlink resolving outside the project
+ * which is not a data problem worth reporting. A symlink resolving outside the tickets dir
  * (`PathEscapeError`, checked fresh on every call — see `fs-safety.ts`) is reported as a
  * load error, same as any other unreadable file, rather than silently skipped, since that
  * is a real problem the caller should see.

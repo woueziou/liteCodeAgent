@@ -87,6 +87,6 @@ test("a symlink resolving outside the project is rejected on every read, not onl
     const { adrs, errors } = await listAdrsDetailed(root, "docs/decisions");
     expect(adrs).toEqual([]);
     expect(errors).toHaveLength(1);
-    expect(errors[0]!.error).toContain("outside the project");
+    expect(errors[0]!.error).toContain("resolves outside");
   }
 });

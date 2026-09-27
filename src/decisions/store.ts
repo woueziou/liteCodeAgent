@@ -2,7 +2,7 @@
  * Reading `docs/decisions/` (ADR files, `NNNN-kebab-title.md`) for the dashboard's ADR
  * screen (ticket 0032, ADR 0017). Mirrors `src/tickets/store.ts`'s hardening: a file
  * deleted between listing the directory and reading it (`ENOENT`) is dropped silently, a
- * symlink resolving outside the project is rejected on every read (`fs-safety.ts`), and a
+ * symlink resolving outside the ADR dir is rejected on every read (`fs-safety.ts`), and a
  * malformed file is reported as a load error rather than throwing for every other ADR.
  */
 

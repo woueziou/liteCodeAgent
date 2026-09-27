@@ -106,7 +106,8 @@ export async function startDashboardServer(root: string, dir: string, options: S
   // out-of-range port and formats an IPv6 host without brackets, so echoing the request
   // back verbatim could log a URL that doesn't match what's actually listening.
   const boundHostname = server.hostname ?? host;
-  const boundHost = boundHostname.includes(":") ? `[${boundHostname}]` : boundHostname;
+  const boundHost =
+    boundHostname.includes(":") && !boundHostname.startsWith("[") ? `[${boundHostname}]` : boundHostname;
   const url = `http://${boundHost}:${server.port}`;
   console.log(`dashboard listening on ${url}`);
 

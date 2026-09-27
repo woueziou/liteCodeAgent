@@ -13,8 +13,11 @@ import { realpath } from "node:fs/promises";
 import { sep } from "node:path";
 
 export class PathEscapeError extends Error {
-  constructor(public readonly path: string) {
-    super(`refusing to read '${path}': it resolves outside the project`);
+  constructor(
+    public readonly path: string,
+    public readonly boundary: string,
+  ) {
+    super(`refusing to read '${path}': it resolves outside '${boundary}'`);
     this.name = "PathEscapeError";
   }
 }
@@ -39,7 +42,7 @@ export async function assertContained(abs: string, boundary: string): Promise<st
   const realAbs = await realpath(abs);
   const realBoundary = await realpath(boundary);
   if (realAbs !== realBoundary && !realAbs.startsWith(realBoundary + sep)) {
-    throw new PathEscapeError(abs);
+    throw new PathEscapeError(abs, boundary);
   }
   return realAbs;
 }

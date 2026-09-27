@@ -62,6 +62,18 @@ test("serves 200 with the rendered dashboard on the configured port/host", async
   expect(html).toContain("<!doctype html>");
 });
 
+test("an already-bracketed IPv6 --host isn't double-bracketed in the logged/returned URL (bug-hunter re-hunt finding on PR 74)", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const server = await startDashboardServer(root, "docs/tickets", { port: 0, host: "[::1]" });
+  servers.push(server);
+
+  expect(server.url).not.toContain("[[");
+  const res = await fetch(server.url);
+  expect(res.status).toBe(200);
+});
+
 test("rebuilds on every request: a ticket added after startup shows up without restarting", async () => {
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
