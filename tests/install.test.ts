@@ -155,7 +155,11 @@ test("install/upgrade prints a notice with the exact line to add when a pre-exis
   }
   const combined = logs.join("\n");
   expect(combined).toContain(".githooks/pre-commit");
-  expect(combined).toMatch(/guard-branch/);
+  // Must be pinned to the litecodeagent CLI version (package.json), not the core pack's
+  // own (different, unpublished) version — round 3 bug-hunter caught this printing an
+  // unpublished pack version that `bunx` could never resolve.
+  const pkg = await Bun.file(join(import.meta.dir, "..", "package.json")).json();
+  expect(combined).toContain(`bunx --yes litecodeagent@${pkg.version} guard-branch`);
 });
 
 test("install activates the hook by setting core.hooksPath, without overriding one already set on purpose", async () => {
@@ -192,6 +196,35 @@ test("install leaves core.hooksPath unset when .git/hooks already holds a real (
   await applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", { force: false });
   const configured = await new Response(
     Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: root, stdout: "pipe" }).stdout,
+  ).text();
+  expect(configured.trim()).toBe("");
+});
+
+test("a project root that's a subdirectory of the git repo gets a cd-into-project instruction, not a bare guard-branch line", async () => {
+  const config = await exampleConfig();
+  const repoRoot = await mkdtemp(join(tmpdir(), "litecode-"));
+  await Bun.spawn(["git", "init", "-q"], { cwd: repoRoot }).exited;
+  const projectRoot = join(repoRoot, "sub");
+  await Bun.write(join(projectRoot, ".claude", "skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");
+
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+  try {
+    await applyPlan(projectRoot, await buildPlan(projectRoot, PACKS, config), "0.0.0-test", { force: false });
+  } finally {
+    console.warn = originalWarn;
+  }
+  const combined = warnings.join("\n");
+  expect(combined).toMatch(/subdirectory/);
+  // guard-branch reads litecode.config.json from its cwd, and the hook always runs at the
+  // repo's top level — so the suggested line must cd into the project dir first, or
+  // following it verbatim refuses every commit in the whole repo (round 3 bug-hunter).
+  expect(combined).toContain("(cd sub &&");
+  expect(combined).toMatch(/guard-branch/);
+
+  const configured = await new Response(
+    Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: repoRoot, stdout: "pipe" }).stdout,
   ).text();
   expect(configured.trim()).toBe("");
 });

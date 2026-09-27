@@ -1,4 +1,4 @@
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, relative } from "node:path";
 import { mkdir, chmod, readdir, realpath } from "node:fs/promises";
 import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS } from "./config.ts";
@@ -42,6 +42,14 @@ export type HookPlanEntry = {
   version: string;
   content: string;
   /**
+   * The litecodeagent CLI version (`kitVersion()`, off the kit's own `package.json`) used
+   * to pin `content`'s `bunx` call — *not* `version` above, which is the core **pack**'s
+   * own version and is a different number (e.g. pack `0.4.0` vs. CLI `1.1.1`). Any notice
+   * telling a human to add a `bunx --yes litecodeagent@<version> guard-branch` line by
+   * hand must use this field, or it prints a version that was never published.
+   */
+  kitVersion: string;
+  /**
    * `preexisting` is distinct from `drift`: `drift` means litecodeagent installed this
    * file before and it was since hand-edited (still requires `--force` to overwrite, same
    * as any other managed file). `preexisting` means litecodeagent never installed this
@@ -84,7 +92,8 @@ async function planHook(
     // an unpinned `bunx litecodeagent guard-branch` would resolve to whatever's cached
     // or published, and an older/newer CLI that doesn't know `guard-branch` would fail
     // `set -e` and refuse every commit, not just ones on the default branch.
-    const content = (await source.text()).replaceAll("__LITECODE_VERSION__", await kitVersion(packsRoot));
+    const pinnedVersion = await kitVersion(packsRoot);
+    const content = (await source.text()).replaceAll("__LITECODE_VERSION__", pinnedVersion);
     const target = resolve(projectRoot, HOOK_REL);
     const existing = Bun.file(target);
     const prior = await readLockfile(projectRoot, HOOK_LOCK_PATH);
@@ -105,7 +114,15 @@ async function planHook(
       else if (onDisk !== priorEntry.hash) status = "drift";
       else status = "update";
     }
-    return { rel: HOOK_REL, target, pack: packName, version: pack.manifest.version, content, status };
+    return {
+      rel: HOOK_REL,
+      target,
+      pack: packName,
+      version: pack.manifest.version,
+      kitVersion: pinnedVersion,
+      content,
+      status,
+    };
   }
   return null;
 }
@@ -617,7 +634,11 @@ export async function applyPlan(
     console.log(
       `\nSkipping ${plan.hook.rel}: it already exists and wasn't installed by litecodeagent, so it's left untouched.\n` +
         `To enable the branch guard, add this line to your existing ${plan.hook.rel}:\n\n` +
-        `  bunx --yes litecodeagent@${plan.hook.version} guard-branch\n`,
+        // Pinned to the litecodeagent *CLI* version (`kitVersion`), not `plan.hook.version`
+        // (the core pack's own version — a different, unpublished number). An unpinned or
+        // wrongly-pinned `bunx` call fails under the hook's `set -euo pipefail` and refuses
+        // every commit, exactly the failure this notice must not cause.
+        `  bunx --yes litecodeagent@${plan.hook.kitVersion} guard-branch\n`,
     );
   } else if (plan.hook) {
     if (plan.hook.status !== "unchanged") {
@@ -635,7 +656,7 @@ export async function applyPlan(
       },
       HOOK_LOCK_PATH,
     );
-    await activateGitHooksPath(projectRoot);
+    await activateGitHooksPath(projectRoot, plan.hook.kitVersion);
   }
 }
 
@@ -651,7 +672,7 @@ export async function applyPlan(
  * doesn't act, it warns and prints how to wire the guard in manually instead of silently
  * doing nothing.
  */
-async function activateGitHooksPath(projectRoot: string): Promise<void> {
+async function activateGitHooksPath(projectRoot: string, kitVersion: string): Promise<void> {
   const check = Bun.spawn(["git", "rev-parse", "--is-inside-work-tree"], {
     cwd: projectRoot,
     stdout: "ignore",
@@ -659,9 +680,12 @@ async function activateGitHooksPath(projectRoot: string): Promise<void> {
   });
   if ((await check.exited) !== 0) return;
 
-  const manualNotice =
-    "To enable it manually, add this line to your existing pre-commit hook:\n\n" +
-    "  bunx --yes litecodeagent guard-branch\n";
+  // Pinned to the litecodeagent CLI version, same reasoning as the rendered hook itself
+  // (see `planHook`'s comment) and the preexisting-hook notice above: an unpinned `bunx`
+  // call can resolve to a stale cached CLI that doesn't know `guard-branch` and, under
+  // `set -e`, refuse every commit rather than just the ones this is meant to guard.
+  const guardLine = `bunx --yes litecodeagent@${kitVersion} guard-branch`;
+  const manualNotice = `To enable it manually, add this line to your pre-commit hook (create it if missing):\n\n  ${guardLine}\n`;
 
   const toplevel = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
     cwd: projectRoot,
@@ -675,9 +699,16 @@ async function activateGitHooksPath(projectRoot: string): Promise<void> {
   // under a symlinked ancestor would misfire as "subdirectory of the repo".
   const resolvedProjectRoot = await realpath(projectRoot).catch(() => resolve(projectRoot));
   if (gitRoot && gitRoot !== resolvedProjectRoot) {
+    // The hook always runs with cwd at the repo's top level, not the project subdirectory,
+    // and `guard-branch` looks for `litecode.config.json` in its cwd — so the suggested
+    // line must `cd` into the project first, or it fails (and refuses every commit in the
+    // whole repo) with "no litecode.config.json found" instead of doing anything useful.
+    const relProjectDir = relative(gitRoot, resolvedProjectRoot) || ".";
     console.warn(
       `\nWarning: ${projectRoot} is a subdirectory of the git repo at ${gitRoot}. ` +
-        "core.hooksPath is repo-wide, so litecodeagent won't change it from here.\n" + manualNotice,
+        "core.hooksPath is repo-wide, so litecodeagent won't change it from here.\n" +
+        `To enable it manually, add this line to your pre-commit hook (create it if missing):\n\n` +
+        `  (cd ${relProjectDir} && ${guardLine})\n`,
     );
     return;
   }
