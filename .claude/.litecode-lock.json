@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-27T16:53:22.930Z",
+  "installedAt": "2026-09-27T17:09:36.946Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -28,12 +28,12 @@
     ".claude/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "bd4a0b951a89062d"
+      "hash": "25b4b9c02f0318fb"
     },
     ".claude/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "f1160341caf9bccf"
+      "hash": "8f79212b1ece8983"
     },
     ".claude/agents/debate-angle.md": {
       "pack": "core",
@@ -48,7 +48,7 @@
     ".claude/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "9a7be915718f7cd1"
+      "hash": "0b4006d69e094b30"
     },
     ".claude/agents/planner.md": {
       "pack": "core",
@@ -68,7 +68,7 @@
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "9552ed8dec5695cc"
+      "hash": "1dda6ec26018fbf7"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
