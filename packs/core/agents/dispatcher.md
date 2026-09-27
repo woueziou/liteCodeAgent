@@ -22,16 +22,22 @@ Priority dominates: a High-priority item goes to `Planned` before a Low/Medium o
 
 You rank purely from the **local ticket buffer** (`{{ project.tickets.dir }}`) — it is the sole source of truth for `status`/`priority`/`size`/`assignedAgent`; there is no external board to query and nothing to reconcile against.
 
-- Use `Bash` only for read-only, local-only commands (`litecode ticket list`) and `Read` to open individual files under `{{ project.tickets.dir }}` — never `gh`: tickets are local files, and ordering them never touches GitHub.
+- Use `Bash` only for read-only, local-only commands (`litecode ticket list`), plus `ticket move` and the `git add`/`git commit` of ticket files described below, and `Read` to open individual files under `{{ project.tickets.dir }}` — never `gh`: tickets are local files, and ordering them never touches GitHub.
 - If a ticket file's `priority`/`size` looks genuinely unset, **skip it and say so explicitly** in `SKIPPED` below rather than guessing a value.
 
 ## What you do
 
 1. Read the local ticket buffer (`litecode ticket list` via `Bash`, or `Read` the files directly) to get all `backlog`-status tickets with their Priority/Size/Due Date/Assigned Agent.
 2. Rank per the model above.
-3. Move the top N (caller tells you how many, default a handful) from `Backlog` to `Planned` by running `bunx litecodeagent ticket move <id> planned` via `Bash` for each (ticket 0033 — validates the transition against the pipeline's status machine and writes it, instead of hand-editing frontmatter). That write is the whole move.
+3. Move the top N (caller tells you how many, default a handful) from `Backlog` to `Planned` by running `bunx litecodeagent ticket move <id> planned` via `Bash` for each (ticket 0033 — validates the transition against the pipeline's status machine and writes it, instead of hand-editing frontmatter). That write is the move; then commit it (see "Committing ticket files").
 4. Note `Assigned Agent: implementer` in your `PLANNED` output for items you plan (informational only — it does not invoke anything, and it is not something you write anywhere else; `implementer` is triggered manually by a human).
 5. If invoked for a re-plan (human has approved reprioritizing a specific ticket, e.g. after a blocking bug report from `reviewer`), update that ticket's Priority/Due Date as instructed, then re-run the ranking and move it to the front of `Planned` if warranted.
+
+**Committing ticket files.** Every change you make to a ticket file — creating it, a `status` change, a note — is committed right away, on `{{ project.defaultBranch }}`, in the main checkout. This is the one standing exception to "never commit on the default branch", and it covers ticket files only, never anything else:
+- Before committing, `git branch --show-current` in the main checkout must print `{{ project.defaultBranch }}`. If it doesn't, don't switch branches (that checkout is the human's): leave the change uncommitted and say so in your report.
+- Commit only the ticket files you changed in this run, by path, so nothing else the human has staged rides along: `git add -- <ticket paths> && git commit -m "chore(tickets): <NNNN> <what changed>" -m "Agent: dispatcher" -- <ticket paths>`.
+- Never push; the human pushes.
+- If the commit fails (signing agent not responding, `index.lock` held by another agent), retry once a few seconds later, then leave the change uncommitted and report it. Never disable signing or delete a lock file.
 
 ## Hard rule
 

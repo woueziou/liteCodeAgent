@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-27T16:53:22.929Z",
+  "installedAt": "2026-09-27T18:24:30.967Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -28,12 +28,12 @@
     ".kilo/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "5d6f7bde6db13f17"
+      "hash": "81b941a0bff7a9af"
     },
     ".kilo/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "7b64d815e78b9c9c"
+      "hash": "60d93b830447f9cd"
     },
     ".kilo/agents/debate-angle.md": {
       "pack": "core",
@@ -48,7 +48,7 @@
     ".kilo/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "84d4e0e54fd5bf51"
+      "hash": "b6d81ead7a22fa29"
     },
     ".kilo/agents/planner.md": {
       "pack": "core",
@@ -68,7 +68,7 @@
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "5517f771b39ef889"
+      "hash": "9755b4b0ad6d2620"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
