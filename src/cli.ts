@@ -10,6 +10,7 @@ import { RateLimitError } from "./gh.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { buildDashboard } from "./dashboard/build.ts";
 import { renderDashboard } from "./dashboard/render.ts";
+import { startDashboardServer, DEFAULT_PORT, DEFAULT_HOST } from "./dashboard/serve.ts";
 import { parseReport, verifyReport, type Finding as ReportFinding } from "./report/verify.ts";
 import { realProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
@@ -75,9 +76,14 @@ function usage(): void {
                                      ${c.dim("refuses to drop unknown frontmatter keys unless --force")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
-                                     regenerate the standalone HTML dashboard from the local ticket buffer
-                                     ${c.dim("current state only (status/priority/size/label/epic) — no trend, purely explicit, no watcher")}
+                                     regenerate the committed standalone HTML dashboard snapshot from the local
+                                     ticket buffer and docs/decisions/ — goes stale as soon as either changes
                                      ${c.dim("--out defaults to docs/dashboard.html")}
+  ${c.bold("bunx litecodeagent dashboard")} --serve [--port <n>] [--host <h>]
+                                     start a local, read-only server that re-reads the ticket buffer and
+                                     docs/decisions/ on every request — always live, never writes to the repo
+                                     ${c.dim("--port defaults to 4173, --host defaults to 127.0.0.1")}
+                                     ${c.dim("--build and --serve are mutually exclusive; one of the two is required")}
   ${c.bold("bunx litecodeagent verify-report")} [--file <path>] [--json]
                                      check an implementer's final report (STATUS/TICKET/BRANCH/PR/CHECK_OUTPUT)
                                      against git, gh and the ticket buffer; exits 1 on any contradiction
@@ -551,17 +557,48 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
 }
 
 /**
- * `--build` is the only trigger — deliberately no hook, watcher, or install-time
- * regeneration (see the ticket's "no server, no process" rule). Output is one
- * self-contained HTML file so it opens offline with a double-click.
+ * Two mutually-exclusive modes (ADR 0017): `--build` writes a committed, point-in-time
+ * snapshot (`docs/dashboard.html`, browsable straight from GitHub); `--serve` starts a
+ * local, read-only `Bun.serve` process that re-reads the ticket/ADR buffer on every
+ * request instead. Passing both, or neither, is a usage error (exit 1) — this replaces the
+ * old "dashboard requires --build ..." message; anything matching that old text now breaks
+ * (documented breaking change, see ADR 0017 point 5 / release notes).
  */
 async function cmdDashboard(root: string, argv: string[]): Promise<number> {
-  if (!argv.includes("--build")) {
-    console.log(c.red("dashboard requires --build (regeneration is purely explicit, run again after any ticket mutation)"));
+  const wantsBuild = argv.includes("--build");
+  const wantsServe = argv.includes("--serve");
+
+  if (wantsBuild && wantsServe) {
+    console.log(c.red("dashboard: --build and --serve are mutually exclusive, pass only one"));
     return 1;
   }
+  if (!wantsBuild && !wantsServe) {
+    usage();
+    return 1;
+  }
+
   const { config } = await loadConfig(root);
   const dir = config.project.tickets.dir;
+
+  if (wantsServe) {
+    const portArg = arg(argv, "--port");
+    const hostArg = arg(argv, "--host");
+    const port = portArg ? Number(portArg) : DEFAULT_PORT;
+    if (portArg && (!Number.isInteger(port) || port <= 0 || port > 65535)) {
+      console.log(c.red(`dashboard: invalid --port '${portArg}'`));
+      return 1;
+    }
+    try {
+      await startDashboardServer(root, dir, { port, host: hostArg ?? DEFAULT_HOST });
+    } catch (e) {
+      console.log(c.red(`dashboard: ${(e as Error).message}`));
+      return 1;
+    }
+    // Stays alive: startDashboardServer registers its own SIGINT handler (exit 0) and
+    // Bun.serve keeps the process running until then.
+    return new Promise<number>(() => {});
+  }
+
   const outArg = arg(argv, "--out");
   const outPath = resolve(root, outArg ?? "docs/dashboard.html");
 
@@ -573,6 +610,9 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
   console.log(`${c.green("built")} ${outPath} (${data.total} ticket(s), ${data.blockedTickets.length} bloqué(s))`);
   if (data.loadErrors.length > 0) {
     console.log(c.yellow(`  ${data.loadErrors.length} fichier(s) en échec de lecture — voir \`litecode ticket doctor\`.`));
+  }
+  if (data.adrLoadErrors.length > 0) {
+    console.log(c.yellow(`  ${data.adrLoadErrors.length} ADR(s) en échec de lecture.`));
   }
   return 0;
 }

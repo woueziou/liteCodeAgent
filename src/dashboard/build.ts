@@ -1,15 +1,19 @@
 /**
- * Aggregates the local ticket buffer (`listTicketsDetailed`, `src/tickets/store.ts`) into
- * the plain-data shape `render.ts` turns into HTML. Deliberately produces **current-state**
- * snapshots only — counts by status/priority/size/label/epic — never a time series. The
- * ticket frontmatter keeps no transition history (no log of status changes), so anything
- * trend-shaped here would have to be invented.
+ * Aggregates the local ticket buffer (`listTicketsDetailed`, `src/tickets/store.ts`) and
+ * the ADR directory (`listAdrsDetailed`, `src/decisions/store.ts`) into the plain-data
+ * shape `render.ts` turns into HTML. Deliberately produces **current-state** snapshots
+ * only — counts by status/priority/size/label/epic, plus the current ADR list — never a
+ * time series. The ticket frontmatter keeps no transition history (no log of status
+ * changes), so anything trend-shaped here would have to be invented.
  * See docs/decisions/0012 for the (future) transition-journal design that would make a
- * real trend possible; until that lands, this module has nothing to build one from.
+ * real trend possible; until that lands, this module has nothing to build one from. Used
+ * by both `litecode dashboard --build` (a committed snapshot) and `--serve` (rebuilt on
+ * every request) — see ADR 0017.
  */
 
 import { relative, dirname } from "node:path";
 import { listTicketsDetailed, type TicketLoadError } from "../tickets/store.ts";
+import { listAdrsDetailed, type AdrSummary, type AdrLoadError } from "../decisions/store.ts";
 import { STATUS_ROLES, PRIORITIES, SIZES, type StatusRole, type Priority, type Size, type Ticket } from "../tickets/spec.ts";
 
 export type StatusCount = { role: StatusRole; label: string; count: number };
@@ -37,7 +41,14 @@ export type DashboardData = {
   tickets: Ticket[];
   /** Tickets `ticket doctor` would also flag: malformed files that didn't parse. */
   loadErrors: TicketLoadError[];
+  /** Every parsed ADR from `docs/decisions/`, newest first (ticket 0032's ADR screen). */
+  adrs: AdrSummary[];
+  /** Malformed or unreadable ADR files — surfaced the same way `loadErrors` is. */
+  adrLoadErrors: AdrLoadError[];
 };
+
+/** Where the dashboard reads ADRs from, relative to `root`. Not configurable (yet). */
+export const ADRS_DIR = "docs/decisions";
 
 /**
  * A ticket's epic is the first path segment below the tickets dir (e.g.
@@ -61,6 +72,7 @@ function zeroByStatus(): Record<StatusRole, number> {
 
 export async function buildDashboard(root: string, dir: string, now: Date = new Date()): Promise<DashboardData> {
   const { tickets, errors } = await listTicketsDetailed(root, dir);
+  const { adrs, errors: adrLoadErrors } = await listAdrsDetailed(root, ADRS_DIR);
 
   const byStatus = STATUS_ROLES.map((s) => ({
     role: s.role,
@@ -100,5 +112,7 @@ export async function buildDashboard(root: string, dir: string, now: Date = new 
     blockedTickets,
     tickets,
     loadErrors: errors,
+    adrs,
+    adrLoadErrors,
   };
 }
