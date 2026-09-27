@@ -10,7 +10,7 @@
 set -euo pipefail
 
 if command -v bunx >/dev/null 2>&1; then
-  bunx --yes litecodeagent guard-branch
+  bunx --yes litecodeagent@__LITECODE_VERSION__ guard-branch
 else
   echo "pre-commit: bunx not found, skipping the branch guard (install Bun to enforce it)." >&2
 fi

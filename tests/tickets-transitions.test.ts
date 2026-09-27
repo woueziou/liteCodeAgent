@@ -30,6 +30,11 @@ test("triage un-blocks to planned or inProgress, never straight to review/readyT
   expect(isTransitionAllowed("blocked", "done")).toBe(false);
 });
 
+test("review/readyToMerge can go back to inProgress for a same-PR fixup", () => {
+  expect(isTransitionAllowed("review", "inProgress")).toBe(true);
+  expect(isTransitionAllowed("readyToMerge", "inProgress")).toBe(true);
+});
+
 test("done is terminal", () => {
   for (const to of TICKET_STATUSES) {
     if (to === "done") continue;

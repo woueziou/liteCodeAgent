@@ -206,6 +206,7 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
 
   const counts = { create: 0, update: 0, unchanged: 0, drift: 0 };
   for (const e of plan.entries) counts[e.status]++;
+  if (plan.hook) counts[plan.hook.status]++;
 
   console.log(`${c.bold("Project")}  ${root}`);
   console.log(`${c.bold("Tools")}    ${selectedTargets(config).join(", ")}`);
@@ -218,6 +219,14 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
       : e.status === "drift" ? c.red("DRIFT   ")
       : c.dim("ok      ");
     console.log(`  ${tag} ${e.rel} ${c.dim(`(${e.pack})`)}`);
+  }
+  if (plan.hook) {
+    const tag =
+      plan.hook.status === "create" ? c.green("create  ")
+      : plan.hook.status === "update" ? c.cyan("update  ")
+      : plan.hook.status === "drift" ? c.red("DRIFT   ")
+      : c.dim("ok      ");
+    console.log(`  ${tag} ${plan.hook.rel} ${c.dim(`(${plan.hook.pack}, git hook)`)}`);
   }
   for (const orphan of plan.orphans) {
     console.log(`  ${c.yellow("orphan  ")} ${orphan} ${c.dim("(no longer produced; left on disk, remove manually)")}`);
@@ -606,20 +615,30 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       return 1;
     }
     const { tickets } = await listTicketsDetailed(root, dir);
-    const ticket = tickets.find((t) => t.id === id);
-    if (!ticket) {
+    // Accepts either the full id (`0033-slug`) or just its leading `NNNN` — worktree
+    // paths and ticket numbers elsewhere in this workflow are bare `NNNN`, so agents
+    // following that convention would otherwise plausibly pass a number that only ever
+    // matches the wrong argument.
+    const exact = tickets.find((t) => t.id === id);
+    const byNumber = exact ? [exact] : tickets.filter((t) => t.id.startsWith(`${id}-`));
+    if (byNumber.length === 0) {
       console.log(c.red(`No ticket with id ${id} in ${dir}.`));
       return 1;
     }
+    if (byNumber.length > 1) {
+      console.log(c.red(`"${id}" matches more than one ticket: ${byNumber.map((t) => t.id).join(", ")}. Use the full id.`));
+      return 1;
+    }
+    const ticket = byNumber[0]!;
     if (!isTransitionAllowed(ticket.status, to)) {
       console.log(
-        c.red(`Refusing ${ticket.status} -> ${to} for ${id}: not an allowed transition.`) +
+        c.red(`Refusing ${ticket.status} -> ${to} for ${ticket.id}: not an allowed transition.`) +
           c.dim(`\nAllowed from ${ticket.status}: ${ALLOWED_TRANSITIONS[ticket.status].join(", ") || "(none — terminal status)"}`),
       );
       return 1;
     }
     await writeTicket(root, { ...ticket, status: to });
-    console.log(`${c.green("moved")} ${id}: ${ticket.status} -> ${to}`);
+    console.log(`${c.green("moved")} ${ticket.id}: ${ticket.status} -> ${to}`);
     return 0;
   }
 

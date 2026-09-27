@@ -131,6 +131,24 @@ test("`ticket move` refuses planned -> review: inProgress is required first", as
   expect(file).toMatch(/^status: planned$/m);
 });
 
+test("`ticket move` accepts a bare NNNN id, not just the full slug", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Short id", "--label", "feature"]);
+  const output = await runCli(root, ["ticket", "move", "0001", "planned"]);
+  expect(output).toContain("moved 0001-short-id");
+});
+
+test("`ticket move` allows review -> inProgress and readyToMerge -> inProgress for a same-PR fixup", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Fixup me", "--label", "feature"]);
+  await runCli(root, ["ticket", "move", "0001-fixup-me", "planned"]);
+  await runCli(root, ["ticket", "move", "0001-fixup-me", "inProgress"]);
+  await runCli(root, ["ticket", "move", "0001-fixup-me", "review"]);
+
+  const output = await runCli(root, ["ticket", "move", "0001-fixup-me", "inProgress"]);
+  expect(output).toContain("review -> inProgress");
+});
+
 test("`ticket move` rejects an unknown status and an unknown id", async () => {
   const root = await project();
   await runCli(root, ["ticket", "new", "--title", "Known ticket", "--label", "feature"]);

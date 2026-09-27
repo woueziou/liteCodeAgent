@@ -116,6 +116,52 @@ test("a hand-edited .githooks/pre-commit is reported as drift and never silently
   expect(await Bun.file(hookPath).text()).not.toContain("local tweak");
 });
 
+test("the rendered hook pins the litecodeagent version instead of a bare `bunx litecodeagent`", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  const plan = await buildPlan(root, PACKS, config);
+  const pkg = await Bun.file(join(import.meta.dir, "..", "package.json")).json();
+  expect(plan.hook!.content).toContain(`litecodeagent@${pkg.version}`);
+  expect(plan.hook!.content).not.toMatch(/bunx --yes litecodeagent guard-branch/);
+});
+
+test("a pre-existing project-owned .githooks/pre-commit (no prior litecodeagent lock entry) is reported as drift, not silently replaced", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  const hookPath = join(root, ".githooks", "pre-commit");
+  await Bun.write(hookPath, "#!/usr/bin/env bash\necho \"this project's own hook\"\n");
+
+  const plan = await buildPlan(root, PACKS, config);
+  expect(plan.hook!.status).toBe("drift");
+  await expect(applyPlan(root, plan, "0.0.0-test", { force: false })).rejects.toThrow(/hand/);
+  expect(await Bun.file(hookPath).text()).toContain("this project's own hook");
+});
+
+test("install activates the hook by setting core.hooksPath, without overriding one already set on purpose", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q"], { cwd: root }).exited;
+
+  await applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", { force: false });
+  const configured = await new Response(
+    Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: root, stdout: "pipe" }).stdout,
+  ).text();
+  expect(configured.trim()).toBe(".githooks");
+});
+
+test("install never overrides a core.hooksPath a project already set to something else", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q"], { cwd: root }).exited;
+  await Bun.spawn(["git", "config", "core.hooksPath", "tools/hooks"], { cwd: root }).exited;
+
+  await applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", { force: false });
+  const configured = await new Response(
+    Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: root, stdout: "pipe" }).stdout,
+  ).text();
+  expect(configured.trim()).toBe("tools/hooks");
+});
+
 test("a skill reference that resolves to nothing fails the install", async () => {
   const config = await exampleConfig();
   config.project.agentSkills.planner = ["typescript-expert", "nonexistent-expert"];

@@ -52,6 +52,8 @@ export const TICKET_STATUSES = STATUS_ROLES.map((s) => s.role) as [StatusRole, .
  *   escalate any active status to `blocked`.
  * - `triage` un-blocks back to `planned` (re-scoped) or `inProgress` (resumed in place).
  * - A human moves `review -> readyToMerge | done` and `readyToMerge -> done` once merged.
+ * - `implementer` can also move `review -> inProgress` (and `readyToMerge -> inProgress`) to
+ *   apply a same-PR fixup requested by a reviewer/bug-hunter finding, per the resume flow.
  *
  * `done` is terminal: nothing reopens a done ticket by moving its status (a regression
  * gets its own new ticket).
@@ -61,8 +63,8 @@ export const ALLOWED_TRANSITIONS: Record<StatusRole, StatusRole[]> = {
   planned: ["inProgress", "blocked"],
   inProgress: ["review", "readyToMerge", "done", "blocked"],
   blocked: ["planned", "inProgress"],
-  review: ["readyToMerge", "done", "blocked"],
-  readyToMerge: ["done", "blocked"],
+  review: ["readyToMerge", "done", "blocked", "inProgress"],
+  readyToMerge: ["done", "blocked", "inProgress"],
   done: [],
 };
 
