@@ -56,9 +56,15 @@ This supersedes the GitHub-publishing parts of ADR 0001 and ADR 0012, all of ADR
   old issue number survives only in that ticket's git history.
 - Ticket notes and status edits are ordinary file edits, made by every agent in the main
   checkout's copy of the ticket so the next agent, the dashboard and `ticket list` see
-  them immediately. No agent commits a ticket file; the human does, like any other change.
+  them immediately. ~~No agent commits a ticket file; the human does, like any other change.
   Until then they are uncommitted work — a `git stash` or `git checkout -- docs/tickets`
-  discards them, including an ADR draft's resume manifest. Committing them on the ticket's
+  discards them, including an ADR draft's resume manifest.~~ **Amended 2026-09-27, at the
+  owner's request:** uncommitted ticket edits piled up on the default branch waiting for the
+  owner. Every agent that changes a ticket file now commits it right away on the default
+  branch, in the main checkout, by path (ticket files only), and never pushes; if the main
+  checkout isn't on the default branch, it leaves the change uncommitted and says so.
+  This is the one standing exception to the rule that agents never commit on the default
+  branch. Committing them on the ticket's
   branch instead was tried and rejected: the default branch then showed stale statuses,
   `triage` and `dispatcher` couldn't see a blocker, and a verification-only ticket's `done`
   never left its unmerged branch.

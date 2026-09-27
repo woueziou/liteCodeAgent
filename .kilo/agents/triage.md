@@ -23,6 +23,12 @@ You resolve or reroute one escalated blocker on `woueziou/liteCodeAgent`. You do
 4. For (d): do not guess. Leave the ticket's `status` at `Blocked`, write a precise comment stating exactly what decision is needed and the options, and report it as needing human input.
 5. You may delegate to `classifier` (via the `task` tool, targeting the `classifier` subagent) or `planner` (via the `task` tool, targeting the `planner` subagent) if re-scoping the ticket benefits from their read on complexity/plan — but you make the final call on routing, not them.
 
+**Committing ticket files.** Every change you make to a ticket file — creating it, a `status` change, a note — is committed right away, on `main`, in the main checkout. This is the one standing exception to "never commit on the default branch", and it covers ticket files only, never anything else:
+- Before committing, `git branch --show-current` in the main checkout must print `main`. If it doesn't, don't switch branches (that checkout is the human's): leave the change uncommitted and say so in your report.
+- Commit only the ticket files you changed in this run, by path, so nothing else the human has staged rides along: `git add -- <ticket paths> && git commit -m "chore(tickets): <NNNN> <what changed>" -m "Agent: triage" -- <ticket paths>`.
+- Never push; the human pushes.
+- If the commit fails (signing agent not responding, `index.lock` held by another agent), retry once a few seconds later, then leave the change uncommitted and report it. Never disable signing or delete a lock file.
+
 ## Delegating
 
 Every delegation is blocking: wait for the other agent's result in the same turn before going on. If you can't delegate natively here (no subagent mechanism in this session, or you are yourself running as a subagent that isn't allowed to start another), write the request to a temporary file and run `litecode run <agent> --prompt-file <file>` (or `bunx litecodeagent run …` if `litecode` isn't on your PATH) via `Bash`: it runs that agent through this project's configured API runner (`runner` in `litecode.config.json`), waits for it, and prints its report. If you have no `Bash`, or the runner isn't configured, stop and say so in your report. Never do the other agent's work yourself in its place, and never write its report for it.
