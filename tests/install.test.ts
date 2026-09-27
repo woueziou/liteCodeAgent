@@ -162,6 +162,32 @@ test("install/upgrade prints a notice with the exact line to add when a pre-exis
   expect(combined).toContain(`bunx --yes litecodeagent@${pkg.version} guard-branch`);
 });
 
+test("a pre-existing hook in a subdirectory project also gets a cd-into-project instruction", async () => {
+  const config = await exampleConfig();
+  const repoRoot = await mkdtemp(join(tmpdir(), "litecode-"));
+  await Bun.spawn(["git", "init", "-q"], { cwd: repoRoot }).exited;
+  const projectRoot = join(repoRoot, "sub");
+  await Bun.write(join(projectRoot, ".claude", "skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");
+  const hookPath = join(projectRoot, ".githooks", "pre-commit");
+  await Bun.write(hookPath, "#!/usr/bin/env bash\necho \"this project's own hook\"\n");
+
+  const plan = await buildPlan(projectRoot, PACKS, config);
+  expect(plan.hook!.status).toBe("preexisting");
+  const logs: string[] = [];
+  const originalLog = console.log;
+  console.log = (...args: unknown[]) => logs.push(args.join(" "));
+  try {
+    await applyPlan(projectRoot, plan, "0.0.0-test", { force: false });
+  } finally {
+    console.log = originalLog;
+  }
+  const combined = logs.join("\n");
+  // Following this notice verbatim from a hook that runs at the repo's git top-level must
+  // not fail with "no litecode.config.json found" (round 4 bug-hunter finding 1).
+  expect(combined).toContain("(cd 'sub' &&");
+  expect(combined).toMatch(/guard-branch/);
+});
+
 test("install activates the hook by setting core.hooksPath, without overriding one already set on purpose", async () => {
   const config = await exampleConfig();
   const root = await targetRepo();
@@ -218,15 +244,37 @@ test("a project root that's a subdirectory of the git repo gets a cd-into-projec
   const combined = warnings.join("\n");
   expect(combined).toMatch(/subdirectory/);
   // guard-branch reads litecode.config.json from its cwd, and the hook always runs at the
-  // repo's top level — so the suggested line must cd into the project dir first, or
-  // following it verbatim refuses every commit in the whole repo (round 3 bug-hunter).
-  expect(combined).toContain("(cd sub &&");
+  // repo's top level — so the suggested line must cd into the (shell-quoted) project dir
+  // first, or following it verbatim refuses every commit in the whole repo (round 3/4
+  // bug-hunter).
+  expect(combined).toContain("(cd 'sub' &&");
   expect(combined).toMatch(/guard-branch/);
 
   const configured = await new Response(
     Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: repoRoot, stdout: "pipe" }).stdout,
   ).text();
   expect(configured.trim()).toBe("");
+});
+
+test("a subdirectory project path containing a space is shell-quoted in the cd instruction", async () => {
+  const config = await exampleConfig();
+  const repoRoot = await mkdtemp(join(tmpdir(), "litecode-"));
+  await Bun.spawn(["git", "init", "-q"], { cwd: repoRoot }).exited;
+  const projectRoot = join(repoRoot, "my app");
+  await Bun.write(join(projectRoot, ".claude", "skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");
+
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+  try {
+    await applyPlan(projectRoot, await buildPlan(projectRoot, PACKS, config), "0.0.0-test", { force: false });
+  } finally {
+    console.warn = originalWarn;
+  }
+  const combined = warnings.join("\n");
+  // Unquoted, `(cd my app && ...)` fails under bash with "cd: too many arguments" and
+  // `set -e` refuses every commit (round 4 bug-hunter finding 2).
+  expect(combined).toContain("(cd 'my app' &&");
 });
 
 test("a skill reference that resolves to nothing fails the install", async () => {
