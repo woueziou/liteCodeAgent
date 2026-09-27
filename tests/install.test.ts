@@ -125,16 +125,37 @@ test("the rendered hook pins the litecodeagent version instead of a bare `bunx l
   expect(plan.hook!.content).not.toMatch(/bunx --yes litecodeagent guard-branch/);
 });
 
-test("a pre-existing project-owned .githooks/pre-commit (no prior litecodeagent lock entry) is reported as drift, not silently replaced", async () => {
+test("a pre-existing project-owned .githooks/pre-commit (no prior litecodeagent lock entry) is left untouched, not blocked behind --force", async () => {
   const config = await exampleConfig();
   const root = await targetRepo();
   const hookPath = join(root, ".githooks", "pre-commit");
   await Bun.write(hookPath, "#!/usr/bin/env bash\necho \"this project's own hook\"\n");
 
   const plan = await buildPlan(root, PACKS, config);
-  expect(plan.hook!.status).toBe("drift");
-  await expect(applyPlan(root, plan, "0.0.0-test", { force: false })).rejects.toThrow(/hand/);
+  expect(plan.hook!.status).toBe("preexisting");
+  // Must not require --force, and must not touch any other pending file either.
+  await applyPlan(root, plan, "0.0.0-test", { force: false });
   expect(await Bun.file(hookPath).text()).toContain("this project's own hook");
+});
+
+test("install/upgrade prints a notice with the exact line to add when a pre-existing hook is left alone", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  const hookPath = join(root, ".githooks", "pre-commit");
+  await Bun.write(hookPath, "#!/usr/bin/env bash\necho \"this project's own hook\"\n");
+
+  const plan = await buildPlan(root, PACKS, config);
+  const logs: string[] = [];
+  const originalLog = console.log;
+  console.log = (...args: unknown[]) => logs.push(args.join(" "));
+  try {
+    await applyPlan(root, plan, "0.0.0-test", { force: false });
+  } finally {
+    console.log = originalLog;
+  }
+  const combined = logs.join("\n");
+  expect(combined).toContain(".githooks/pre-commit");
+  expect(combined).toMatch(/guard-branch/);
 });
 
 test("install activates the hook by setting core.hooksPath, without overriding one already set on purpose", async () => {
@@ -160,6 +181,19 @@ test("install never overrides a core.hooksPath a project already set to somethin
     Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: root, stdout: "pipe" }).stdout,
   ).text();
   expect(configured.trim()).toBe("tools/hooks");
+});
+
+test("install leaves core.hooksPath unset when .git/hooks already holds a real (non-sample) hook", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q"], { cwd: root }).exited;
+  await Bun.write(join(root, ".git", "hooks", "pre-commit"), "#!/usr/bin/env bash\necho existing\n");
+
+  await applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", { force: false });
+  const configured = await new Response(
+    Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: root, stdout: "pipe" }).stdout,
+  ).text();
+  expect(configured.trim()).toBe("");
 });
 
 test("a skill reference that resolves to nothing fails the install", async () => {

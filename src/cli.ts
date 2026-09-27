@@ -204,7 +204,7 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
   const plan = await buildPlan(root, PACKS_ROOT, config);
   const apply = argv.includes("--apply");
 
-  const counts = { create: 0, update: 0, unchanged: 0, drift: 0 };
+  const counts = { create: 0, update: 0, unchanged: 0, drift: 0, preexisting: 0 };
   for (const e of plan.entries) counts[e.status]++;
   if (plan.hook) counts[plan.hook.status]++;
 
@@ -225,6 +225,7 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
       plan.hook.status === "create" ? c.green("create  ")
       : plan.hook.status === "update" ? c.cyan("update  ")
       : plan.hook.status === "drift" ? c.red("DRIFT   ")
+      : plan.hook.status === "preexisting" ? c.yellow("skip    ")
       : c.dim("ok      ");
     console.log(`  ${tag} ${plan.hook.rel} ${c.dim(`(${plan.hook.pack}, git hook)`)}`);
   }

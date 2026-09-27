@@ -106,7 +106,7 @@ async function renderPlan(ctx: UpgradeContext) {
   // The `.githooks/pre-commit` branch guard (ticket 0033) lives outside `plan.entries`
   // (see `HookPlanEntry`'s doc comment in install.ts), so it's folded in here by hand —
   // otherwise a hand-edited hook's drift would never block `upgrade`.
-  if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, harness: "claude-code" });
+  if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, status: "drift", harness: "claude-code" });
   return { plan, drifted };
 }
 
@@ -120,7 +120,7 @@ const renderPacks: Migration = {
     // Counted alongside `entries` so a release where only the hook's content changed
     // still gets re-rendered instead of `upgrade` reporting "nothing to do".
     if (plan.hook && (plan.hook.status === "create" || plan.hook.status === "update")) {
-      changed.push({ ...plan.hook, harness: "claude-code" });
+      changed.push({ ...plan.hook, status: plan.hook.status, harness: "claude-code" });
     }
     const base = { id: this.id, title: this.title };
     if (drifted.length > 0) {

@@ -1,5 +1,5 @@
 import { resolve, dirname, join } from "node:path";
-import { mkdir, chmod } from "node:fs/promises";
+import { mkdir, chmod, readdir, realpath } from "node:fs/promises";
 import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
@@ -41,7 +41,16 @@ export type HookPlanEntry = {
   pack: string;
   version: string;
   content: string;
-  status: PlanEntry["status"];
+  /**
+   * `preexisting` is distinct from `drift`: `drift` means litecodeagent installed this
+   * file before and it was since hand-edited (still requires `--force` to overwrite, same
+   * as any other managed file). `preexisting` means litecodeagent never installed this
+   * file at all — the project already had its own `.githooks/pre-commit` before ever
+   * running `litecode install`. That file must never be replaced or deleted, `--force`
+   * included: it isn't ours to overwrite. See the "leave it alone" handling in
+   * `applyPlan`.
+   */
+  status: PlanEntry["status"] | "preexisting";
 };
 
 const HOOK_LOCK_PATH = ".githooks/.litecode-hook-lock.json";
@@ -80,17 +89,20 @@ async function planHook(
     const existing = Bun.file(target);
     const prior = await readLockfile(projectRoot, HOOK_LOCK_PATH);
     const priorEntry = prior?.files[HOOK_REL];
-    let status: PlanEntry["status"];
+    let status: HookPlanEntry["status"];
     if (!(await existing.exists())) status = "create";
     else {
       const onDisk = hash(await existing.text());
       if (onDisk === hash(content)) status = "unchanged";
-      // No prior lock entry at all means litecodeagent never wrote this file — it's
-      // either a project's own pre-existing hook or one from before this lock existed.
-      // Either way, on-disk content differing from what we'd render must never be
-      // silently overwritten (same rule as any other managed file — see the
-      // hand-edited-file drift check above).
-      else if (!priorEntry || onDisk !== priorEntry.hash) status = "drift";
+      // No prior lock entry at all means litecodeagent never wrote this file — it's a
+      // project's own pre-existing hook (this repo's own `.githooks/pre-commit` is one).
+      // Never replace or delete it, `--force` included: it isn't ours to overwrite.
+      // `applyPlan` reports it as skipped and prints the exact line to add instead.
+      else if (!priorEntry) status = "preexisting";
+      // A prior lock entry exists but its hash no longer matches: litecodeagent installed
+      // this file before and it's since been hand-edited. Same rule as any other managed
+      // file — blocks unless `--force`.
+      else if (onDisk !== priorEntry.hash) status = "drift";
       else status = "update";
     }
     return { rel: HOOK_REL, target, pack: packName, version: pack.manifest.version, content, status };
@@ -572,7 +584,7 @@ export async function applyPlan(
   opts: { force: boolean },
 ): Promise<void> {
   const drifted = plan.entries.filter((entry) => entry.status === "drift");
-  if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, harness: "claude-code" });
+  if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, status: "drift", harness: "claude-code" });
   if (drifted.length > 0 && !opts.force) {
     throw new Error(
       `Refusing to overwrite ${drifted.length} file(s) edited by hand since the last install:\n` +
@@ -601,7 +613,13 @@ export async function applyPlan(
     }, plan.lockfilePaths[target]);
   }
 
-  if (plan.hook) {
+  if (plan.hook?.status === "preexisting") {
+    console.log(
+      `\nSkipping ${plan.hook.rel}: it already exists and wasn't installed by litecodeagent, so it's left untouched.\n` +
+        `To enable the branch guard, add this line to your existing ${plan.hook.rel}:\n\n` +
+        `  bunx --yes litecodeagent@${plan.hook.version} guard-branch\n`,
+    );
+  } else if (plan.hook) {
     if (plan.hook.status !== "unchanged") {
       await mkdir(dirname(plan.hook.target), { recursive: true });
       await Bun.write(plan.hook.target, plan.hook.content);
@@ -626,8 +644,12 @@ export async function applyPlan(
  * `core.hooksPath` (default `.git/hooks`, never version-controlled). Without this, the
  * rendered branch guard silently never runs for any consumer project, which is exactly
  * the gap ticket 0033 exists to close. Best-effort and non-destructive: skipped outside a
- * git repo, and never overwrites a `core.hooksPath` a project already set on purpose to
- * something else.
+ * git repo, and it never sets `core.hooksPath` when doing so could break something
+ * already there — a `core.hooksPath` set on purpose to something else, or real hooks
+ * already living under `.git/hooks` (the layout used by `pre-commit`-the-framework,
+ * lefthook, overcommit, a hand-written secret scanner, ...). In every case where it
+ * doesn't act, it warns and prints how to wire the guard in manually instead of silently
+ * doing nothing.
  */
 async function activateGitHooksPath(projectRoot: string): Promise<void> {
   const check = Bun.spawn(["git", "rev-parse", "--is-inside-work-tree"], {
@@ -637,6 +659,29 @@ async function activateGitHooksPath(projectRoot: string): Promise<void> {
   });
   if ((await check.exited) !== 0) return;
 
+  const manualNotice =
+    "To enable it manually, add this line to your existing pre-commit hook:\n\n" +
+    "  bunx --yes litecodeagent guard-branch\n";
+
+  const toplevel = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
+    cwd: projectRoot,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const gitRoot = (await new Response(toplevel.stdout).text()).trim();
+  await toplevel.exited;
+  // `git rev-parse --show-toplevel` resolves symlinks (e.g. macOS's /tmp -> /private/tmp),
+  // so `projectRoot` must be resolved the same way before comparing, or every project
+  // under a symlinked ancestor would misfire as "subdirectory of the repo".
+  const resolvedProjectRoot = await realpath(projectRoot).catch(() => resolve(projectRoot));
+  if (gitRoot && gitRoot !== resolvedProjectRoot) {
+    console.warn(
+      `\nWarning: ${projectRoot} is a subdirectory of the git repo at ${gitRoot}. ` +
+        "core.hooksPath is repo-wide, so litecodeagent won't change it from here.\n" + manualNotice,
+    );
+    return;
+  }
+
   const current = Bun.spawn(["git", "config", "--get", "core.hooksPath"], {
     cwd: projectRoot,
     stdout: "pipe",
@@ -644,8 +689,39 @@ async function activateGitHooksPath(projectRoot: string): Promise<void> {
   });
   const existing = (await new Response(current.stdout).text()).trim();
   await current.exited;
-  if (existing && existing !== ".githooks") return;
+  if (existing === ".githooks") return;
+  if (existing) {
+    console.warn(
+      `\nWarning: core.hooksPath is already set to '${existing}'. Leaving it as-is.\n` + manualNotice,
+    );
+    return;
+  }
 
+  const hooksPathOutput = Bun.spawn(["git", "rev-parse", "--git-path", "hooks"], {
+    cwd: projectRoot,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const hooksDirRel = (await new Response(hooksPathOutput.stdout).text()).trim();
+  await hooksPathOutput.exited;
+  if (hooksDirRel) {
+    const hooksDir = resolve(projectRoot, hooksDirRel);
+    let realHooks: string[] = [];
+    try {
+      realHooks = (await readdir(hooksDir)).filter((f) => !f.endsWith(".sample"));
+    } catch {
+      // No .git/hooks directory at all — nothing to protect, fall through to activation.
+    }
+    if (realHooks.length > 0) {
+      console.warn(
+        `\nWarning: ${hooksDirRel} already has hook(s) installed (${realHooks.join(", ")}) — ` +
+          "leaving core.hooksPath unset so they keep running.\n" + manualNotice,
+      );
+      return;
+    }
+  }
+
+  console.log(`\nSetting core.hooksPath to .githooks so the branch guard runs.`);
   await Bun.spawn(["git", "config", "core.hooksPath", ".githooks"], {
     cwd: projectRoot,
     stdout: "ignore",
