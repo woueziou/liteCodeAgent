@@ -91,7 +91,7 @@ function usage(): void {
   ${c.bold("bunx litecodeagent ticket move")} <id> <status>    validate and write a ticket's status transition
                                      ${c.dim(`refuses a transition the pipeline's status machine doesn't allow (e.g. planned -> review)`)}
                                      ${c.dim(`statuses: ${TICKET_STATUSES.join(", ")}`)}
-  ${c.bold("bunx litecodeagent guard-branch")}              refuse (exit 1) if the current branch is the project's default branch
+  ${c.bold("bunx litecodeagent guard-branch")}              refuse (exit 1) a commit on the default branch, unless it holds only ticket files
                                      ${c.dim("called from .githooks/pre-commit; not meant to be run by a human")}
   ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
                                      regenerate the committed standalone HTML dashboard snapshot from the local
@@ -475,20 +475,26 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
 
 async function cmdGuardBranch(root: string, argv: string[]): Promise<number> {
   const { config } = await loadConfig(root);
-  const branchArg = arg(argv, "--branch");
-  const branch =
-    branchArg ??
-    (await (async () => {
-      const proc = Bun.spawn(["git", "branch", "--show-current"], { cwd: root, stdout: "pipe", stderr: "pipe" });
-      const out = (await new Response(proc.stdout).text()).trim();
-      await proc.exited;
-      return out;
-    })());
+  const git = async (...args: string[]): Promise<string> => {
+    // Inside a pre-commit hook git exports GIT_INDEX_FILE, so `diff --cached` sees exactly
+    // what this commit carries, including the temporary index of `git commit -- <paths>`.
+    const proc = Bun.spawn(["git", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
+    const out = await new Response(proc.stdout).text();
+    await proc.exited;
+    return out;
+  };
+  const branch = arg(argv, "--branch") ?? (await git("branch", "--show-current")).trim();
+  // Paths from `diff --cached` are relative to the repo's top level; the project root may
+  // be a subdirectory of it, so the tickets dir gets the same prefix.
+  const prefix = (await git("rev-parse", "--show-prefix")).trim();
+  const stagedPaths = (await git("diff", "--cached", "--name-only", "-z")).split("\0").filter(Boolean);
   const result = checkBranchGuard({
     branch,
     defaultBranch: config.project.defaultBranch,
     allowDefaultBranchCommits: config.project.allowDefaultBranchCommits,
     envOverride: process.env.LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT,
+    stagedPaths,
+    ticketsDir: `${prefix}${config.project.tickets.dir.replace(/^\.\//, "")}`,
   });
   if (!result.allowed) {
     console.log(c.red(`guard-branch: ${result.reason}`));

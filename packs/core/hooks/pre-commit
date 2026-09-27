@@ -5,7 +5,8 @@
 # Refuses a commit landing directly on the project's default branch, per
 # project.defaultBranch in litecode.config.json — the rule agent prose already states
 # ("never commit on the default branch") enforced here in code instead of only in a
-# prompt. `project.allowDefaultBranchCommits: true` or a one-off
+# prompt. A commit made only of ticket files passes (agents commit ticket changes on the
+# default branch, ADR 0015 as amended). `project.allowDefaultBranchCommits: true` or a one-off
 # `LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT=1` lets a specific commit through.
 set -euo pipefail
 

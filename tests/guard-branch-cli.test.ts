@@ -61,3 +61,21 @@ test("guard-branch exits 0 on the default branch when LITECODE_ALLOW_DEFAULT_BRA
   const { exitCode } = await runCliWithExit(root, ["guard-branch"], { LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT: "1" });
   expect(exitCode).toBe(0);
 });
+
+test("guard-branch exits 0 on the default branch when only ticket files are staged", async () => {
+  const root = await project();
+  await Bun.write(join(root, "docs", "tickets", "0001-x.md"), "x\n");
+  await Bun.spawn(["git", "add", "docs/tickets/0001-x.md"], { cwd: root }).exited;
+  const { exitCode } = await runCliWithExit(root, ["guard-branch"]);
+  expect(exitCode).toBe(0);
+});
+
+test("guard-branch exits 1 on the default branch when a ticket is staged with another file", async () => {
+  const root = await project();
+  await Bun.write(join(root, "docs", "tickets", "0001-x.md"), "x\n");
+  await Bun.write(join(root, "src.ts"), "x\n");
+  await Bun.spawn(["git", "add", "docs/tickets/0001-x.md", "src.ts"], { cwd: root }).exited;
+  const { output, exitCode } = await runCliWithExit(root, ["guard-branch"]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/only ticket files/i);
+});
