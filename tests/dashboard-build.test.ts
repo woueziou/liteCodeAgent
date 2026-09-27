@@ -105,3 +105,18 @@ test("a malformed ticket file is surfaced as a loadError, not a thrown exception
   expect(data.loadErrors.length).toBe(1);
   expect(data.loadErrors[0]!.path).toContain("0002-bad.md");
 });
+
+test("buildDashboard also loads ADRs from docs/decisions under the same root", async () => {
+  const root = await tmpRoot();
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+  await writeFile(
+    join(root, "docs/decisions/0017-example.md"),
+    '---\ngenerated_by: implementer\ntask: "0032"\n---\n\n# 0017. Example\n\nStatus: proposed\nDate: 2026-09-27\n\nBody.\n',
+  );
+  await writeFile(join(root, "docs/decisions/0018-broken.md"), "no heading\n");
+
+  const data = await buildDashboard(root, "docs/tickets");
+  expect(data.adrs.map((a) => a.id)).toEqual(["0017"]);
+  expect(data.adrLoadErrors.length).toBe(1);
+});

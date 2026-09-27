@@ -3,6 +3,7 @@
 import { readdir, mkdir, open } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import { CURRENT_SCHEMA_VERSION, parseTicket, serializeTicket, slugify, type Ticket, type TicketMeta } from "./spec.ts";
+import { assertContained } from "../fs-safety.ts";
 
 export function ticketsDir(root: string, dir: string): string {
   return resolve(root, dir);
@@ -22,7 +23,7 @@ async function ticketFiles(abs: string): Promise<string[]> {
   try {
     const entries = await readdir(abs, { recursive: true, withFileTypes: true });
     return entries
-      .filter((e) => e.isFile() && e.name.endsWith(".md") && e.name !== "README.md")
+      .filter((e) => (e.isFile() || e.isSymbolicLink()) && e.name.endsWith(".md") && e.name !== "README.md")
       .map((e) => join(relative(abs, e.parentPath), e.name))
       // Sort by filename (the ticket id), not by the full joined path: sorting on the
       // path would put every flat ticket ahead of every nested epic ticket purely
@@ -44,6 +45,13 @@ export type TicketListing = { tickets: Ticket[]; errors: TicketLoadError[] };
  * crashed process) must not take down the listing for every other ticket — `list`/`doctor`/`migrate`
  * need to keep working for the tickets that do parse, and surface the bad one as an
  * error the caller can report instead of an uncaught throw.
+ *
+ * Two error shapes are handled differently. A file that disappears between `readdir` and
+ * this read (`ENOENT`) is dropped silently: it was being deleted or rewritten mid-scan,
+ * which is not a data problem worth reporting. A symlink resolving outside the project
+ * (`PathEscapeError`, checked fresh on every call — see `fs-safety.ts`) is reported as a
+ * load error, same as any other unreadable file, rather than silently skipped, since that
+ * is a real problem the caller should see.
  */
 export async function listTicketsDetailed(root: string, dir: string): Promise<TicketListing> {
   const abs = ticketsDir(root, dir);
@@ -51,9 +59,12 @@ export async function listTicketsDetailed(root: string, dir: string): Promise<Ti
   const errors: TicketLoadError[] = [];
   for (const file of await ticketFiles(abs)) {
     const path = join(dir, file);
+    const fileAbs = join(abs, file);
     try {
-      tickets.push(parseTicket(await Bun.file(join(abs, file)).text(), path));
+      const realAbs = await assertContained(fileAbs, root);
+      tickets.push(parseTicket(await Bun.file(realAbs).text(), path));
     } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
       errors.push({ path, error: (e as Error).message });
     }
   }

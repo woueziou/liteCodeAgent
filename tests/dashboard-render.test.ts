@@ -33,6 +33,8 @@ function emptyData(overrides: Partial<DashboardData> = {}): DashboardData {
     blockedTickets: [],
     tickets: [],
     loadErrors: [],
+    adrs: [],
+    adrLoadErrors: [],
     ...overrides,
   };
 }
