@@ -12,6 +12,10 @@ Date: 2026-09-21
 > source of truth, but GitHub issues are no longer a place tickets are published to:
 > `sync`, `ticket sync` and the `issue`/`synced` fields are gone. The text below is the
 > historical record.
+>
+> **§3 partly superseded (2026-09-27) by ADR 0017.** `litecode dashboard --serve` now shows
+> the dashboard live from a local, read-only server. The explicit `--build` and the
+> committed `docs/dashboard.html` stay, as a snapshot.
 
 ## Context
 
