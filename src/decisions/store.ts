@@ -72,7 +72,7 @@ export async function listAdrsDetailed(root: string, dir: string): Promise<AdrLi
     const match = file.match(ADR_FILENAME)!;
     const [, id, slug] = match as unknown as [string, string, string];
     try {
-      const realAbs = await assertContained(fileAbs, root);
+      const realAbs = await assertContained(fileAbs, abs);
       const source = await Bun.file(realAbs).text();
       const { body } = parseFrontmatter(source, path);
       const title = parseHeading(body, id, path);

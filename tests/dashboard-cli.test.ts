@@ -53,3 +53,10 @@ test("dashboard --build still writes docs/dashboard.html", async () => {
   const html = await Bun.file(join(root, "docs/dashboard.html")).text();
   expect(html).toContain("<!doctype html>");
 });
+
+test("dashboard --serve --port 70000 is rejected, not silently clamped (bug-hunter finding on PR 74)", async () => {
+  const root = await project();
+  const { output, exitCode } = await runCliWithExit(root, ["dashboard", "--serve", "--port", "70000"]);
+  expect(exitCode).toBe(1);
+  expect(output).toContain("70000");
+});

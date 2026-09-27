@@ -110,6 +110,33 @@ test("a missing docs/ directory entirely is a fatal error: 500, no stack trace",
   expect(html).not.toContain("at ");
 });
 
+test("an unexpected fatal build failure (docs/ present, but a subdir can't be traversed) is 500 with no stack trace, and logged server-side (bug-hunter finding on PR 74)", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/tickets"), { recursive: true });
+  // A regular file where a directory is expected: `adrFiles`'s readdir throws ENOTDIR,
+  // which is neither ENOENT (dropped silently) nor caught by `docsRootReadable` (docs/
+  // itself exists) — it must be caught inside the request handler instead.
+  await Bun.write(join(root, "docs/decisions"), "not a directory\n");
+
+  const port = freshPort();
+  const server = await startDashboardServer(root, "docs/tickets", { port });
+  servers.push(server);
+
+  const originalError = console.error;
+  const logged: unknown[][] = [];
+  console.error = (...args: unknown[]) => logged.push(args);
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    expect(res.status).toBe(500);
+    const html = await res.text();
+    expect(html).not.toContain(".ts:");
+    expect(html).not.toContain("at ");
+    expect(logged.length).toBeGreaterThan(0);
+  } finally {
+    console.error = originalError;
+  }
+});
+
 test("binding to a port already in use fails clearly instead of hanging or crashing silently", async () => {
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });

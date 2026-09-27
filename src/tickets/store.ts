@@ -61,7 +61,7 @@ export async function listTicketsDetailed(root: string, dir: string): Promise<Ti
     const path = join(dir, file);
     const fileAbs = join(abs, file);
     try {
-      const realAbs = await assertContained(fileAbs, root);
+      const realAbs = await assertContained(fileAbs, abs);
       tickets.push(parseTicket(await Bun.file(realAbs).text(), path));
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;

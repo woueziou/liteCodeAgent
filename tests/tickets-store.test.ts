@@ -127,3 +127,32 @@ test("a file gone by read time (ENOENT, e.g. a dangling symlink) is dropped sile
   expect(tickets).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("a tickets dir configured outside the project root is listed normally, not rejected (bug-hunter finding on PR 74)", async () => {
+  // `project.tickets.dir` is a config value a project can legitimately point outside its
+  // root (e.g. a shared ticket buffer). The symlink-escape check must only guard against a
+  // symlink *inside* the tickets dir escaping it — not treat the whole dir as "outside the
+  // project" just because it happens to live outside `root`.
+  const root = await tmpRoot();
+  const outside = await tmpRoot();
+  await writeFile(
+    join(outside, "0001-a.md"),
+    "---\nschemaVersion: 2\nid: 0001-a\ntitle: A\nlabel: chore\nstatus: backlog\npriority: medium\nsize: medium\nassignedAgent: human\n---\n\nBody.\n",
+  );
+
+  const { tickets, errors } = await listTicketsDetailed(root, outside);
+  expect(errors).toEqual([]);
+  expect(tickets.map((t) => t.id)).toEqual(["0001-a"]);
+});
+
+test("createTicket numbers sequentially even when the tickets dir lives outside the root (bug-hunter finding on PR 74)", async () => {
+  const root = await tmpRoot();
+  const outside = await tmpRoot();
+  await writeFile(
+    join(outside, "0032-existing.md"),
+    "---\nschemaVersion: 2\nid: 0032-existing\ntitle: Existing\nlabel: chore\nstatus: backlog\npriority: medium\nsize: medium\nassignedAgent: human\n---\n\nBody.\n",
+  );
+
+  const created = await createTicket(root, outside, { title: "Next one", label: "chore", body: "x" });
+  expect(created.id.startsWith("0033-")).toBe(true);
+});

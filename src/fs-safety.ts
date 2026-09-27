@@ -21,14 +21,24 @@ export class PathEscapeError extends Error {
 
 /**
  * Resolves `abs` (following symlinks) and throws `PathEscapeError` if the result doesn't
- * stay inside `root`. Returns the resolved real path so callers can read that instead of
- * the original (still-a-symlink) path, closing the TOCTOU window between this check and
+ * stay inside `boundary`. Returns the resolved real path so callers can read that instead
+ * of the original (still-a-symlink) path, closing the TOCTOU window between this check and
  * the actual read as tightly as `fs/promises` allows.
+ *
+ * `boundary` must be the directory actually being listed (e.g. the tickets dir, the
+ * decisions dir) — never the project root. `project.tickets.dir` (and the ADR dir) is a
+ * config value a project can legitimately point outside the repo root (a shared ticket
+ * buffer symlinked in from elsewhere); rejecting that wholesale would silently empty the
+ * whole listing and, worse, make `createTicket` restart numbering from scratch since it
+ * reads the (falsely empty) listing to pick the next id. Scoping the boundary to the
+ * listing directory itself still blocks the real threat — a symlink *inside* that
+ * directory pointing somewhere unexpected — without punishing an intentionally
+ * out-of-root directory.
  */
-export async function assertContained(abs: string, root: string): Promise<string> {
+export async function assertContained(abs: string, boundary: string): Promise<string> {
   const realAbs = await realpath(abs);
-  const realRoot = await realpath(root);
-  if (realAbs !== realRoot && !realAbs.startsWith(realRoot + sep)) {
+  const realBoundary = await realpath(boundary);
+  if (realAbs !== realBoundary && !realAbs.startsWith(realBoundary + sep)) {
     throw new PathEscapeError(abs);
   }
   return realAbs;

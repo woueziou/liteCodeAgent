@@ -584,7 +584,7 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
     const portArg = arg(argv, "--port");
     const hostArg = arg(argv, "--host");
     const port = portArg ? Number(portArg) : DEFAULT_PORT;
-    if (portArg && (!Number.isInteger(port) || port <= 0)) {
+    if (portArg && (!Number.isInteger(port) || port <= 0 || port > 65535)) {
       console.log(c.red(`dashboard: invalid --port '${portArg}'`));
       return 1;
     }

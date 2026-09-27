@@ -63,7 +63,11 @@ async function handleRequest(root: string, dir: string, req: Request): Promise<R
     const data = await buildDashboard(root, dir);
     const html = renderDashboard(data, filter);
     return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
-  } catch {
+  } catch (e) {
+    // The page never shows this (no stack trace to the client, ADR 0017), but swallowing
+    // it entirely left the server console silent too — the only place left to diagnose an
+    // ELOOP/EACCES/etc from a bad entry under docs/tickets or docs/decisions.
+    console.error("dashboard: request failed", e);
     return new Response(fatalErrorPage("Erreur inattendue lors de la construction du dashboard."), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },
@@ -98,7 +102,12 @@ export async function startDashboardServer(root: string, dir: string, options: S
     throw e;
   }
 
-  const url = `http://${host}:${port}`;
+  // Built from the actual bound socket rather than the requested host/port: Bun clamps an
+  // out-of-range port and formats an IPv6 host without brackets, so echoing the request
+  // back verbatim could log a URL that doesn't match what's actually listening.
+  const boundHostname = server.hostname ?? host;
+  const boundHost = boundHostname.includes(":") ? `[${boundHostname}]` : boundHostname;
+  const url = `http://${boundHost}:${server.port}`;
   console.log(`dashboard listening on ${url}`);
 
   const onSigint = () => {
