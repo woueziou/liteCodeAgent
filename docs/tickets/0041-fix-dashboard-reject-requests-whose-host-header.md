@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0041-fix-dashboard-reject-requests-whose-host-header
 title: "fix(dashboard): reject requests whose Host header isn't the server's own address (DNS rebinding)"
 label: bug
-status: planned
+status: inProgress
 priority: medium
 size: small
 assignedAgent: human
