@@ -24,8 +24,11 @@ export type JournalEntry = {
   adrPosted?: boolean;
 };
 
-const OPEN_FENCE = /^```(progress-journal|resume-manifest)\s*$/;
-const CLOSE_FENCE = /^```\s*$/;
+// Up to 3 leading spaces, like CommonMark (and `fenceRegions` in src/tickets/spec.ts):
+// implementer.md's own templates nest both fences inside a numbered-list item, indented 2-3
+// spaces, so an agent that copies them verbatim writes an indented fence, not a column-0 one.
+const OPEN_FENCE = /^ {0,3}```(progress-journal|resume-manifest)\s*$/;
+const CLOSE_FENCE = /^ {0,3}```\s*$/;
 
 /** Sha-like commit value, or the literal "none" the templates use before anything is committed. */
 const COMMIT_RE = /^(none|[0-9a-f]{4,40})$/i;
@@ -58,8 +61,14 @@ function parseFields(text: string): Map<string, string> {
  * a URL) and dropped otherwise — an unvalidated value from a ticket note must never reach
  * `git`/`gh`, which `resume.ts` calls with these fields directly (ticket 0049).
  */
+/**
+ * Normalizes "none" to a canonical lowercase so every `!== "none"` check downstream — in
+ * `resume.ts` and anywhere else a `JournalEntry.commit` is read — can compare case-sensitively
+ * without also having to know the value might have come in as "None"/"NONE".
+ */
 function validCommit(raw: string | undefined): string | undefined {
-  return raw !== undefined && isValidCommitValue(raw) ? raw : undefined;
+  if (raw === undefined || !isValidCommitValue(raw)) return undefined;
+  return raw.trim().toLowerCase() === "none" ? "none" : raw.trim();
 }
 
 function validPr(raw: string | undefined): string | undefined {

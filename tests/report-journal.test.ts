@@ -129,6 +129,36 @@ pr: $(rm -rf /)
   expect(latestJournalEntry(body)?.pr).toBeUndefined();
 });
 
+test("an indented fence (as implementer.md's own list-item template produces) still parses", () => {
+  const body = `
+1. Some step.
+
+   \`\`\`resume-manifest
+   worktree: ../worktrees/0009
+   branch: feat/x/0009
+   commit: none
+   adr_path: docs/decisions/0009-x.md
+   board_status: In Progress
+   checks_passed: not yet run
+   adr_posted: true
+   \`\`\`
+`;
+  const entry = latestJournalEntry(body);
+  expect(entry?.adrPath).toBe("docs/decisions/0009-x.md");
+  expect(entry?.commit).toBe("none");
+});
+
+test("commit: NONE (any case) normalizes to the canonical lowercase 'none'", () => {
+  const body = `
+\`\`\`progress-journal
+step: step 3
+branch: feat/x/0034
+commit: NONE
+\`\`\`
+`;
+  expect(latestJournalEntry(body)?.commit).toBe("none");
+});
+
 test("isValidCommitValue accepts sha-like values and 'none', rejects everything else", () => {
   expect(isValidCommitValue("abc1234")).toBe(true);
   expect(isValidCommitValue("none")).toBe(true);

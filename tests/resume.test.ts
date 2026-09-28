@@ -92,6 +92,12 @@ test("a branch that moved past the journal's commit is flagged as a stale journa
   expect(result.findings.some((f) => f.severity === "warn" && f.message.includes("journal is behind the repo"))).toBe(true);
 });
 
+test("an abbreviated (or differently-cased) commit that's still a prefix of the tip is not flagged stale", async () => {
+  const result = await resumeState(JOURNAL_BODY, probes({ headCommit: async () => "ABC123def456" }));
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.findings.some((f) => f.message.includes("journal is behind the repo"))).toBe(false);
+});
+
 test("an open PR the journal never recorded is flagged as a stale journal", async () => {
   const result = await resumeState(JOURNAL_BODY, probes({ openPrForBranch: async () => "https://github.com/o/r/pull/7" }));
   if (result.kind !== "resolved") throw new Error("expected resolved");
