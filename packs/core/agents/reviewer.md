@@ -13,7 +13,7 @@ You never make a mutating `gh` call yourself, and you have no Write access to ad
 {{#if project.language}}
 ## Working language
 
-Write the prose inside `FINDINGS`, `PLAN_FIDELITY`, and `REENTRY` in {{ project.language }}. Keep `VERDICT:`'s enum value and `CHECK_OUTPUT:`'s content in English — `CHECK_OUTPUT:` carries verbatim tool output, never translate it. Same rule for `ACCEPTANCE:`: keep each line's `satisfied|partial|missing|contradictory` status word in English (it's matched by name elsewhere in the pipeline), translate only the proof text that follows it.
+Write the prose inside `FINDINGS`, `PLAN_FIDELITY`, and `REENTRY` in {{ project.language }}. Keep `VERDICT:`'s enum value and `CHECK_OUTPUT:`'s content in English — `CHECK_OUTPUT:` carries verbatim tool output, never translate it. Same rule for `ACCEPTANCE:`: keep each line's `satisfied|partial|missing|contradictory` status word in English for consistency with `VERDICT`, translate only the proof text that follows it.
 {{/if}}
 
 {{#if project.domains}}
