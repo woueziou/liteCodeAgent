@@ -145,7 +145,7 @@ test("end-to-end: `upgrade --apply` keeps project.board.number, then `ticket imp
 
   // Exit code 1: `upgrade` always flags a configured board as a "skip" needing attention
   // (it never imports on its own), not a failure — the config write itself still lands.
-  const upgrade = await runCliWithExit(root, ["upgrade", "--yes"]);
+  const upgrade = await runCliWithExit(root, ["upgrade", "--no-self-update", "--yes"]);
   expect(upgrade.exitCode).toBe(1);
   expect(upgrade.output).toContain("ticket import-board");
 
