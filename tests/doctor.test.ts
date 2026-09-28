@@ -291,6 +291,28 @@ test("an uncommitted change in the primary checkout identical to an open ticket 
   });
 });
 
+test("a leaked file inside a brand-new untracked directory is still flagged, not collapsed into a directory-only line", async () => {
+  const root = await tmpRepo();
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await mkdir(join(root, "newdir"), { recursive: true });
+  await Bun.write(join(root, "newdir", "b.txt"), "leaked content\n");
+  await commitAll(root, "work");
+  await sh(root, "git", "switch", "-q", "main");
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+  // The directory itself is new and untracked in the primary checkout — a plain
+  // `git status --porcelain` (without `--untracked-files=all`) would collapse this into a
+  // single `?? newdir/` line and never surface the leaked file inside it.
+  await mkdir(join(root, "newdir"), { recursive: true });
+  await Bun.write(join(root, "newdir", "b.txt"), "leaked content\n");
+
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+  expect(findings).toContainEqual({
+    severity: "error",
+    message: "newdir/b.txt: uncommitted change in the primary checkout is identical to branch 'feat/thing/0099' (0099-orphan) — likely a leaked sub-agent write, discard it here",
+  });
+});
+
 test("an uncommitted change in the primary checkout that differs from the ticket branch is not flagged", async () => {
   const root = await tmpRepo();
   await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");

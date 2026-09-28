@@ -240,7 +240,7 @@ async function readWorkingFile(root: string, rel: string): Promise<string | null
   }
 }
 
-/** A ticket branch's committed content for a path, or `null` if the branch never touched it. */
+/** A ticket branch's committed content for a path at its current tip, or `null` if that path doesn't exist there. */
 async function branchFileContent(root: string, branch: string, rel: string): Promise<string | null> {
   const { stdout, code } = await git(root, ["show", `${branch}:${rel}`]);
   return code === 0 ? stdout : null;
@@ -255,14 +255,24 @@ async function branchFileContent(root: string, branch: string, rel: string): Pro
  * a done/blocked ticket's branch content matching a stray edit is coincidence, not a leak.
  */
 async function checkPrimaryCheckoutLeak(root: string, tickets: Ticket[]): Promise<Finding[]> {
-  const { stdout, code } = await git(root, ["status", "--porcelain"]);
+  // `-z --untracked-files=all`: `-z` gives NUL-separated, unquoted records (so a path with a
+  // space or non-ASCII byte, which the default terminal-quoted format would mangle, comes
+  // through verbatim), and `--untracked-files=all` lists every file inside a newly created
+  // untracked directory individually instead of collapsing it into one `?? dir/` line — a
+  // leak into a brand-new directory would otherwise never show up as a per-file entry.
+  const { stdout, code } = await git(root, ["status", "--porcelain", "-z", "--untracked-files=all"]);
   if (code !== 0) return [];
-  const changed = stdout
-    .split("\n")
-    .filter(Boolean)
-    // `git status --porcelain` prefixes each line with a two-char status code + a space.
-    .map((line) => line.slice(3).trim())
-    .filter(Boolean);
+  const records = stdout.split("\0").filter(Boolean);
+  const changed: string[] = [];
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i]!;
+    // Each record is `XY <path>`. A rename/copy (X or Y is 'R'/'C') is followed by one more
+    // NUL-separated record holding the origin path, which this check has no use for.
+    const status = record.slice(0, 2);
+    const path = record.slice(3);
+    if (path) changed.push(path);
+    if (status.includes("R") || status.includes("C")) i++;
+  }
   if (changed.length === 0) return [];
 
   const activeTickets = tickets.filter(

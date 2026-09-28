@@ -35,7 +35,11 @@ test("implementer tells subagent-driven implementation steps the same restrictio
 
 test("implementer checks the primary checkout for a leak and cleans up byte-identical matches before reporting", async () => {
   const source = await implementerSource();
-  expect(source).toMatch(/git status --short/);
-  expect(source).toMatch(/byte-for-byte/);
+  expect(source).toMatch(/git status --short --untracked-files=all/);
   expect(source).toMatch(/0032 and 0045/);
+  // The comparison must be working-tree vs. the branch's committed content, not the primary
+  // checkout's own HEAD vs. the branch (which almost always differ for a tracked file the
+  // branch touched, since HEAD there is still main's old version) — a prior draft of this
+  // instruction got that backwards and would never actually detect a leak.
+  expect(source).toMatch(/cmp <primary-checkout>\/<path> <\(git -C <worktree> show HEAD:<path>\)/);
 });
