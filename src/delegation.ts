@@ -77,6 +77,21 @@ function delegation(target: RenderTarget): string {
         `${NOT_ON_PATH} via \`Bash\`, which runs the agent through this project's configured API runner and waits for it. ` +
         `If the runner isn't configured, stop and say so in your report. ${never}`
       );
+    case "claude-code":
+      return (
+        "Every delegation is still blocking in effect, but the `Agent` tool doesn't always settle it within the same turn: " +
+        "it may return the sub-agent's result immediately, or it may start the sub-agent in the background and return " +
+        "right away, with the sub-agent's actual result arriving later, in a later turn, as its own completion " +
+        "notification. You cannot tell in advance which of the two will happen, and a notification arriving later is " +
+        "not a delegation gone wrong — it's the tool's normal background mode. A notification can only reach you after " +
+        "the current turn has ended, so when that happens, simply let the turn end without writing anything — that is " +
+        "the correct way to wait, not a lapse. What you must never do, in the gap between starting a delegation and " +
+        "reading its result, whether that gap crosses a turn boundary or not, is hand back or send any report at all — " +
+        "not a final `STATUS:`, and not an interim message (e.g. \"waiting on reviewer\"). Only once every delegation " +
+        "you started has actually reported back to you — in the same turn or via a later notification you then read — " +
+        `do you act on the results and send exactly one final report. If you can't delegate natively here (you are ` +
+        `yourself running as a subagent that isn't allowed to start another), ${RUNNER_FALLBACK}. ${never}`
+      );
     default:
       return (
         "Every delegation is blocking: wait for the other agent's result in the same turn before going on. " +
