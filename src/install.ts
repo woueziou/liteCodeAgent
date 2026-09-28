@@ -415,6 +415,24 @@ function validateRequiredConfigPaths(
   );
 }
 
+/**
+ * Adds template-only fields the renderer needs but the config schema has no business
+ * carrying: `project.testFirst` is a three-way enum (`bugs`/`all`/`off`), and the pack
+ * template engine only supports truthy/falsy `{{#if}}`/`{{^if}}` on a path, not equality —
+ * so packs gate the whole test-first section on `testFirstOff` (falsy block, no dead text
+ * when the project opted out) and pick wording within it via `testFirstAll`.
+ */
+function templateProject(project: Config["project"]): Config["project"] & {
+  testFirstOff: boolean;
+  testFirstAll: boolean;
+} {
+  return {
+    ...project,
+    testFirstOff: project.testFirst === "off",
+    testFirstAll: project.testFirst === "all",
+  };
+}
+
 /** Returns all generated output paths for a source pack file. */
 function outputFiles(
   file: PackFile,
@@ -422,7 +440,12 @@ function outputFiles(
   target: InstallTarget,
   agents: ReadonlySet<string>,
 ): { rel: string; content: string }[] {
-  const rendered = render(file.source, { project: config.project }, `${file.rel}`, delegationHelpers(target, agents));
+  const rendered = render(
+    file.source,
+    { project: templateProject(config.project) },
+    `${file.rel}`,
+    delegationHelpers(target, agents),
+  );
   const { data, body } = parseFrontmatter(rendered, file.rel);
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
   const skill = /^(skills\/.+)$/.exec(file.rel);

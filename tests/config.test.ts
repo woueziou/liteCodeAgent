@@ -78,6 +78,55 @@ test("`project.language` accepts arbitrary free text, unvalidated against any li
   expect(config.project.language).toBe("Brazilian Portuguese");
 });
 
+test("a config predating `project.testFirst`, with no `testFirst` key at all, still parses and defaults to `bugs`", () => {
+  const config = ConfigSchema.parse({
+    target: "claude-code",
+    packs: ["core"],
+    project: {
+      name: "demo",
+      repo: "demo/demo",
+      checkCommand: "bun test",
+      angles: [{ name: "correctness", covers: "x", triggeredBy: "y", skills: [] }],
+      board: { owner: "demo" },
+    },
+  });
+  expect(config.project.testFirst).toBe("bugs");
+});
+
+test("`project.testFirst` accepts `bugs`, `all`, and `off`", () => {
+  for (const value of ["bugs", "all", "off"] as const) {
+    const config = ConfigSchema.parse({
+      target: "claude-code",
+      packs: ["core"],
+      project: {
+        name: "demo",
+        repo: "demo/demo",
+        checkCommand: "bun test",
+        angles: [{ name: "correctness", covers: "x", triggeredBy: "y", skills: [] }],
+        board: { owner: "demo" },
+        testFirst: value,
+      },
+    });
+    expect(config.project.testFirst).toBe(value);
+  }
+});
+
+test("`project.testFirst` rejects a value outside the enum", () => {
+  const result = ConfigSchema.safeParse({
+    target: "claude-code",
+    packs: ["core"],
+    project: {
+      name: "demo",
+      repo: "demo/demo",
+      checkCommand: "bun test",
+      angles: [{ name: "correctness", covers: "x", triggeredBy: "y", skills: [] }],
+      board: { owner: "demo" },
+      testFirst: "always",
+    },
+  });
+  expect(result.success).toBe(false);
+});
+
 test("addTargets extends a legacy single-target config", () => {
   const config = ConfigSchema.parse({
     target: "claude-code",

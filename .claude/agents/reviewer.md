@@ -35,6 +35,7 @@ Load only what the diff actually touches — don't load all of these reflexively
 4. **Obvious defects you see while reading** — report them, but you are not the correctness pass: `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
 5. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `bun run check` and report actual output. If you weren't given a worktree path and the branch under review isn't what your working directory has checked out, say so in `CHECK_OUTPUT` instead of running the check against the wrong code.
 6. **Attribution** — per `agent-attribution` skill, if the diff includes commits made by an agent, verify the `Agent:` trailer is present.
+7. **Test first** (`project.testFirst: bugs`) — a ticket labeled `bug` is required to have a commit on the branch, before the fix, that added a test which failed at that commit. Walk `git log <base>..<branch>` (or `git log --oneline <base>..<branch>` then inspect candidates) for the earliest commit touching the test file(s) the fix relies on, `git stash`/`git checkout` to that commit (or `git show <sha>:<path>` plus running the test at that sha) and actually run the test suite there to confirm it fails — don't infer "it must have failed" from the diff alone. Report the commit sha and the actual failing-test output you captured as proof in `TEST_FIRST`. If the ticket isn't labeled `bug`, say so and skip the check — `bugs` mode has nothing to verify on a non-bug ticket. No such commit (or the test passed when you ran it at that commit) is a **blocking** `FINDINGS` item: caps `VERDICT` at `changes-requested`, same as a missing acceptance criterion.
 
 ## When you find a bug
 
@@ -53,6 +54,7 @@ Return exactly this, nothing else:
 VERDICT: <approve|approve-with-notes|changes-requested>
 CHECK_OUTPUT: <actual output of bun run check, truncated if long>
 ACCEPTANCE: <one line per criterion in "## Critères d'acceptation" — "satisfied|partial|missing|contradictory: <proof>" — or "no ticket path given", "no Critères d'acceptation section on this ticket", or "section present but empty">
+TEST_FIRST: <failing-test commit sha + the failing output you captured running it there, or "not applicable — ticket not labeled bug" (bugs mode only), or "missing: <what's missing>" if there's no such commit or the test didn't actually fail>
 FINDINGS: <bullet list of issues found, each tagged (blocking|non-blocking) with file/line, or "none">
 PLAN_FIDELITY: <matches|deviates: explain>
 REENTRY: <for each blocking/non-blocking finding: "same-PR fixup" or "new ticket via triage", plus proposed Priority if blocking — or "none needed">

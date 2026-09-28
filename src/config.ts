@@ -108,6 +108,16 @@ export const ProjectSchema = z.object({
   /** Project-specific classifier signals per size bucket. */
   sizeRules: z.array(SizeRuleSchema).default([]),
 
+  /**
+   * Whether `implementer` must commit a failing test before the fix, on the branch's git
+   * history, before `reviewer` can check that history for it (ADR 0015 predates this key —
+   * see ticket 0037): `"bugs"` (default) applies this only to tickets labeled `bug`,
+   * `"all"` applies it to every ticket, `"off"` disables the discipline entirely. Optional
+   * with a default, same reasoning as `tickets`/`board` above — a config committed before
+   * this key existed has no `testFirst` at all and must still parse.
+   */
+  testFirst: z.enum(["bugs", "all", "off"]).default("bugs"),
+
   /** Vestigial, see `BoardSchema`'s doc comment. A fresh `litecode init` no longer writes it. */
   board: BoardSchema.default({
     enabled: true,
