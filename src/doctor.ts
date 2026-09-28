@@ -231,6 +231,63 @@ async function checkInstallDrift(root: string, packsRoot: string, config: Config
   return findings;
 }
 
+/** Reads a file from the primary checkout's working tree; `null` if it can't be read (deleted, binary read failure). */
+async function readWorkingFile(root: string, rel: string): Promise<string | null> {
+  try {
+    return await Bun.file(resolve(root, rel)).text();
+  } catch {
+    return null;
+  }
+}
+
+/** A ticket branch's committed content for a path, or `null` if the branch never touched it. */
+async function branchFileContent(root: string, branch: string, rel: string): Promise<string | null> {
+  const { stdout, code } = await git(root, ["show", `${branch}:${rel}`]);
+  return code === 0 ? stdout : null;
+}
+
+/**
+ * An uncommitted change in the primary checkout that's byte-identical to a ticket branch's
+ * already-committed content for that same path: a sub-agent almost certainly wrote into the
+ * primary checkout instead of its worktree (tickets 0032, 0045 — the second broke
+ * `verify-report` for a ticket working in parallel), not a human's legitimate in-progress
+ * edit. Only ticket branches still in flight (inProgress/review/readyToMerge) are checked —
+ * a done/blocked ticket's branch content matching a stray edit is coincidence, not a leak.
+ */
+async function checkPrimaryCheckoutLeak(root: string, tickets: Ticket[]): Promise<Finding[]> {
+  const { stdout, code } = await git(root, ["status", "--porcelain"]);
+  if (code !== 0) return [];
+  const changed = stdout
+    .split("\n")
+    .filter(Boolean)
+    // `git status --porcelain` prefixes each line with a two-char status code + a space.
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean);
+  if (changed.length === 0) return [];
+
+  const activeTickets = tickets.filter(
+    (t) => t.status === "inProgress" || t.status === "review" || t.status === "readyToMerge",
+  );
+  const findings: Finding[] = [];
+  for (const rel of changed) {
+    const working = await readWorkingFile(root, rel);
+    if (working === null) continue;
+    for (const t of activeTickets) {
+      const branches = await branchesForTicket(root, ticketNumber(t.id));
+      for (const branch of branches) {
+        const committed = await branchFileContent(root, branch, rel);
+        if (committed !== null && committed === working) {
+          findings.push({
+            severity: "error",
+            message: `${rel}: uncommitted change in the primary checkout is identical to branch '${branch}' (${t.id}) — likely a leaked sub-agent write, discard it here`,
+          });
+        }
+      }
+    }
+  }
+  return findings;
+}
+
 export type DoctorContext = { root: string; packsRoot: string; config: Config };
 
 export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
@@ -251,6 +308,7 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   findings.push(...(await checkPushedBranchWithoutPr(root, config.project.repo, tickets)));
   findings.push(...(await checkStalePrStatus(root, config.project.repo, tickets)));
   findings.push(...(await checkInstallDrift(root, packsRoot, config)));
+  findings.push(...(await checkPrimaryCheckoutLeak(root, tickets)));
 
   return findings;
 }
