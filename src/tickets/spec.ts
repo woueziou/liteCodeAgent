@@ -316,9 +316,24 @@ export function ticketSection(body: string, heading: string): string | null {
  */
 export const CLARIFICATION_MARKER = "[À CLARIFIER]";
 
-/** Whether `body` still carries an unresolved `CLARIFICATION_MARKER`. */
+/**
+ * Whether `body` still carries an unresolved `CLARIFICATION_MARKER`. Only counts a
+ * literal marker in prose — occurrences inside a fenced code block or inline `code span`
+ * (documentation about the marker itself, e.g. this file's own doc comments quoted into a
+ * ticket body, or this feature's own ticket discussing the marker) don't count, so a
+ * ticket that merely *mentions* the marker isn't permanently stuck the way a ticket that
+ * actually still needs a decision is (bug-hunter's finding on ticket 0035's own PR).
+ */
 export function hasUnresolvedClarification(body: string): boolean {
-  return body.includes(CLARIFICATION_MARKER);
+  let prose = "";
+  let last = 0;
+  for (const [start, end] of fenceRegions(body)) {
+    prose += body.slice(last, start);
+    last = end;
+  }
+  prose += body.slice(last);
+  prose = prose.replace(/`[^`\n]*`/g, "");
+  return prose.includes(CLARIFICATION_MARKER);
 }
 
 /** `Fix the flaky board test!` -> `fix-the-flaky-board-test` */

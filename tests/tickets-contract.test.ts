@@ -33,7 +33,14 @@ test("ticketSection matches case-insensitively and is not fooled by leading/trai
   expect(ticketSection(body, "Critères d'acceptation")).toBe("Done when X.");
 });
 
-test("hasUnresolvedClarification detects the marker anywhere in the body", () => {
+test("hasUnresolvedClarification detects the marker anywhere in prose", () => {
   expect(hasUnresolvedClarification("## Plan\nDo the thing.")).toBe(false);
   expect(hasUnresolvedClarification(`## Contexte\n${CLARIFICATION_MARKER} which approach?`)).toBe(true);
+});
+
+test("hasUnresolvedClarification ignores the marker inside an inline code span or fenced block", () => {
+  expect(hasUnresolvedClarification(`## Plan\nThe marker looks like \`${CLARIFICATION_MARKER}\` in prose.`)).toBe(false);
+  expect(
+    hasUnresolvedClarification(`## Plan\n\`\`\`\n${CLARIFICATION_MARKER} example from docs\n\`\`\`\n`),
+  ).toBe(false);
 });

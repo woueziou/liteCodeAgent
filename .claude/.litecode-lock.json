@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T08:24:09.232Z",
+  "installedAt": "2026-09-28T08:30:51.053Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -28,12 +28,12 @@
     ".claude/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "fccc74a851c45a29"
+      "hash": "413d0336ab98b01b"
     },
     ".claude/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "29404eb086769410"
+      "hash": "e5aa305167bd7eb1"
     },
     ".claude/agents/debate-angle.md": {
       "pack": "core",
