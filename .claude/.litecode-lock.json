@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T11:29:45.786Z",
+  "installedAt": "2026-09-28T14:31:40.990Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -18,7 +18,7 @@
     ".claude/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "1264da5d4ac33707"
+      "hash": "a3d8a62d2211b0f8"
     },
     ".claude/agents/reviewer.md": {
       "pack": "core",
@@ -33,7 +33,7 @@
     ".claude/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e5aa305167bd7eb1"
+      "hash": "4d0e064033526231"
     },
     ".claude/agents/debate-angle.md": {
       "pack": "core",
@@ -68,7 +68,7 @@
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "b4aac1abe9860e4e"
+      "hash": "881aff5e08d92c05"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
@@ -78,7 +78,7 @@
     ".claude/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "b1674499ef66b5eb"
+      "hash": "23c7971879c1953f"
     },
     ".claude/skills/security-expert/SKILL.md": {
       "pack": "core",
@@ -88,7 +88,7 @@
     ".claude/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "7373202def60d96b"
+      "hash": "b5d98ef8eff4672d"
     },
     ".claude/skills/critique-expert/SKILL.md": {
       "pack": "core",
