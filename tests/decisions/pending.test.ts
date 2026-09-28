@@ -192,6 +192,32 @@ test("a heading with trailing text after the ADR number is still matched", async
   expect(pending[0]!.text).toContain("Some decision");
 });
 
+test("no blank line right after the heading: the following line is not swallowed into the heading match", async () => {
+  const root = await tmpRoot();
+  const body = `
+## ADR à valider : 0018
+Draft awaiting human approval — not committed.
+
+# 0018. Some decision
+
+\`\`\`resume-manifest
+worktree: ../worktrees/0047
+branch: feat/x/0047
+commit: none
+adr_path: docs/decisions/0018-example.md
+board_status: In Progress
+checks_passed: not yet run
+adr_posted: true
+\`\`\`
+`;
+  const t = ticket("0047-feat-x", body);
+
+  const pending = await listPendingAdrs(root, [t]);
+  expect(pending).toHaveLength(1);
+  expect(pending[0]!.text).toContain("Draft awaiting human approval");
+  expect(pending[0]!.text).toContain("Some decision");
+});
+
 test("an NFD-encoded 'à' in the heading is still matched (NFC-normalized before matching)", async () => {
   const root = await tmpRoot();
   const nfdA = "à"; // decomposed "à"
