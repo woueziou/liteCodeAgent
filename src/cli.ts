@@ -14,6 +14,7 @@ import { startDashboardServer, DEFAULT_PORT, DEFAULT_HOST } from "./dashboard/se
 import { parseReport, verifyReport, type Finding as ReportFinding } from "./report/verify.ts";
 import { realProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
+import { doctor as fullDoctor } from "./doctor.ts";
 import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
@@ -103,6 +104,9 @@ function usage(): void {
                                      docs/decisions/ on every request — always live, never writes to the repo
                                      ${c.dim("--port defaults to 4173, --host defaults to 127.0.0.1")}
                                      ${c.dim("--build and --serve are mutually exclusive; one of the two is required")}
+  ${c.bold("bunx litecodeagent doctor")}                    detect orphaned work: stranded worktrees/branches, PR-less
+                                     branches, stale review/readyToMerge tickets, lockfile drift
+                                     ${c.dim("(read-only; GitHub checks report 'non vérifié' when gh is unavailable)")}
   ${c.bold("bunx litecodeagent verify-report")} [--file <path>] [--json]
                                      check an implementer's final report (STATUS/TICKET/BRANCH/PR/CHECK_OUTPUT)
                                      against git, gh and the ticket buffer; exits 1 on any contradiction
@@ -246,6 +250,19 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
   await applyPlan(root, plan, VERSION, { force: argv.includes("--force") });
   console.log(c.green("\nInstalled."));
   return 0;
+}
+
+async function cmdDoctor(root: string): Promise<number> {
+  const { config } = await loadConfig(root);
+  const findings = await fullDoctor({ root, packsRoot: PACKS_ROOT, config });
+  if (findings.length === 0) {
+    console.log(c.green("No orphaned work found: tickets, worktrees, branches, PRs and install files are all consistent."));
+    return 0;
+  }
+  for (const f of findings) {
+    console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
+  }
+  return findings.some((f) => f.severity === "error") ? 1 : 0;
 }
 
 async function cmdStatus(root: string): Promise<number> {
@@ -898,6 +915,7 @@ try {
       case "guard-branch": return cmdGuardBranch(root, argv);
       case "dashboard": return cmdDashboard(root, argv);
       case "verify-report": return cmdVerifyReport(root, argv);
+      case "doctor": return cmdDoctor(root);
       default: usage(); return argv[0] ? 1 : 0;
     }
   })();
