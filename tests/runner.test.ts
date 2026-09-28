@@ -293,6 +293,38 @@ test("runner skill directories cannot enter the Claude-owned output tree, includ
   );
 });
 
+test("the runner honors `project.testFirst`, not just the install renderer", async () => {
+  // Regression test: `AgentCatalog.load` renders pack files with its own `render()` call,
+  // separate from `src/install.ts`'s. Both must build the template context through
+  // `templateProject()` — a call site that renders raw `config.project` silently produces
+  // the `bugs`-mode wording regardless of what `testFirst` is actually set to, since an
+  // unset `testFirstOff`/`testFirstAll` reads as falsy either way.
+  for (const value of ["bugs", "all", "off"] as const) {
+    const root = await mkdtemp(join(tmpdir(), "litecode-runner-testfirst-"));
+    const cfg = config();
+    cfg.project.testFirst = value;
+    const catalog = await AgentCatalog.load(root, PACKS, cfg);
+    const implementer = catalog.agent("implementer").prompt;
+    const reviewer = catalog.agent("reviewer").prompt;
+
+    expect(implementer).not.toContain("{{");
+    expect(reviewer).not.toContain("{{");
+
+    if (value === "off") {
+      expect(implementer).not.toContain("write the test first and commit it failing");
+      expect(reviewer).not.toContain("TEST_FIRST");
+    } else {
+      expect(reviewer).toContain("TEST_FIRST");
+      expect(reviewer).toContain(`project.testFirst: ${value}`);
+      if (value === "all") {
+        expect(implementer).toContain("For every ticket");
+      } else {
+        expect(implementer).toContain("For a ticket labeled `bug`");
+      }
+    }
+  }
+});
+
 test("litecode run crosses the CLI and OpenAI adapter end to end", async () => {
   const root = await mkdtemp(join(tmpdir(), "litecode-cli-run-"));
   const receivedPath = join(root, "received.json");

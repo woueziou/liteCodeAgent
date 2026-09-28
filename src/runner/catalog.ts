@@ -3,7 +3,7 @@ import { realpath } from "node:fs/promises";
 import type { Config } from "../config.ts";
 import { parseFrontmatter, parseList } from "../frontmatter.ts";
 import { loadPack, TIERS, type Tier } from "../packs.ts";
-import { render } from "../template.ts";
+import { render, templateProject } from "../template.ts";
 import { delegationHelpers, packAgentNames } from "../delegation.ts";
 import type { AgentDefinition } from "./types.ts";
 
@@ -58,7 +58,7 @@ export class AgentCatalog {
     for (const { packName, pack } of packs) {
       for (const file of pack.files) {
         const where = `${packName}/${file.rel}`;
-        const rendered = render(file.source, { project: config.project }, where, helpers);
+        const rendered = render(file.source, { project: templateProject(config.project) }, where, helpers);
         const { data, body } = parseFrontmatter(rendered, where);
         if (file.rel.startsWith("agents/")) {
           const name = data.name;

@@ -50,6 +50,55 @@ test("a full render produces no unresolved template syntax when `project.languag
   }
 });
 
+test("a full render produces no unresolved template syntax for every `project.testFirst` value", async () => {
+  for (const value of ["bugs", "all", "off"] as const) {
+    const config = await exampleConfig();
+    config.project.testFirst = value;
+    const root = await targetRepo();
+    const plan = await buildPlan(root, PACKS, config);
+    expect(plan.entries.length).toBeGreaterThan(20);
+    for (const entry of plan.entries) {
+      expect(`${value}:${entry.rel}:${entry.content.includes("{{")}`).toBe(`${value}:${entry.rel}:false`);
+    }
+  }
+});
+
+test("`project.testFirst: off` renders no test-first instructions on implementer or reviewer", async () => {
+  const config = await exampleConfig();
+  config.project.testFirst = "off";
+  const root = await targetRepo();
+  const plan = await buildPlan(root, PACKS, config);
+  const implementer = plan.entries.find((e) => e.rel === ".claude/agents/implementer.md");
+  const reviewer = plan.entries.find((e) => e.rel === ".claude/agents/reviewer.md");
+  expect(implementer).toBeDefined();
+  expect(reviewer).toBeDefined();
+  expect(implementer!.content).not.toContain("write the test first and commit it failing");
+  expect(reviewer!.content).not.toContain("TEST_FIRST");
+  expect(reviewer!.content).not.toContain("Test first");
+});
+
+test("`project.testFirst: bugs` renders bug-only wording; `all` renders every-ticket wording", async () => {
+  const root = await targetRepo();
+
+  const bugsConfig = await exampleConfig();
+  bugsConfig.project.testFirst = "bugs";
+  const bugsPlan = await buildPlan(root, PACKS, bugsConfig);
+  const bugsImplementer = bugsPlan.entries.find((e) => e.rel === ".claude/agents/implementer.md")!;
+  const bugsReviewer = bugsPlan.entries.find((e) => e.rel === ".claude/agents/reviewer.md")!;
+  expect(bugsImplementer.content).toContain("For a ticket labeled `bug`");
+  expect(bugsReviewer.content).toContain("a ticket labeled `bug`");
+  expect(bugsReviewer.content).toContain("TEST_FIRST");
+
+  const allConfig = await exampleConfig();
+  allConfig.project.testFirst = "all";
+  const allPlan = await buildPlan(root, PACKS, allConfig);
+  const allImplementer = allPlan.entries.find((e) => e.rel === ".claude/agents/implementer.md")!;
+  const allReviewer = allPlan.entries.find((e) => e.rel === ".claude/agents/reviewer.md")!;
+  expect(allImplementer.content).toContain("For every ticket");
+  expect(allReviewer.content).toContain("every ticket");
+  expect(allReviewer.content).toContain("TEST_FIRST");
+});
+
 test("install writes a lockfile that owns only what it rendered", async () => {
   const config = await exampleConfig();
   const root = await targetRepo();

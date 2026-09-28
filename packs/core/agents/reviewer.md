@@ -45,6 +45,9 @@ Load only what the diff actually touches — don't load all of these reflexively
 4. **Obvious defects you see while reading** — report them, but you are not the correctness pass: `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
 5. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `{{ project.checkCommand }}` and report actual output. If you weren't given a worktree path and the branch under review isn't what your working directory has checked out, say so in `CHECK_OUTPUT` instead of running the check against the wrong code{{#if project.typecheckCommands}}; run {{ project.typecheckCommands | codelist }} if any type moved{{/if}}.
 6. **Attribution** — per `agent-attribution` skill, if the diff includes commits made by an agent, verify the `Agent:` trailer is present.
+{{^if project.testFirstOff}}
+7. **Test first** (`project.testFirst: {{ project.testFirst }}`) — {{#if project.testFirstAll}}every ticket{{/if}}{{^if project.testFirstAll}}a ticket labeled `bug`{{/if}} is required to have a commit on the branch, before the fix, that added a test which failed at that commit. Walk `git log <base>..<branch>` (or `git log --oneline <base>..<branch>` then inspect candidates) for the earliest commit touching the test file(s) the fix relies on, then verify it actually failed there **without mutating the worktree you were given** — it's the implementer's live checkout, and `bug-hunter` may be running its own checks in it at the same time, so never `git stash`/`git checkout <sha>` there. Instead check out that commit into its own throwaway worktree (`git worktree add --detach <tmpdir> <sha>`, then `git worktree remove <tmpdir>` once done) or extract it without touching the index (`git archive <sha> | tar -x -C <tmpdir>`); either way symlink or copy `node_modules` into `<tmpdir>` rather than reinstalling, and run only the specific test file/name the fix relies on there (not the whole suite — a missing dependency or an unrelated flaky test in that copy is not the failure the commit is supposed to prove) to confirm it fails on the assertion the ticket describes — don't infer "it must have failed" from the diff alone. Report the commit sha and the actual failing-test output you captured as proof in `TEST_FIRST`.{{^if project.testFirstAll}} If the ticket isn't labeled `bug`, say so and skip the check — `bugs` mode has nothing to verify on a non-bug ticket.{{/if}} No such commit (or the test passed when you ran it at that commit) is a **blocking** `FINDINGS` item: caps `VERDICT` at `changes-requested`, same as a missing acceptance criterion.
+{{/if}}
 
 ## When you find a bug
 
@@ -63,6 +66,9 @@ Return exactly this, nothing else:
 VERDICT: <approve|approve-with-notes|changes-requested>
 CHECK_OUTPUT: <actual output of {{ project.checkCommand }}, truncated if long>
 ACCEPTANCE: <one line per criterion in "## Critères d'acceptation" — "satisfied|partial|missing|contradictory: <proof>" — or "no ticket path given", "no Critères d'acceptation section on this ticket", or "section present but empty">
+{{^if project.testFirstOff}}
+TEST_FIRST: <failing-test commit sha + the failing output you captured running it there, or "not applicable — ticket not labeled bug" (bugs mode only), or "missing: <what's missing>" if there's no such commit or the test didn't actually fail>
+{{/if}}
 FINDINGS: <bullet list of issues found, each tagged (blocking|non-blocking) with file/line, or "none">
 PLAN_FIDELITY: <matches|deviates: explain>
 REENTRY: <for each blocking/non-blocking finding: "same-PR fixup" or "new ticket via triage", plus proposed Priority if blocking — or "none needed">
