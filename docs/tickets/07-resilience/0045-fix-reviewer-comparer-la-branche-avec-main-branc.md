@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0045-fix-reviewer-comparer-la-branche-avec-main-branc
 title: "fix(reviewer): comparer la branche avec main...branche (trois points), pas main..branche"
 label: bug
-status: planned
+status: readyToMerge
 priority: medium
 size: small
 assignedAgent: human
@@ -26,3 +26,19 @@ Sur la PR #81 (0036), reviewer a rendu `changes-requested` avec un finding bloqu
 
 ## Hors périmètre
 Changer la façon dont les tickets sont commités (PR #77).
+
+### 2026-09-28 — implementer: PR opened, reviewed, ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/83 (branch `fix-reviewer-triple-dot-diff/0045`, base `main`)
+
+Implemented: reviewer.md and bug-hunter.md now instruct diffing `<base>...<branch>` (three dots, from the merge-base) or `gh pr diff`, never a two-dot/no-dot diff, and both state explicitly that ticket-status commits landed on the base after the merge-base (per PR #77) are not part of the PR. implementer.md step 10 adds the false-positive rule: a blocking `reviewer` finding believed to be a false positive requires re-invoking `reviewer` with evidence before `readyToMerge`, and now also requires posting that second verdict on the PR (added as a same-PR fixup after bug-hunter's first pass, see below). Added `tests/agents-diff-scope.test.ts`; installed agents regenerated.
+
+First-pass verdicts:
+- `reviewer`: `VERDICT: approve`, `ACCEPTANCE`: all four criteria satisfied, `FINDINGS: none`, `PLAN_FIDELITY: matches`.
+- `bug-hunter`: `HUNT: complete`, two non-blocking `plausible` findings:
+  1. Step 10's false-positive rule didn't say to post the second `reviewer` verdict on the PR — fixed same-PR (commit 82ef802): step 10 now requires posting the second pass's full verdict on the PR too, verified with `bun run check` (clean) and `bun test` (310 pass). Not re-hunted separately since the finding was non-blocking.
+  2. The false-positive re-run rule only covers `reviewer`; a *confirmed* blocking `bug-hunter` finding believed false could still be waved off without a re-run. Out of scope for 0045's acceptance criteria (which only names `reviewer`) — deferred as a possible follow-up ticket for `triage`/a human to consider.
+
+Both full reports posted verbatim on the PR: https://github.com/woueziou/liteCodeAgent/pull/83#issuecomment-5867667308 (reviewer) and https://github.com/woueziou/liteCodeAgent/pull/83#issuecomment-5867667924 (bug-hunter).
+
+`bun run check` and `bun test` (310 pass, 0 fail) green on the final commit. No merge conflicts. Moved `inProgress` → `readyToMerge`.
