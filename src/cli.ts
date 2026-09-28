@@ -585,16 +585,18 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       return errors.length > 0 ? 1 : 0;
     }
     // `serializeTicket` now carries an *already-parsed* unknown key through any rewrite
-    // (ticket 0042) — safe for `ticket move`, which never changes schema and so never
-    // reparses anything this parser got wrong in the first place. Migrating a v1 ticket is
-    // different: this parser is a flat `key: value`-per-line reader with no notion of YAML
-    // lists/maps/comments, so a hand-written non-scalar shape (`tags: [a, b]`, a value with
-    // a trailing `# comment`, a nested map whose indented lines get read as bogus top-level
-    // keys) is already misread by the time it reaches `t.extraFrontmatter` — writing it back
-    // out would silently bake that misreading into the file, permanently, where leaving a v1
-    // ticket alone left the original (correctly YAML-shaped) file untouched instead. So this
-    // keeps the same refuse-unless-`--force` gate `ticket migrate` always had for unknown
-    // keys, just built from the ticket already parsed above instead of re-reading the file.
+    // (ticket 0042) — a strict improvement for `ticket move`, though not a full round-trip
+    // guarantee for every possible value (see `Ticket.extraFrontmatter`'s doc comment).
+    // Migrating a v1 ticket is treated as higher-stakes here, since it's the one place a
+    // legacy file gets permanently locked into schema v2: this parser is a flat
+    // `key: value`-per-line reader with no notion of YAML lists/maps/comments, so a
+    // hand-written non-scalar shape (`tags: [a, b]`, a value with a trailing `# comment`, a
+    // nested map whose indented lines get read as bogus top-level keys) is already misread
+    // by the time it reaches `t.extraFrontmatter` — writing it back out would silently bake
+    // that misreading into the file, permanently, where leaving a v1 ticket alone left the
+    // original (correctly YAML-shaped) file untouched instead. So this keeps the same
+    // refuse-unless-`--force` gate `ticket migrate` always had for unknown keys, just built
+    // from the ticket already parsed above instead of re-reading the file.
     const dropped = new Map<string, string[]>();
     for (const t of legacy) {
       console.log(`  ${c.yellow("migrate")} ${t.path} ${c.dim(`(v${t.schemaVersion} → v${CURRENT_SCHEMA_VERSION})`)}`);

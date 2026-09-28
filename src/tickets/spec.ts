@@ -135,15 +135,20 @@ export type Ticket = TicketMeta & {
    * keeps them instead of silently dropping them on the next write. Empty for a ticket with
    * no such keys.
    *
-   * Safe to carry through unconditionally for a same-schema rewrite like `ticket move`,
-   * since it never reparses anything this parser got wrong in the first place. A
-   * schema-version rewrite (`ticket migrate`, the `upgrade` tickets migration) is different:
-   * this frontmatter reader is a flat `key: value`-per-line format with no notion of YAML
-   * lists/maps/comments, so a hand-written non-scalar shape (`tags: [a, b]`, a value with a
-   * trailing `# comment`, an indented nested map whose lines get read as bogus top-level
-   * keys) is already misread by the time it lands here — persisting it would silently bake
-   * that misreading into the file. Those two callers still gate on a non-empty
-   * `extraFrontmatter` and require `--force` before migrating such a ticket.
+   * `ticket move` carries this through unconditionally on a same-schema rewrite, and that's
+   * a strict improvement over dropping it: on `main` these keys vanished outright, and a
+   * plain scalar value (the common case — `epic`, `generated_by`, `task`) round-trips
+   * correctly either way. It is *not* a full round-trip guarantee for every possible
+   * value, though — this frontmatter reader is a flat `key: value`-per-line format with no
+   * notion of YAML lists/maps/comments, so a hand-written non-scalar shape (`tags: [a, b]`,
+   * a value with a trailing `# comment`, an indented nested map whose lines get read as
+   * bogus top-level keys) is already misread by `parseFrontmatter` itself, before this type
+   * even exists, and `move` will re-emit that same misreading rather than the original
+   * shape (ticket 0042's bug-hunter pass, non-blocking: low priority, tracked separately).
+   * A schema-version rewrite (`ticket migrate`, the `upgrade` tickets migration) treats this
+   * as high-stakes rather than a no-op, though, since it's the one place a legacy file gets
+   * permanently locked into schema v2 — those two callers gate on a non-empty
+   * `extraFrontmatter` and require `--force` before migrating such a ticket at all.
    */
   extraFrontmatter: Frontmatter;
 };

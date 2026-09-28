@@ -238,9 +238,11 @@ const migrateTickets: Migration = {
       summary: `leave ${e.path} as it is`,
       reason: `it isn't a valid ticket — run \`litecode ticket doctor\` for details, fix it, then run \`upgrade\` again`,
     }));
-    // `ticket move` safely carries an unknown key through unconditionally now (ticket
-    // 0042), since it never reparses anything: the file's schema doesn't change. Migrating
-    // a v1 ticket does reparse it, though, and this parser is a flat `key: value`-per-line
+    // `ticket move` now carries an unknown key through unconditionally (ticket 0042) — a
+    // strict improvement over dropping it outright, though not a full round-trip guarantee
+    // for every possible value (see `Ticket.extraFrontmatter`'s doc comment). Migrating a
+    // v1 ticket is treated as higher-stakes here, since it's the one place a legacy file
+    // gets permanently locked into schema v2: this parser is a flat `key: value`-per-line
     // reader with no notion of YAML lists/maps/comments — a hand-written non-scalar shape
     // (`tags: [a, b]`, a trailing `# comment`, an indented nested map read as bogus
     // top-level keys) is already misread by the time it's an unknown key, so writing it
