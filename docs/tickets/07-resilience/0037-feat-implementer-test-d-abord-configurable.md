@@ -3,11 +3,12 @@ schemaVersion: 2
 id: 0037-feat-implementer-test-d-abord-configurable
 title: "feat(implementer): test d'abord, configurable"
 label: feature
-status: planned
+status: inProgress
 priority: medium
 size: small
 assignedAgent: human
 dueDate: 
+importedFrom: 
 ---
 
 Source : audit du 2026-09-27, point 5.
