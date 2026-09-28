@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0049-fix-resume-cinq-points-laisses-par-bug-hunter-su
 title: "fix(resume): cinq points laissés par bug-hunter sur la PR #84"
 label: bug
-status: readyToMerge
+status: done
 priority: medium
 size: small
 assignedAgent: human

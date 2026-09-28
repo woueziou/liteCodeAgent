@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0047-feat-adr-rendre-visibles-sur-main-les-adr-en-att
 title: "feat(adr): rendre visibles sur main les ADR en attente d'approbation"
 label: feature
-status: readyToMerge
+status: done
 priority: high
 size: medium
 assignedAgent: human
