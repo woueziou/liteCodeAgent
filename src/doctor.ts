@@ -131,7 +131,14 @@ async function checkOrphanedWorktrees(
   // fails to match and this check reports nothing.
   const absRoot = await realpath(resolve(root, worktreeRoot)).catch(() => resolve(root, worktreeRoot));
   const realRoot = await realpath(root).catch(() => resolve(root));
-  const inProgressNumbers = new Set(tickets.filter((t) => t.status === "inProgress").map((t) => ticketNumber(t.id)));
+  // "active" means the worktree is still legitimately in use: an implementer resumed on it
+  // (`inProgress`), or a `review`/`readyToMerge` ticket getting a same-PR review fixup (the
+  // workflow this very fix went through — see the `implementer` flow's resume-on-review-fixup
+  // step). Only once a ticket reaches `done`/`blocked` is its worktree unambiguously stale.
+  const activeNumbers = new Set(
+    tickets.filter((t) => t.status === "inProgress" || t.status === "review" || t.status === "readyToMerge")
+      .map((t) => ticketNumber(t.id)),
+  );
   const findings: Finding[] = [];
   for (const w of worktrees) {
     const abs = await realpath(w.path).catch(() => resolve(w.path));
@@ -139,7 +146,7 @@ async function checkOrphanedWorktrees(
     if (!abs.startsWith(`${absRoot}/`) && abs !== absRoot) continue;
     const number = basename(abs);
     if (!/^\d{4}$/.test(number)) continue; // not litecodeagent's `<worktreeRoot>/<NNNN>` convention
-    if (!inProgressNumbers.has(number)) {
+    if (!activeNumbers.has(number)) {
       findings.push({
         severity: "warn",
         message: `worktree at ${w.path} has no matching inProgress ticket (number ${number}) — stale, remove it`,

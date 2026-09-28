@@ -142,6 +142,17 @@ test("a worktree directory under worktreeRoot with no matching inProgress ticket
   await sh(root, "git", "worktree", "remove", "-f", join(root, "..", "worktrees", "0099"));
 });
 
+test("a worktree for a review or readyToMerge ticket is not flagged stale (same-PR fixups happen there)", async () => {
+  const root = await tmpRepo();
+  await mkdir(join(root, "..", "worktrees"), { recursive: true });
+  await sh(root, "git", "worktree", "add", "-q", "-b", "feat/thing/0099", join(root, "..", "worktrees", "0099"));
+  await writeTicket(root, ticket("0099-orphan", "review"));
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+  expect(findings.some((f) => f.message.includes("worktrees/0099"))).toBe(false);
+  await sh(root, "git", "worktree", "remove", "-f", join(root, "..", "worktrees", "0099"));
+});
+
 test("a pushed branch with no PR is reported once gh confirms it's missing", async () => {
   const root = await tmpRepo();
   await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
