@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0043-feat-agents-planner-et-tracker-posent-a-clarifie
 title: "feat(agents): planner et tracker posent [À CLARIFIER] sur les questions ouvertes"
 label: feature
-status: backlog
+status: planned
 priority: medium
 size: small
 assignedAgent: human
