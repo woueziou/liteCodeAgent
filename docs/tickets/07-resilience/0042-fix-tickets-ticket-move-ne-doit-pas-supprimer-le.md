@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0042-fix-tickets-ticket-move-ne-doit-pas-supprimer-le
 title: "fix(tickets): ticket move ne doit pas supprimer les clés de frontmatter inconnues"
 label: bug
-status: planned
+status: inProgress
 priority: medium
 size: small
 assignedAgent: human
