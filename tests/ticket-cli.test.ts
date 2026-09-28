@@ -265,17 +265,20 @@ test("`ticket sync` no longer exists: it prints usage instead of planning a push
   expect(output).not.toMatch(/Dry run|create\s+docs\/tickets/);
 });
 
-test("`ticket migrate` keeps unknown frontmatter keys (no --force needed)", async () => {
+test("`ticket migrate` refuses to migrate an unknown frontmatter key unless --force, then keeps it once forced", async () => {
   const root = await project();
   const path = join(root, "docs/tickets/0007-old-synced-ticket.md");
   const withEpic = V1_TICKET.replace("dueDate:\n", "dueDate:\nepic: payments\n");
   expect(withEpic).toContain("epic: payments");
   await Bun.write(path, withEpic);
 
-  const applied = await runCliWithExit(root, ["ticket", "migrate", "--apply"]);
-  expect(applied.exitCode).toBe(0);
-  expect(applied.output).toContain("epic");
+  const refused = await runCliWithExit(root, ["ticket", "migrate", "--apply"]);
+  expect(refused.exitCode).toBe(1);
+  expect(refused.output).toContain("epic");
+  expect(await Bun.file(path).text()).toContain("schemaVersion: 1");
 
+  const forced = await runCliWithExit(root, ["ticket", "migrate", "--apply", "--force"]);
+  expect(forced.exitCode).toBe(0);
   const migrated = await Bun.file(path).text();
   expect(migrated).toContain("schemaVersion: 2");
   expect(migrated).toMatch(/^epic: payments$/m);

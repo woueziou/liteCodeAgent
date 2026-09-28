@@ -61,7 +61,12 @@ function unquote(value: string): string {
  * can't carry is written double-quoted; a JSON string is a valid YAML double-quoted one.
  */
 function quote(value: string): string {
-  const unsafe = /: |:$| #|^\s|\s$/.test(value) || /^[-?:,[\]{}#&*!|>'"%@`]/.test(value);
+  // An embedded newline written unquoted turns into a bare continuation line on the next
+  // read — either an "unparseable frontmatter line" or, worse, a line containing its own
+  // `:` silently becomes a spurious new top-level key. `unquote`'s `JSON.parse` branch can
+  // hand back a value with a real `\n`/`\r` in it, so this has to be checked explicitly:
+  // none of the other patterns below match a line-internal character.
+  const unsafe = /[\n\r]/.test(value) || /: |:$| #|^\s|\s$/.test(value) || /^[-?:,[\]{}#&*!|>'"%@`]/.test(value);
   return unsafe ? JSON.stringify(value) : value;
 }
 

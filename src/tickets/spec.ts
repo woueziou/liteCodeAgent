@@ -130,9 +130,20 @@ export type Ticket = TicketMeta & {
   /**
    * Frontmatter keys `TicketSchema` doesn't know about (a hand-added `epic:`,
    * `generated_by:`/`task:` from the agent-attribution skill, ...), in file order, values
-   * as written. `parseTicket` captures these so any path that round-trips a ticket through
-   * `serializeTicket` — `ticket move` included — keeps them instead of silently dropping
-   * them on the next status write. Empty for a ticket with no such keys.
+   * as written (already unquoted by `parseFrontmatter`). `parseTicket` captures these so
+   * any path that round-trips a ticket through `serializeTicket` — `ticket move` included —
+   * keeps them instead of silently dropping them on the next write. Empty for a ticket with
+   * no such keys.
+   *
+   * Safe to carry through unconditionally for a same-schema rewrite like `ticket move`,
+   * since it never reparses anything this parser got wrong in the first place. A
+   * schema-version rewrite (`ticket migrate`, the `upgrade` tickets migration) is different:
+   * this frontmatter reader is a flat `key: value`-per-line format with no notion of YAML
+   * lists/maps/comments, so a hand-written non-scalar shape (`tags: [a, b]`, a value with a
+   * trailing `# comment`, an indented nested map whose lines get read as bogus top-level
+   * keys) is already misread by the time it lands here — persisting it would silently bake
+   * that misreading into the file. Those two callers still gate on a non-empty
+   * `extraFrontmatter` and require `--force` before migrating such a ticket.
    */
   extraFrontmatter: Frontmatter;
 };
@@ -143,19 +154,14 @@ const LEGACY_COMMENT_BLOCK = /<!-- litecode:comment -->\n?([\s\S]*?)\n?<!-- \/li
 const LEGACY_KEYS = new Set(["issue", "synced", "syncedAt"]);
 
 /**
- * Frontmatter keys a migration would drop without them being legacy keys — a hand-added
- * `epic:`, say. `serializeTicket` only writes known keys, so these would vanish silently.
+ * The subset of a ticket file's frontmatter `TicketSchema` doesn't know about (a hand-added
+ * `epic:`, say), in file order, values as written. `parseTicket` uses this to populate
+ * `Ticket.extraFrontmatter`; `ticket migrate` and the `upgrade` tickets migration use it
+ * directly to decide whether a legacy ticket needs a human's `--force` before it's rewritten
+ * (see `Ticket.extraFrontmatter`'s doc comment for why migrating is riskier than a plain
+ * `ticket move`).
  */
-export function unknownKeys(source: string, path: string): string[] {
-  return Object.keys(extraFrontmatter(source, path));
-}
-
-/**
- * The subset of a ticket file's frontmatter `TicketSchema` doesn't know about, in file
- * order — everything `unknownKeys` reports, but with values kept too so `parseTicket` can
- * carry them forward on `Ticket.extraFrontmatter`.
- */
-function extraFrontmatter(source: string, path: string): Frontmatter {
+export function extraFrontmatter(source: string, path: string): Frontmatter {
   const { data } = parseFrontmatter(source, path);
   const known = new Set<string>(KEY_ORDER);
   const extra: Frontmatter = {};

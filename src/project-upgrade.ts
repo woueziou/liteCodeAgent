@@ -238,11 +238,28 @@ const migrateTickets: Migration = {
       summary: `leave ${e.path} as it is`,
       reason: `it isn't a valid ticket — run \`litecode ticket doctor\` for details, fix it, then run \`upgrade\` again`,
     }));
-    // Unknown frontmatter keys (`epic:`, `generated_by:`, ...) used to get skipped here
-    // because migrating would have dropped them. `serializeTicket` now carries them
-    // through any rewrite (ticket 0042), so every legacy ticket can migrate unconditionally.
+    // `ticket move` safely carries an unknown key through unconditionally now (ticket
+    // 0042), since it never reparses anything: the file's schema doesn't change. Migrating
+    // a v1 ticket does reparse it, though, and this parser is a flat `key: value`-per-line
+    // reader with no notion of YAML lists/maps/comments — a hand-written non-scalar shape
+    // (`tags: [a, b]`, a trailing `# comment`, an indented nested map read as bogus
+    // top-level keys) is already misread by the time it's an unknown key, so writing it
+    // back out would silently bake that misreading into the file where leaving a v1 ticket
+    // alone left the original, correctly-shaped file untouched. So this still skips (same
+    // as before this ticket) any legacy ticket carrying an unknown key, pointing at
+    // `litecode ticket migrate --apply --force` for the human to confirm by hand.
     for (const ticket of tickets.filter((t) => t.schemaVersion < CURRENT_SCHEMA_VERSION)) {
-      changes.push({ summary: `migrate ${ticket.path}`, apply: () => writeTicket(ctx.root, migrateTicket(ticket)) });
+      const extra = Object.keys(ticket.extraFrontmatter);
+      if (extra.length > 0) {
+        skipped.push({
+          summary: `leave ${ticket.path} at v${ticket.schemaVersion}`,
+          reason:
+            `its frontmatter has key(s) v${CURRENT_SCHEMA_VERSION} might misread (${extra.join(", ")}). ` +
+            "Confirm they're plain scalars by hand, then run `litecode ticket migrate --apply --force`",
+        });
+      } else {
+        changes.push({ summary: `migrate ${ticket.path}`, apply: () => writeTicket(ctx.root, migrateTicket(ticket)) });
+      }
     }
     return { ...base, changes, skipped };
   },

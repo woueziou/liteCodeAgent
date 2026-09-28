@@ -69,6 +69,15 @@ describe("parseFrontmatter", () => {
     expect(parseFrontmatter(serialized, "quoted").data).toEqual(data);
   });
 
+  test("quotes an embedded newline instead of writing a raw continuation line", () => {
+    const data = { note: "line1\nline2", priority: "low" };
+    const serialized = serializeFrontmatter(data, "body\n");
+    // Written as a single JSON-quoted line, not a bare "line2" that would either fail to
+    // parse or, worse, get read back as its own spurious top-level key.
+    expect(serialized.split("\n")).not.toContain("line2");
+    expect(parseFrontmatter(serialized, "newline-roundtrip").data).toEqual(data);
+  });
+
   test("reads hand-written single-quoted values", () => {
     const { data } = parseFrontmatter("---\ntitle: 'it''s: fine'\n---\n", "test");
     expect(data.title).toBe("it's: fine");

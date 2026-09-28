@@ -135,17 +135,12 @@ test("applying the plan brings the project fully up to date, and a second run ha
   expect(hasChanges(await plan(root))).toBe(false);
 });
 
-test("a ticket with an unknown frontmatter key still migrates, keeping the key", async () => {
+test("a ticket with an unknown frontmatter key is left alone and reported, not migrated blind", async () => {
   const root = await legacyProject();
   await Bun.write(join(root, "docs/tickets/0001-old-ticket.md"), V1_TICKET.replace("dueDate:\n", "dueDate:\nepic: pay\n"));
   const tickets = (await plan(root)).find((p) => p.id === "tickets")!;
-  expect(tickets.skipped).toEqual([]);
-  expect(tickets.changes.map((c) => c.summary)).toEqual(["migrate docs/tickets/0001-old-ticket.md"]);
-
-  for (const c of tickets.changes) await c.apply();
-  const migrated = await Bun.file(join(root, "docs/tickets/0001-old-ticket.md")).text();
-  expect(migrated).toContain("schemaVersion: 2");
-  expect(migrated).toMatch(/^epic: pay$/m);
+  expect(tickets.changes).toEqual([]);
+  expect(tickets.skipped[0]!.reason).toContain("epic");
 });
 
 test("a failed change stops the upgrade and says what was already applied", async () => {

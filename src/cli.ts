@@ -584,16 +584,34 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(c.green(`Every ticket in ${dir} is already schema v${CURRENT_SCHEMA_VERSION}.`));
       return errors.length > 0 ? 1 : 0;
     }
-    // Unknown frontmatter keys (`epic:`, `generated_by:`, ...) used to be silently dropped
-    // here, so this used to gate on `--force` before rewriting. `serializeTicket` now
-    // carries them through any rewrite (ticket 0042), migrate included, so there's nothing
-    // left to lose — this is purely informational.
+    // `serializeTicket` now carries an *already-parsed* unknown key through any rewrite
+    // (ticket 0042) — safe for `ticket move`, which never changes schema and so never
+    // reparses anything this parser got wrong in the first place. Migrating a v1 ticket is
+    // different: this parser is a flat `key: value`-per-line reader with no notion of YAML
+    // lists/maps/comments, so a hand-written non-scalar shape (`tags: [a, b]`, a value with
+    // a trailing `# comment`, a nested map whose indented lines get read as bogus top-level
+    // keys) is already misread by the time it reaches `t.extraFrontmatter` — writing it back
+    // out would silently bake that misreading into the file, permanently, where leaving a v1
+    // ticket alone left the original (correctly YAML-shaped) file untouched instead. So this
+    // keeps the same refuse-unless-`--force` gate `ticket migrate` always had for unknown
+    // keys, just built from the ticket already parsed above instead of re-reading the file.
+    const dropped = new Map<string, string[]>();
     for (const t of legacy) {
       console.log(`  ${c.yellow("migrate")} ${t.path} ${c.dim(`(v${t.schemaVersion} → v${CURRENT_SCHEMA_VERSION})`)}`);
       const extra = Object.keys(t.extraFrontmatter);
       if (extra.length > 0) {
-        console.log(`    ${c.dim(`keeps unknown frontmatter key(s): ${extra.join(", ")}`)}`);
+        dropped.set(t.path, extra);
+        console.log(`    ${c.yellow("unsure about")} unknown frontmatter key(s): ${extra.join(", ")}`);
       }
+    }
+    if (dropped.size > 0 && !argv.includes("--force")) {
+      console.log(
+        c.red(`\n${dropped.size} ticket(s) carry frontmatter keys v2 doesn't know; migrating might misread them.`) +
+          c.dim(
+            "\nCheck they're plain scalars (not a list/map/comment) by hand, then re-run with --force to migrate them too.",
+          ),
+      );
+      return 1;
     }
     if (!argv.includes("--apply")) {
       console.log(c.dim(`\nDry run. Re-run with --apply to rewrite ${legacy.length} ticket(s).`));

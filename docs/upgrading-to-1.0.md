@@ -53,8 +53,9 @@ bunx litecodeagent@latest ticket migrate --apply
 
 - Every staged comment becomes plain text in the ticket body. Nothing is lost.
 - A ticket carrying a frontmatter key 1.0 doesn't know (a hand-added `epic:`, say) makes
-  `migrate` stop and name it. Move that information into the body, or re-run with
-  `--force` to drop the key.
+  `migrate` stop and name it, since this migration can misread a value that isn't a plain
+  scalar. Confirm it's a plain scalar by hand, then re-run with `--force` to migrate it,
+  keeping the key as written.
 - Then commit the migrated tickets.
 
 Existing GitHub issues are left as they are. A migrated ticket's old issue number stays
