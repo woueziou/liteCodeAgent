@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0048-fix-agents-empecher-et-detecter-les-ecritures-de
 title: "fix(agents): empêcher et détecter les écritures de source dans le checkout principal"
 label: bug
-status: readyToMerge
+status: done
 priority: high
 size: medium
 assignedAgent: human
