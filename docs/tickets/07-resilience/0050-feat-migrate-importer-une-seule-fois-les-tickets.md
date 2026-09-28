@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0050-feat-migrate-importer-une-seule-fois-les-tickets
 title: "feat(migrate): importer une seule fois les tickets du board GitHub dans le dépôt"
 label: feature
-status: backlog
+status: planned
 priority: medium
 size: medium
 assignedAgent: human
