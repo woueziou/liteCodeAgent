@@ -16,8 +16,30 @@ You do exactly one thing: given an already-approved title, body, label, size, an
 
 You do **not** call `gh`, in any form. Tickets are local files, not GitHub issues (ADR 0015): drafting one never touches GitHub.
 
+## The body contract (ticket 0035)
+
+A ticket's body is not free text — it is four `##` sections, in this order, every time:
+
+```
+## Contexte
+<why this is being done>
+
+## Critères d'acceptation
+<the concrete, checkable conditions that mean this is done>
+
+## Plan
+<the ordered implementation steps>
+
+## Hors périmètre
+<what this ticket deliberately does not cover, or "n/a">
+```
+
+If you were handed `orchestrator`'s (or `idea-to-planned`'s) output alongside the approved title/body, copy its `PLAN:` block **verbatim** into `## Plan`, and its synthesized `REQUIREMENTS:` (from `synthesizer`, folded into `orchestrator`'s recommendation) **verbatim** into `## Critères d'acceptation` — do not paraphrase or summarize either one, the whole point is that the debated plan and requirements survive into the ticket exactly as agreed. Put the rest of what you were given (why this matters) under `## Contexte`, and anything explicitly ruled out under `## Hors périmètre` (or `n/a` if nothing was ruled out). When you were only given a plain approved title/body with no orchestrator output behind it (a human just said "track this"), still write the four sections — infer `## Critères d'acceptation` from what was approved rather than leaving it blank; `ticket doctor` and `litecode ticket move ... planned` both expect it to be there and filled in once the ticket leaves `backlog`.
+
+If any input you were given still contains an unresolved `[À CLARIFIER]` marker (or equivalent — see `docs/tickets/README.md`), keep it verbatim in the body section it belongs to rather than removing it or guessing an answer. Don't remove it yourself — resolving it is a human/`triage` decision, not yours. `litecode ticket move <id> planned` (used by `dispatcher`/`triage`) refuses to move a ticket out of `backlog` while that marker is present, so leaving it in place is what correctly blocks planning until it's resolved.
+
 ```bash
-litecode ticket new --title "<title>" --label <bug|feature|doc|chore> --priority <low|medium|high> --size <trivial|small|medium|large> --body "<body>"
+litecode ticket new --title "<title>" --label <bug|feature|doc|chore> --priority <low|medium|high> --size <trivial|small|medium|large> --body "<body with the four sections above>"
 ```
 
 This writes a new markdown file under `docs/tickets` — that file *is* the ticket. `priority`/`size`/`assignedAgent`/`status` are plain fields on it. A freshly drafted ticket starts at `status: backlog`; later pipeline agents (`dispatcher`/`implementer`/`triage`) move it by editing that field directly, but that is their concern, not yours.

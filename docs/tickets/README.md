@@ -22,7 +22,17 @@ assignedAgent: human
 dueDate:
 ---
 
-What needs doing, and why — enough for `implementer` to work from without asking.
+## Contexte
+Why this is being done.
+
+## Critères d'acceptation
+The concrete, checkable conditions that mean this is done.
+
+## Plan
+The ordered implementation steps.
+
+## Hors périmètre
+What this ticket deliberately does not cover, or "n/a".
 ```
 
 - `status`, `priority`, `size` and `assignedAgent` are edited in place, by hand or by an
@@ -30,6 +40,37 @@ What needs doing, and why — enough for `implementer` to work from without aski
   `backlog` → `planned` → `inProgress` → `review` / `readyToMerge` → `done` (or `blocked`)
   by writing `status`.
 - `id` never changes once the file exists.
+
+## The body contract (ticket 0035)
+
+A ticket's body is structured, not free text: `## Contexte`, `## Critères d'acceptation`,
+`## Plan`, `## Hors périmètre`, in that order, every time. `tracker` writes a freshly
+drafted ticket with exactly these four sections and, when it was handed `orchestrator`'s
+output, recopies `orchestrator`'s `PLAN` and the synthesized requirements **verbatim**
+into `## Plan` and `## Critères d'acceptation` — the debated plan doesn't get lost or
+paraphrased on its way into the ticket file. Section names are load-bearing: `ticket
+doctor` looks for `## Critères d'acceptation` by that exact heading, and ticket 0036
+(reviewer checking each acceptance criterion) is planned to look for `## Critères
+d'acceptation` and `## Plan` the same way — renaming a heading here is a breaking change
+to that contract, not a cosmetic edit.
+
+`litecode ticket doctor` warns about any `planned`/`inProgress` ticket whose `##
+Critères d'acceptation` section is missing or empty — a ticket that's active without
+acceptance criteria is something `implementer` can't safely work from.
+
+### The `[À CLARIFIER]` marker
+
+`[À CLARIFIER]` (Spec Kit's `[NEEDS CLARIFICATION]`, in this project's language) marks an
+open question inside a ticket body that a human still needs to resolve. While that marker
+is present anywhere in the body, `litecode ticket move <id> planned` refuses the move —
+the same command `dispatcher` and `triage` both use to advance a ticket out of `backlog`
+or `blocked`, so the gate applies no matter which of them tries it. Resolve the question
+and remove the marker (typically via `triage`, or a human editing the ticket directly)
+before the ticket can be planned.
+
+The marker literal is a single exported constant
+(`CLARIFICATION_MARKER` in `src/tickets/spec.ts`) — a project wanting a different marker
+changes it there.
 
 ## Notes on a ticket
 
