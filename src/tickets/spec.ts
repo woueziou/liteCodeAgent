@@ -279,6 +279,63 @@ export function serializeTicket(ticket: Ticket): string {
   return serializeFrontmatter(data, `${ticket.body.trimEnd()}\n`);
 }
 
+/**
+ * The ticket body's contract (ticket 0035): a ticket file is more than a title and free
+ * text — `tracker` writes a new ticket's body under these four headings, in this order,
+ * so `implementer`, `ticket doctor`, and a future `reviewer` acceptance-criteria check
+ * (ticket 0036) can all find the same sections by name instead of parsing free-form prose.
+ * Section names are load-bearing: `docs/tickets/README.md` documents them, and renaming one
+ * here is a breaking change to that contract, not a cosmetic edit.
+ */
+export const CONTRACT_SECTIONS = ["Contexte", "Critères d'acceptation", "Plan", "Hors périmètre"] as const;
+
+/**
+ * Returns the text of a `## <heading>` section (everything up to the next `##` heading, or
+ * the end of the body), trimmed — or `null` if that heading isn't present at all. An empty
+ * string means the heading exists but has no content under it; callers that care about
+ * "did the author actually fill this in" (e.g. `ticket doctor`'s acceptance-criteria check)
+ * must check for that themselves rather than treating `null` and `""` as the same thing.
+ */
+export function ticketSection(body: string, heading: string): string | null {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`^##\\s+${escaped}\\s*$`, "mi").exec(body);
+  if (!match) return null;
+  const rest = body.slice(match.index + match[0].length);
+  const next = /^##\s+/m.exec(rest);
+  return (next ? rest.slice(0, next.index) : rest).trim();
+}
+
+/**
+ * The marker a plan/ticket body carries for an open question that must be resolved by a
+ * human before work starts — borrowed from Spec Kit's `[NEEDS CLARIFICATION]` convention.
+ * `litecode ticket move` refuses any transition to `planned` while this marker is still
+ * present anywhere in the body (case-sensitive, deliberately — a loose match would also
+ * catch the marker's own definition here or in documentation prose). Kept as a single
+ * exported constant, rather than hardcoded at each call site, so a project that wants a
+ * different literal only has to change it in one place.
+ */
+export const CLARIFICATION_MARKER = "[À CLARIFIER]";
+
+/**
+ * Whether `body` still carries an unresolved `CLARIFICATION_MARKER`. Only counts a
+ * literal marker in prose — occurrences inside a fenced code block or inline `code span`
+ * (documentation about the marker itself, e.g. this file's own doc comments quoted into a
+ * ticket body, or this feature's own ticket discussing the marker) don't count, so a
+ * ticket that merely *mentions* the marker isn't permanently stuck the way a ticket that
+ * actually still needs a decision is (bug-hunter's finding on ticket 0035's own PR).
+ */
+export function hasUnresolvedClarification(body: string): boolean {
+  let prose = "";
+  let last = 0;
+  for (const [start, end] of fenceRegions(body)) {
+    prose += body.slice(last, start);
+    last = end;
+  }
+  prose += body.slice(last);
+  prose = prose.replace(/`[^`\n]*`/g, "");
+  return prose.includes(CLARIFICATION_MARKER);
+}
+
 /** `Fix the flaky board test!` -> `fix-the-flaky-board-test` */
 export function slugify(title: string): string {
   return (

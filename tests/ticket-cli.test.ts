@@ -182,6 +182,39 @@ test("`ticket move` keeps unknown frontmatter keys (generated_by, epic) after a 
   expect(file).toMatch(/^epic: 07-resilience$/m);
 });
 
+test("`ticket move` refuses backlog -> planned while an unresolved [À CLARIFIER] marker is in the body", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Needs a decision", "--label", "feature"]);
+  const path = join(root, "docs/tickets/0001-needs-a-decision.md");
+  const original = await Bun.file(path).text();
+  await Bun.write(path, `${original}\n## Plan\n[À CLARIFIER] which backend?\n`);
+
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "move", "0001-needs-a-decision", "planned"]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/refusing/i);
+  expect(output).toContain("À CLARIFIER");
+
+  const file = await Bun.file(path).text();
+  expect(file).toMatch(/^status: backlog$/m);
+});
+
+test("`ticket move` allows backlog -> planned once the [À CLARIFIER] marker is removed", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Now resolved", "--label", "feature"]);
+  const path = join(root, "docs/tickets/0001-now-resolved.md");
+  const original = await Bun.file(path).text();
+  await Bun.write(path, `${original}\n## Plan\n[À CLARIFIER] which backend?\n`);
+  await runCliWithExit(root, ["ticket", "move", "0001-now-resolved", "planned"]);
+
+  const resolved = (await Bun.file(path).text()).replace("[À CLARIFIER] which backend?", "Use Postgres.");
+  await Bun.write(path, resolved);
+
+  const output = await runCli(root, ["ticket", "move", "0001-now-resolved", "planned"]);
+  expect(output).toContain("moved");
+  const file = await Bun.file(path).text();
+  expect(file).toMatch(/^status: planned$/m);
+});
+
 test("`ticket move` rejects an unknown status and an unknown id", async () => {
   const root = await project();
   await runCli(root, ["ticket", "new", "--title", "Known ticket", "--label", "feature"]);

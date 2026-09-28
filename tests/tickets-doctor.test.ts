@@ -117,6 +117,53 @@ test("a ticket nested two directories deep is flagged", async () => {
   expect(findings[0]!.message).toContain("nested more than one directory");
 });
 
+test("a planned ticket with no '## Critères d'acceptation' section is flagged", async () => {
+  const root = await tmpRoot();
+  await writeTicket(root, fixture("docs/tickets/0001-first.md", { status: "planned", body: "## Contexte\nSomething.\n" }));
+
+  const findings = await doctor(root, "docs/tickets");
+  expect(findings).toHaveLength(1);
+  expect(findings[0]!.severity).toBe("warn");
+  expect(findings[0]!.message).toContain("Critères d'acceptation");
+});
+
+test("an inProgress ticket with an empty '## Critères d'acceptation' section is flagged", async () => {
+  const root = await tmpRoot();
+  await writeTicket(
+    root,
+    fixture("docs/tickets/0001-first.md", {
+      status: "inProgress",
+      body: "## Contexte\nSomething.\n\n## Critères d'acceptation\n\n## Plan\nDo it.\n",
+    }),
+  );
+
+  const findings = await doctor(root, "docs/tickets");
+  expect(findings).toHaveLength(1);
+  expect(findings[0]!.severity).toBe("warn");
+});
+
+test("a planned ticket with a filled-in '## Critères d'acceptation' section is not flagged", async () => {
+  const root = await tmpRoot();
+  await writeTicket(
+    root,
+    fixture("docs/tickets/0001-first.md", {
+      status: "planned",
+      body: "## Contexte\nSomething.\n\n## Critères d'acceptation\n- must work\n\n## Plan\nDo it.\n\n## Hors périmètre\nn/a\n",
+    }),
+  );
+
+  const findings = await doctor(root, "docs/tickets");
+  expect(findings).toEqual([]);
+});
+
+test("a backlog ticket with no acceptance criteria is not flagged — not scoped yet", async () => {
+  const root = await tmpRoot();
+  await writeTicket(root, fixture("docs/tickets/0001-first.md", { status: "backlog", body: "Body.\n" }));
+
+  const findings = await doctor(root, "docs/tickets");
+  expect(findings).toEqual([]);
+});
+
 test("duplicate ticket numbers across epics are flagged, naming both files", async () => {
   const root = await tmpRoot();
   await writeTicket(root, fixture("docs/tickets/epic-a/0001-first.md"));

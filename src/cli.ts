@@ -17,7 +17,9 @@ import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.t
 import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
+  CLARIFICATION_MARKER,
   CURRENT_SCHEMA_VERSION,
+  hasUnresolvedClarification,
   isTransitionAllowed,
   migrateTicket,
   PRIORITIES,
@@ -655,6 +657,17 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(
         c.red(`Refusing ${ticket.status} -> ${to} for ${ticket.id}: not an allowed transition.`) +
           c.dim(`\nAllowed from ${ticket.status}: ${ALLOWED_TRANSITIONS[ticket.status].join(", ") || "(none — terminal status)"}`),
+      );
+      return 1;
+    }
+    // Ticket 0035: a ticket carrying an unresolved `[À CLARIFIER]` marker never reaches
+    // `planned` through this command — the one write both `dispatcher` and `triage` use to
+    // move a ticket there, so gating it here covers both callers without duplicating the
+    // rule in each agent's prose.
+    if (to === "planned" && hasUnresolvedClarification(ticket.body)) {
+      console.log(
+        c.red(`Refusing ${ticket.status} -> planned for ${ticket.id}: body still carries an unresolved ${CLARIFICATION_MARKER} marker.`) +
+          c.dim("\nResolve the open question and remove the marker before planning this ticket."),
       );
       return 1;
     }

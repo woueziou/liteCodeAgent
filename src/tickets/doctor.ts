@@ -9,7 +9,7 @@
 
 import { relative } from "node:path";
 import { listTicketsDetailed, type TicketLoadError } from "./store.ts";
-import { CURRENT_SCHEMA_VERSION, type Ticket } from "./spec.ts";
+import { CURRENT_SCHEMA_VERSION, ticketSection, type Ticket } from "./spec.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
@@ -69,6 +69,25 @@ function checkDuplicateNumbers(tickets: Ticket[]): Finding[] {
   return findings;
 }
 
+/**
+ * Ticket 0035: once a ticket is `planned` or `inProgress`, `implementer` is expected to
+ * work from its body without asking — so a ticket in either status must actually carry a
+ * filled-in `## Critères d'acceptation` section by then. A ticket still in `backlog` is
+ * exempt (it may not be scoped yet); this is a `warn`, not an `error`, since a missing
+ * section doesn't corrupt the file the way a schema violation does.
+ */
+function checkAcceptanceCriteria(ticket: Ticket): Finding | null {
+  if (ticket.status !== "planned" && ticket.status !== "inProgress") return null;
+  const section = ticketSection(ticket.body, "Critères d'acceptation");
+  if (section === null || section.length === 0) {
+    return {
+      severity: "warn",
+      message: `${ticket.path}: status '${ticket.status}' but no filled-in '## Critères d'acceptation' section`,
+    };
+  }
+  return null;
+}
+
 function reportLoadError(e: TicketLoadError): Finding {
   // `e.error` already carries the actionable, file-naming message produced by
   // `parseFrontmatter` (delimiter integrity) or `TicketSchema.safeParse` (frontmatter
@@ -94,6 +113,10 @@ export async function doctor(root: string, dir: string): Promise<Finding[]> {
     if (placement) findings.push(placement);
   }
   findings.push(...checkDuplicateNumbers(tickets));
+  for (const t of tickets) {
+    const acceptance = checkAcceptanceCriteria(t);
+    if (acceptance) findings.push(acceptance);
+  }
   for (const t of tickets) {
     if (t.schemaVersion > CURRENT_SCHEMA_VERSION) {
       findings.push({
