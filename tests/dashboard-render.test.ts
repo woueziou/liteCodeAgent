@@ -17,6 +17,7 @@ function fixture(overrides: Partial<Ticket> = {}): Ticket {
     dueDate: undefined,
     path: "docs/tickets/0001-x.md",
     body: "Body.\n",
+    extraFrontmatter: {},
     ...overrides,
   };
 }

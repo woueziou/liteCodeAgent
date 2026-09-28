@@ -127,6 +127,30 @@ export type Ticket = TicketMeta & {
   path: string;
   /** Everything after the frontmatter, the ticket's own history included. */
   body: string;
+  /**
+   * Frontmatter keys `TicketSchema` doesn't know about (a hand-added `epic:`,
+   * `generated_by:`/`task:` from the agent-attribution skill, ...), in file order, values
+   * as written (already unquoted by `parseFrontmatter`). `parseTicket` captures these so
+   * any path that round-trips a ticket through `serializeTicket` — `ticket move` included —
+   * keeps them instead of silently dropping them on the next write. Empty for a ticket with
+   * no such keys.
+   *
+   * `ticket move` carries this through unconditionally on a same-schema rewrite, and that's
+   * a strict improvement over dropping it: on `main` these keys vanished outright, and a
+   * plain scalar value (the common case — `epic`, `generated_by`, `task`) round-trips
+   * correctly either way. It is *not* a full round-trip guarantee for every possible
+   * value, though — this frontmatter reader is a flat `key: value`-per-line format with no
+   * notion of YAML lists/maps/comments, so a hand-written non-scalar shape (`tags: [a, b]`,
+   * a value with a trailing `# comment`, an indented nested map whose lines get read as
+   * bogus top-level keys) is already misread by `parseFrontmatter` itself, before this type
+   * even exists, and `move` will re-emit that same misreading rather than the original
+   * shape (ticket 0042's bug-hunter pass, non-blocking: low priority, tracked separately).
+   * A schema-version rewrite (`ticket migrate`, the `upgrade` tickets migration) treats this
+   * as high-stakes rather than a no-op, though, since it's the one place a legacy file gets
+   * permanently locked into schema v2 — those two callers gate on a non-empty
+   * `extraFrontmatter` and require `--force` before migrating such a ticket at all.
+   */
+  extraFrontmatter: Frontmatter;
 };
 
 const LEGACY_COMMENT_BLOCK = /<!-- litecode:comment -->\n?([\s\S]*?)\n?<!-- \/litecode:comment -->/g;
@@ -135,13 +159,21 @@ const LEGACY_COMMENT_BLOCK = /<!-- litecode:comment -->\n?([\s\S]*?)\n?<!-- \/li
 const LEGACY_KEYS = new Set(["issue", "synced", "syncedAt"]);
 
 /**
- * Frontmatter keys a migration would drop without them being legacy keys — a hand-added
- * `epic:`, say. `serializeTicket` only writes known keys, so these would vanish silently.
+ * The subset of a ticket file's frontmatter `TicketSchema` doesn't know about (a hand-added
+ * `epic:`, say), in file order, values as written. `parseTicket` uses this to populate
+ * `Ticket.extraFrontmatter`; `ticket migrate` and the `upgrade` tickets migration use it
+ * directly to decide whether a legacy ticket needs a human's `--force` before it's rewritten
+ * (see `Ticket.extraFrontmatter`'s doc comment for why migrating is riskier than a plain
+ * `ticket move`).
  */
-export function unknownKeys(source: string, path: string): string[] {
+export function extraFrontmatter(source: string, path: string): Frontmatter {
   const { data } = parseFrontmatter(source, path);
   const known = new Set<string>(KEY_ORDER);
-  return Object.keys(data).filter((key) => !known.has(key) && !LEGACY_KEYS.has(key));
+  const extra: Frontmatter = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (!known.has(key) && !LEGACY_KEYS.has(key)) extra[key] = value;
+  }
+  return extra;
 }
 
 /**
@@ -212,7 +244,7 @@ export function parseTicket(source: string, path: string): Ticket {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
     throw new Error(`${path} is not a valid ticket:\n${issues}`);
   }
-  return { ...parsed.data, path, body: body.trimEnd() + "\n" };
+  return { ...parsed.data, path, body: body.trimEnd() + "\n", extraFrontmatter: extraFrontmatter(source, path) };
 }
 
 /**
@@ -237,6 +269,12 @@ export function serializeTicket(ticket: Ticket): string {
   for (const key of KEY_ORDER) {
     const value = ticket[key];
     data[key] = value === undefined || value === null ? "" : String(value);
+  }
+  // Unknown frontmatter keys (`epic:`, `generated_by:`, ...) are written back after the
+  // known ones, in the order they were read — a status/field write must not silently drop
+  // information some other tool or a human added by hand.
+  for (const [key, value] of Object.entries(ticket.extraFrontmatter ?? {})) {
+    data[key] = value;
   }
   return serializeFrontmatter(data, `${ticket.body.trimEnd()}\n`);
 }

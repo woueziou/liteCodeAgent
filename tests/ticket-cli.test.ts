@@ -149,6 +149,39 @@ test("`ticket move` allows review -> inProgress and readyToMerge -> inProgress f
   expect(output).toContain("review -> inProgress");
 });
 
+test("`ticket move` keeps unknown frontmatter keys (generated_by, epic) after a status write", async () => {
+  const root = await project();
+  await Bun.write(
+    join(root, "docs/tickets", "0001-keep-my-keys.md"),
+    [
+      "---",
+      "schemaVersion: 2",
+      "id: 0001-keep-my-keys",
+      "title: Keep my keys",
+      "label: feature",
+      "status: planned",
+      "priority: medium",
+      "size: medium",
+      "assignedAgent: human",
+      "dueDate: ",
+      "generated_by: implementer",
+      "epic: 07-resilience",
+      "---",
+      "",
+      "Body.",
+      "",
+    ].join("\n"),
+  );
+
+  const output = await runCli(root, ["ticket", "move", "0001-keep-my-keys", "inProgress"]);
+  expect(output).toContain("moved");
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-keep-my-keys.md")).text();
+  expect(file).toMatch(/^status: inProgress$/m);
+  expect(file).toMatch(/^generated_by: implementer$/m);
+  expect(file).toMatch(/^epic: 07-resilience$/m);
+});
+
 test("`ticket move` rejects an unknown status and an unknown id", async () => {
   const root = await project();
   await runCli(root, ["ticket", "new", "--title", "Known ticket", "--label", "feature"]);
@@ -232,7 +265,7 @@ test("`ticket sync` no longer exists: it prints usage instead of planning a push
   expect(output).not.toMatch(/Dry run|create\s+docs\/tickets/);
 });
 
-test("`ticket migrate` refuses to drop unknown frontmatter keys unless --force", async () => {
+test("`ticket migrate` refuses to migrate an unknown frontmatter key unless --force, then keeps it once forced", async () => {
   const root = await project();
   const path = join(root, "docs/tickets/0007-old-synced-ticket.md");
   const withEpic = V1_TICKET.replace("dueDate:\n", "dueDate:\nepic: payments\n");
@@ -246,7 +279,9 @@ test("`ticket migrate` refuses to drop unknown frontmatter keys unless --force",
 
   const forced = await runCliWithExit(root, ["ticket", "migrate", "--apply", "--force"]);
   expect(forced.exitCode).toBe(0);
-  expect(await Bun.file(path).text()).not.toContain("epic");
+  const migrated = await Bun.file(path).text();
+  expect(migrated).toContain("schemaVersion: 2");
+  expect(migrated).toMatch(/^epic: payments$/m);
 });
 
 test("`ticket doctor` warns about a ticket from a newer schema", async () => {

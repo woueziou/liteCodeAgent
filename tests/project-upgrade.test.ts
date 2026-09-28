@@ -135,7 +135,7 @@ test("applying the plan brings the project fully up to date, and a second run ha
   expect(hasChanges(await plan(root))).toBe(false);
 });
 
-test("a ticket with an unknown frontmatter key is left alone and reported, not stripped", async () => {
+test("a ticket with an unknown frontmatter key is left alone and reported, not migrated blind", async () => {
   const root = await legacyProject();
   await Bun.write(join(root, "docs/tickets/0001-old-ticket.md"), V1_TICKET.replace("dueDate:\n", "dueDate:\nepic: pay\n"));
   const tickets = (await plan(root)).find((p) => p.id === "tickets")!;

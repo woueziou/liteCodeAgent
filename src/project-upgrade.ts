@@ -17,7 +17,7 @@ import { applyPlan, buildPlan, lockPath, SKILL_ROOTS } from "./install.ts";
 import { hash, readLockfile } from "./lockfile.ts";
 import { cleanedConfig, formatLike, isObject, obsoleteConfig, REMOVED_SKILLS, type Json } from "./project-upgrade-config.ts";
 import { listTicketsDetailed, writeTicket } from "./tickets/store.ts";
-import { CURRENT_SCHEMA_VERSION, migrateTicket, unknownKeys } from "./tickets/spec.ts";
+import { CURRENT_SCHEMA_VERSION, migrateTicket } from "./tickets/spec.ts";
 
 export type UpgradeContext = {
   root: string;
@@ -238,14 +238,26 @@ const migrateTickets: Migration = {
       summary: `leave ${e.path} as it is`,
       reason: `it isn't a valid ticket — run \`litecode ticket doctor\` for details, fix it, then run \`upgrade\` again`,
     }));
+    // `ticket move` now carries an unknown key through unconditionally (ticket 0042) — a
+    // strict improvement over dropping it outright, though not a full round-trip guarantee
+    // for every possible value (see `Ticket.extraFrontmatter`'s doc comment). Migrating a
+    // v1 ticket is treated as higher-stakes here, since it's the one place a legacy file
+    // gets permanently locked into schema v2: this parser is a flat `key: value`-per-line
+    // reader with no notion of YAML lists/maps/comments — a hand-written non-scalar shape
+    // (`tags: [a, b]`, a trailing `# comment`, an indented nested map read as bogus
+    // top-level keys) is already misread by the time it's an unknown key, so writing it
+    // back out would silently bake that misreading into the file where leaving a v1 ticket
+    // alone left the original, correctly-shaped file untouched. So this still skips (same
+    // as before this ticket) any legacy ticket carrying an unknown key, pointing at
+    // `litecode ticket migrate --apply --force` for the human to confirm by hand.
     for (const ticket of tickets.filter((t) => t.schemaVersion < CURRENT_SCHEMA_VERSION)) {
-      const extra = unknownKeys(await Bun.file(resolve(ctx.root, ticket.path)).text(), ticket.path);
+      const extra = Object.keys(ticket.extraFrontmatter);
       if (extra.length > 0) {
         skipped.push({
           summary: `leave ${ticket.path} at v${ticket.schemaVersion}`,
           reason:
-            `its frontmatter has key(s) v${CURRENT_SCHEMA_VERSION} would drop (${extra.join(", ")}). ` +
-            "Move them into the body, or run `litecode ticket migrate --apply --force`",
+            `its frontmatter has key(s) v${CURRENT_SCHEMA_VERSION} might misread (${extra.join(", ")}). ` +
+            "Confirm they're plain scalars by hand, then run `litecode ticket migrate --apply --force`",
         });
       } else {
         changes.push({ summary: `migrate ${ticket.path}`, apply: () => writeTicket(ctx.root, migrateTicket(ticket)) });

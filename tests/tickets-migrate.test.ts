@@ -14,6 +14,7 @@ function v1(body: string): Ticket {
     dueDate: undefined,
     path: "docs/tickets/0001-x.md",
     body,
+    extraFrontmatter: {},
   };
 }
 
