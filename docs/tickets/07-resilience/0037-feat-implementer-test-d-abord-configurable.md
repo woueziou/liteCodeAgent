@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0037-feat-implementer-test-d-abord-configurable
 title: "feat(implementer): test d'abord, configurable"
 label: feature
-status: readyToMerge
+status: done
 priority: medium
 size: small
 assignedAgent: human
