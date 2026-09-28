@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T10:17:05.832Z",
+  "installedAt": "2026-09-28T10:35:18.418Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -18,7 +18,7 @@
     ".claude/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "20bd3afbe2a11144"
+      "hash": "1264da5d4ac33707"
     },
     ".claude/agents/reviewer.md": {
       "pack": "core",
@@ -28,7 +28,7 @@
     ".claude/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "413d0336ab98b01b"
+      "hash": "25153cf11304720e"
     },
     ".claude/agents/triage.md": {
       "pack": "core",
@@ -53,7 +53,7 @@
     ".claude/agents/planner.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "fdbda08f5c42c564"
+      "hash": "3ffaa8e5e58cf437"
     },
     ".claude/agents/panel-selector.md": {
       "pack": "core",
@@ -88,7 +88,7 @@
     ".claude/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "21097983c7124683"
+      "hash": "bdd01da513095992"
     },
     ".claude/skills/critique-expert/SKILL.md": {
       "pack": "core",
