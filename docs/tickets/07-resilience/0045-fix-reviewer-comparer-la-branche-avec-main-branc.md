@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0045-fix-reviewer-comparer-la-branche-avec-main-branc
 title: "fix(reviewer): comparer la branche avec main...branche (trois points), pas main..branche"
 label: bug
-status: backlog
+status: planned
 priority: medium
 size: small
 assignedAgent: human
