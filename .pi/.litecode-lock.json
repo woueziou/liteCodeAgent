@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T14:33:00.677Z",
+  "installedAt": "2026-09-28T14:37:25.575Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -23,7 +23,7 @@
     ".pi/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "1393ad229681b043"
+      "hash": "85dc58bbbf5342e2"
     },
     ".pi/skills/skills/security-expert/SKILL.md": {
       "pack": "core",

@@ -83,13 +83,14 @@ function delegation(target: RenderTarget): string {
         "it may return the sub-agent's result immediately, or it may start the sub-agent in the background and return " +
         "right away, with the sub-agent's actual result arriving later, in a later turn, as its own completion " +
         "notification. You cannot tell in advance which of the two will happen, and a notification arriving later is " +
-        "not a delegation gone wrong — it's the tool's normal background mode. Either way the rule is the same: once " +
-        "you've started one or more delegations, keep working, or simply wait, until every one of them has actually " +
-        "reported its result back to you — in the same turn or as a later notification — before you act on any of " +
-        "them. Never end your turn, and never send an interim message (e.g. \"waiting on reviewer\"), in the gap " +
-        "between starting a delegation and reading its result: send exactly one final report, only once every " +
-        `delegation you started has reported back. If you can't delegate natively here (you are yourself running as ` +
-        `a subagent that isn't allowed to start another), ${RUNNER_FALLBACK}. ${never}`
+        "not a delegation gone wrong — it's the tool's normal background mode. A notification can only reach you after " +
+        "the current turn has ended, so when that happens, simply let the turn end without writing anything — that is " +
+        "the correct way to wait, not a lapse. What you must never do, in the gap between starting a delegation and " +
+        "reading its result, whether that gap crosses a turn boundary or not, is hand back or send any report at all — " +
+        "not a final `STATUS:`, and not an interim message (e.g. \"waiting on reviewer\"). Only once every delegation " +
+        "you started has actually reported back to you — in the same turn or via a later notification you then read — " +
+        `do you act on the results and send exactly one final report. If you can't delegate natively here (you are ` +
+        `yourself running as a subagent that isn't allowed to start another), ${RUNNER_FALLBACK}. ${never}`
       );
     default:
       return (
