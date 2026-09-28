@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T10:45:27.693Z",
+  "installedAt": "2026-09-28T11:19:19.124Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -33,7 +33,7 @@
     ".pi/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "1ce0e84ffed24e25"
+      "hash": "801cb3c84aef1072"
     },
     ".pi/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",
