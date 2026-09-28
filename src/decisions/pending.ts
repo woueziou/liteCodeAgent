@@ -50,9 +50,14 @@ function escapeRegExp(s: string): string {
  * fence naming `adrPath` and the `## ADR à valider : NNNN` heading immediately preceding
  * it, then returns everything between them: the full draft, subheadings included.
  */
-function draftTextFor(body: string, adrNumber: string, adrPath: string): string | null {
+function draftTextFor(rawBody: string, adrNumber: string, adrPath: string): string | null {
+  // Normalize composed vs. decomposed accents (NFC vs. NFD "à") so a heading typed either
+  // way still matches — bug-hunter found an NFD "à" otherwise silently produced `text: null`.
+  const body = rawBody.normalize("NFC");
   const fenceRe = /```resume-manifest\n([\s\S]*?)```/g;
-  const adrPathLine = new RegExp(`^adr_path:\\s*${escapeRegExp(adrPath)}\\s*$`, "m");
+  // `adr_path:` may be indented (the gate's template shows the fence nested inside a
+  // numbered list) — anchoring to column 0 missed that case, so allow leading whitespace.
+  const adrPathLine = new RegExp(`^\\s*adr_path:\\s*${escapeRegExp(adrPath)}\\s*$`, "m");
   let fenceStart: number | undefined;
   let m: RegExpExecArray | null;
   while ((m = fenceRe.exec(body))) {
@@ -60,7 +65,9 @@ function draftTextFor(body: string, adrNumber: string, adrPath: string): string 
   }
   if (fenceStart === undefined) return null;
 
-  const headingRe = new RegExp(`^##\\s+ADR à valider\\s*:\\s*${escapeRegExp(adrNumber)}\\s*$`, "gm");
+  // Allow trailing text after the number (e.g. "## ADR à valider : 0018 — Use X") instead of
+  // requiring the line to end right after it.
+  const headingRe = new RegExp(`^##\\s+ADR à valider\\s*:\\s*${escapeRegExp(adrNumber)}(?:\\s.*)?$`, "gm");
   const before = body.slice(0, fenceStart);
   let headingEnd: number | undefined;
   let h: RegExpExecArray | null;
@@ -73,18 +80,23 @@ function draftTextFor(body: string, adrNumber: string, adrPath: string): string 
 }
 
 /**
- * One pending ADR per ticket: the ticket's most recent journal entry carrying an
- * `adr_path` (a `resume-manifest` block), provided the file it names doesn't exist under
- * `root` yet. A ticket resumed through the gate more than once only contributes its latest
- * attempt — an earlier `adr_path` is superseded, not still pending. Once the ADR is
- * actually committed at that path, the ticket drops out of this list on its own — no
- * separate "resolved" bookkeeping needed.
+ * One pending ADR per ticket: the ticket's *very latest* journal entry (of any shape),
+ * provided it's still a `resume-manifest` carrying an `adr_path` whose file doesn't exist
+ * under `root` yet. A ticket resumed through the gate more than once only contributes its
+ * latest attempt — an earlier `adr_path` is superseded, not still pending. Once the human
+ * approves and `implementer` resumes past the gate (step 6 onward, per the ADR gate's own
+ * step 5), a fresh `progress-journal` note with no `adr_path` becomes the latest entry —
+ * that must clear the pending state too, even before the ADR file itself lands on `main`
+ * (it's committed on the ticket's own branch first, not immediately visible under `root`
+ * here). Checking only "is there *some* resume-manifest with this adr_path" without regard
+ * to what came after it would otherwise keep flagging an already-approved ADR as pending
+ * for the entire in-progress/review/ready-to-merge window that follows.
  */
 export async function listPendingAdrs(root: string, tickets: Ticket[]): Promise<PendingAdr[]> {
   const pending: PendingAdr[] = [];
   for (const t of tickets) {
-    const withAdrPath = parseJournalEntries(t.body).filter((e) => e.adrPath);
-    const latest = withAdrPath[withAdrPath.length - 1];
+    const entries = parseJournalEntries(t.body);
+    const latest = entries[entries.length - 1];
     if (!latest?.adrPath) continue;
     if (await fileExists(resolve(root, latest.adrPath))) continue;
     const adrNumber = adrNumberFromPath(latest.adrPath) ?? "????";

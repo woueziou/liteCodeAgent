@@ -131,3 +131,74 @@ adr_posted: true
   expect(pending).toHaveLength(1);
   expect(pending[0]!.text).toBeNull();
 });
+
+test("once implementer resumes past the gate (a later journal entry with no adr_path), the ticket is no longer pending — even though the ADR file isn't on `root` yet (it's on the ticket's own branch, not committed here)", async () => {
+  const root = await tmpRoot();
+  const body =
+    draftBody("0018", "docs/decisions/0018-example.md") +
+    `
+\`\`\`progress-journal
+step: step 7: PR opened
+worktree: ../worktrees/0047
+branch: feat/x/0047
+commit: abc123
+checks: bun run check: pass
+pr: https://github.com/o/r/pull/1
+\`\`\`
+`;
+  const t = ticket("0047-feat-x", body);
+
+  expect(await listPendingAdrs(root, [t])).toEqual([]);
+});
+
+test("an indented resume-manifest fence (nested inside a numbered list, per implementer's template) is still matched for its text", async () => {
+  const root = await tmpRoot();
+  const body = `
+## ADR à valider : 0018
+
+Draft awaiting human approval — not committed.
+
+# 0018. Some decision
+
+1. Some step.
+
+   \`\`\`resume-manifest
+   worktree: ../worktrees/0047
+   branch: feat/x/0047
+   commit: none
+   adr_path: docs/decisions/0018-example.md
+   board_status: In Progress
+   checks_passed: not yet run
+   adr_posted: true
+   \`\`\`
+`;
+  const t = ticket("0047-feat-x", body);
+
+  const pending = await listPendingAdrs(root, [t]);
+  expect(pending).toHaveLength(1);
+  expect(pending[0]!.text).toContain("Some decision");
+});
+
+test("a heading with trailing text after the ADR number is still matched", async () => {
+  const root = await tmpRoot();
+  const body = draftBody("0018", "docs/decisions/0018-example.md").replace(
+    "## ADR à valider : 0018",
+    "## ADR à valider : 0018 — Use X",
+  );
+  const t = ticket("0047-feat-x", body);
+
+  const pending = await listPendingAdrs(root, [t]);
+  expect(pending).toHaveLength(1);
+  expect(pending[0]!.text).toContain("Some decision");
+});
+
+test("an NFD-encoded 'à' in the heading is still matched (NFC-normalized before matching)", async () => {
+  const root = await tmpRoot();
+  const nfdA = "à"; // decomposed "à"
+  const body = draftBody("0018", "docs/decisions/0018-example.md").replace("à", nfdA);
+  const t = ticket("0047-feat-x", body);
+
+  const pending = await listPendingAdrs(root, [t]);
+  expect(pending).toHaveLength(1);
+  expect(pending[0]!.text).toContain("Some decision");
+});

@@ -27,7 +27,7 @@ function renderPendingAdrs(data: DashboardData): string {
   const items = data.pendingAdrs
     .map(
       (p) => `
-      <details class="adr-detail adr-pending" id="adr-pending-${escapeHtml(p.adrNumber)}">
+      <details class="adr-detail adr-pending" id="adr-pending-${escapeHtml(p.ticketId)}-${escapeHtml(p.adrNumber)}">
         <summary>
           <span class="badge badge-adr-pending">${escapeHtml(p.adrNumber)}</span>
           <span class="adr-title">${escapeHtml(p.adrPath)}</span>
