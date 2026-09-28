@@ -568,20 +568,8 @@ there's nothing left to do is harmless. `--yes` applies without asking, for scri
 CI. A legacy git-clone install (`install.sh`) updates itself first, then carries on with
 the new version.
 
-Coming from 0.x? [`docs/upgrading-to-1.0.md`](docs/upgrading-to-1.0.md) explains what 1.0
-changes and what `upgrade` does about it.
-
-Still on the old GitHub Project board? `upgrade` keeps `project.board` and points you at a
-one-time import, which only reads from GitHub (ADR 0019):
-
-```bash
-bunx litecodeagent@latest ticket import-board           # dry run: what would be imported
-bunx litecodeagent@latest ticket import-board --apply   # write the tickets
-```
-
-Each imported ticket records where it came from, so running it again imports nothing twice.
-A value the board used that has no local equivalent lands in `backlog` with an
-`[À CLARIFIER]`, for you to settle. Remove `project.board` from the config afterwards.
+Coming from a release that still used the GitHub board or GitHub-synced tickets? Follow
+[Migrating from an earlier version](#migrating-from-an-earlier-version) below.
 
 To re-render only, without the other steps: `bunx litecodeagent@latest install --apply`.
 
@@ -592,6 +580,102 @@ re-run with `--force` to discard it.
 To remove the kit from a project: delete the files listed in each enabled harness's
 `.litecode-lock.json`, then those lockfiles and `litecode.config.json`. Other project files are
 untouched.
+
+---
+
+## Migrating from an earlier version
+
+This is for a project that hasn't upgraded in a while and still works the old way: tickets
+mirrored as GitHub issues (schema v1), a GitHub Project board holding their status,
+priority and size, or a `sync` agent pushing to GitHub. Today tickets are local files, the
+board is gone, and nothing syncs. Getting there takes one command, one import, and a
+review of what was imported.
+
+### Which case are you in?
+
+| What you have | What to run |
+| --- | --- |
+| Local ticket files with `issue`/`synced`/`syncedAt` in their frontmatter | `upgrade` migrates them (step 2) |
+| Items that only exist on the GitHub Project board, with no local file | `ticket import-board` (step 3) |
+| `project.board` in `litecode.config.json` | both: `upgrade` keeps it until you've imported, then you remove it (step 5) |
+| Installed `sync` agent or `github-project-sync` skill | `upgrade` deletes them if you never edited them |
+
+Not sure? Run the dry runs below: they write nothing and tell you.
+
+### 1. Work on a branch
+
+```bash
+git switch -c chore/upgrade-litecodeagent
+```
+
+The upgrade re-renders your agents and installs the branch guard (see "Render the packs").
+From then on, a commit on your default branch is refused unless it holds only ticket files.
+
+### 2. Upgrade
+
+```bash
+bunx litecodeagent@latest upgrade          # shows the plan, then asks
+```
+
+It does, in one go:
+- **re-renders every agent and skill** for the current release;
+- **deletes files an older release generated,** such as the `sync` agent and the
+  `github-project-sync` skill, but only copies nobody edited. Edited ones are listed, and
+  are yours to delete;
+- **migrates v1 tickets to v2.** It drops `issue`, `synced` and `syncedAt`, and turns
+  comments that were waiting to be posted into plain text in the ticket, so nothing is
+  lost. A ticket with a frontmatter key it doesn't know stops the migration and is named;
+  check it, then run `ticket migrate --apply --force`;
+- **removes obsolete settings and the board's data files,** but keeps `project.board` while
+  `project.board.number` is set, so the import in step 3 can still read it;
+- **points you at `ticket import-board`** if a board is still configured.
+
+Everything it leaves alone is listed with the reason. [`docs/upgrading-to-1.0.md`](docs/upgrading-to-1.0.md)
+details each step, if you'd rather do them by hand.
+
+### 3. Import what only lives on the board
+
+```bash
+bunx litecodeagent@latest ticket import-board            # dry run: lists what it would import
+bunx litecodeagent@latest ticket import-board --apply    # writes the tickets
+```
+
+- **It only reads from GitHub.** No issue or board item is changed, closed or commented on.
+- **Each item becomes at most one ticket,** recording its origin in `importedFrom`
+  (`github:owner/repo#123`, or `github-project-item:<id>` for a draft). Running it again
+  skips what's already imported, so an interrupted run just picks up where it stopped.
+- **Board fields map to the local ones** when they match: status, priority, size. A value
+  with no local equivalent puts the ticket in `backlog` with an `[À CLARIFIER]` note quoting
+  the original value.
+- **The issue body is kept.** If it doesn't already have the four ticket sections, it goes
+  under `## Contexte`, and the other sections get an `[À CLARIFIER]` placeholder.
+- **One failing item never stops the rest.** The run ends with a count of imported, skipped
+  and failed items, with a reason for each failure.
+
+If an earlier release's `upgrade` already removed `project.board` from your config, name the
+board directly: `ticket import-board --apply --board my-org/12`. The import is described in
+ADR 0019.
+
+### 4. Review what came in
+
+```bash
+bunx litecodeagent ticket list
+bunx litecodeagent ticket doctor
+```
+
+Each imported ticket carrying `[À CLARIFIER]` needs a decision from you: fix the status, write
+the acceptance criteria, then delete the marker. Until you do, `ticket move <id> planned` and
+`dispatcher` refuse to plan it. Commit the imported tickets whenever you like. A commit made
+only of ticket files is allowed on your default branch.
+
+### 5. Finish
+
+- Remove `project.board` from `litecode.config.json`.
+- Delete any edited `sync`/`github-project-sync` copies `upgrade` listed.
+- Commit the rest (config, re-rendered agents, `.githooks/`) on your branch and open a pull
+  request.
+- From now on, ticket status lives in the ticket files only. The old issues and board stay on
+  GitHub untouched. A migrated ticket's old issue number is still in its git history.
 
 ---
 
@@ -606,7 +690,7 @@ ticket contract, per-criterion review, test-first, `doctor`, `resume` with its p
 journal, visible pending ADRs, leak detection and the board import. Provider adapters, orchestration semantics, retries,
 cancellation, timeouts, budgets, partial failure reports, package contents, and structured CLI
 calls are covered with deterministic tests; a live provider smoke run requires the corresponding
-API key. The npm package is ready for publication as `litecodeagent`.
+API key. The package is published on npm as `litecodeagent`.
 
 ---
 
