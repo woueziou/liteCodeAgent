@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0035-feat-tickets-contrat-de-ticket-structure-avec-cr
 title: "feat(tickets): contrat de ticket structuré avec critères d'acceptation"
 label: feature
-status: readyToMerge
+status: done
 priority: high
 size: medium
 assignedAgent: human
