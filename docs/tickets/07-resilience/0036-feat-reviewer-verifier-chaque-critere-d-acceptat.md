@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0036-feat-reviewer-verifier-chaque-critere-d-acceptat
 title: "feat(reviewer): vérifier chaque critère d'acceptation avec une preuve"
 label: feature
-status: readyToMerge
+status: done
 priority: medium
 size: small
 assignedAgent: human

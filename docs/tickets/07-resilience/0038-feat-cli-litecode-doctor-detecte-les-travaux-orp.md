@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0038-feat-cli-litecode-doctor-detecte-les-travaux-orp
 title: "feat(cli): litecode doctor détecte les travaux orphelins"
 label: feature
-status: readyToMerge
+status: done
 priority: high
 size: medium
 assignedAgent: human
