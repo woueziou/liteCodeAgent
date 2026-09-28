@@ -18,7 +18,7 @@ import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { doctor as configDoctor } from "./config-doctor.ts";
 import { listTickets } from "./tickets/store.ts";
 import type { Ticket } from "./tickets/spec.ts";
-import { gh, GhError } from "./gh.ts";
+import { gh } from "./gh.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
@@ -88,8 +88,12 @@ async function prForBranch(repo: string, branch: string): Promise<PrLookup> {
     const open = prs.find((p) => p.state === "OPEN");
     return { kind: "found", state: (open ?? prs[0]!).state, url: (open ?? prs[0]!).url };
   } catch (e) {
-    if (e instanceof GhError) return { kind: "unknown", reason: e.message.split("\n")[0]! };
-    throw e;
+    // Any failure here — a `GhError` (auth, network, rate limit) as well as a plain `Error`
+    // (e.g. `gh` isn't installed at all: `Bun.spawn` throws ENOENT synchronously, before
+    // `gh()` ever gets a chance to wrap it) — must degrade to "unverified" rather than
+    // propagate. `gh` being entirely missing is exactly the offline case this command has
+    // to survive, not just a `gh` that's installed but errors out.
+    return { kind: "unknown", reason: (e as Error).message.split("\n")[0]! };
   }
 }
 

@@ -200,6 +200,35 @@ test("gh being unavailable degrades the PR check to an unverified warning, not a
   }
 });
 
+test("gh not being installed at all (ENOENT) also degrades to unverified, not an uncaught crash", async () => {
+  const root = await tmpRepo();
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await Bun.write(join(root, "a.txt"), "x\n");
+  await commitAll(root, "work");
+  await sh(root, "git", "switch", "-q", "main");
+  const bare = await mkdtemp(join(tmpdir(), "litecode-doctor-bare-"));
+  dirs.push(bare);
+  await sh(bare, "git", "init", "-q", "--bare");
+  await sh(root, "git", "remote", "add", "origin", bare);
+  await sh(root, "git", "push", "-q", "origin", "feat/thing/0099");
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+
+  const prevGh = process.env.LITECODE_GH_BIN;
+  // No binary at this path at all — `Bun.spawn` throws ENOENT synchronously, unlike a `gh`
+  // that runs and exits non-zero (which `gh()` wraps in `GhError` itself).
+  process.env.LITECODE_GH_BIN = join(root, "no-such-gh-binary");
+  try {
+    const config = await exampleConfig();
+    const findings = await doctor({ root, packsRoot: PACKS, config });
+    const unverified = findings.find((f) => f.message.includes("0099-orphan") && f.message.includes("non vérifié"));
+    expect(unverified?.severity).toBe("warn");
+    expect(findings.some((f) => f.severity === "error" && f.message.includes("0099-orphan"))).toBe(false);
+  } finally {
+    if (prevGh === undefined) delete process.env.LITECODE_GH_BIN;
+    else process.env.LITECODE_GH_BIN = prevGh;
+  }
+});
+
 test("a review ticket whose PR is already merged is flagged stale", async () => {
   const root = await tmpRepo();
   await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
