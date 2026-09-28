@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0050-feat-migrate-importer-une-seule-fois-les-tickets
 title: "feat(migrate): importer une seule fois les tickets du board GitHub dans le dépôt"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: medium
 size: medium
 assignedAgent: human
@@ -194,3 +194,32 @@ ADR draft approval gate: the full ADR 0019 draft is above, in the `## ADR à val
 section, with its `resume-manifest`. Not committed, not pushed, no PR opened. Waiting on a
 human go-ahead before continuing at step 6 (commit ADR) → step 7 (push + PR) → step 8
 (reviewer/bug-hunter).
+
+### 2026-09-28 — implementer: PR opened, reviewed, ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/93 (`feat-import-board/0050` → `main`).
+Merged `origin/main` (PRs #91, #92) into the branch first — clean, no conflicts.
+
+`reviewer` verdict: **APPROVE**, no findings, plan fidelity and ADR 0019 accuracy both
+confirmed, `bun run check`/`bun test` verified independently (398/398 at that point).
+
+`bug-hunter`'s first pass found one **blocking** bug: in `ticket import-board`'s new
+`--board <owner>/<number>` flag (src/cli.ts), passing `--board` as the very last argument
+with no value was indistinguishable from not passing `--board` at all, so it silently fell
+back to importing from whatever board was already in config instead of erroring — a user
+could unintentionally import from a stale/wrong board. (It also noted a non-blocking,
+currently-unreachable nit: `board.number === 0` would be treated as "still configured" by
+`boardStillNeeded`, though the config schema's `positive()` check means that value can
+never actually reach it.)
+
+Fixed in commit `7216184` ("fix(cli): --board with no trailing value must error, not fall
+back to config"): tracks whether `--board` was passed at all separately from whether it
+had a value, and errors with the same "--board expects <owner>/<number>" message in the
+no-value case. Added a matching test in `tests/import-board-cli.test.ts`. Pushed; re-ran
+`bug-hunter` on the fix (one re-hunt, per the fixup rule) — it confirmed the finding is
+resolved, hand-drove all four `--board` cases live, and found nothing else newly broken.
+`bun run check`/`bun test` pass (399/399).
+
+Both `reviewer`'s and `bug-hunter`'s full reports (initial pass + re-hunt) are posted
+verbatim on the PR (3 comments, verified via `gh pr view 93 --json comments`). Moving
+0050 `inProgress` → `readyToMerge`.
