@@ -20,6 +20,7 @@ priority: medium
 size: small
 assignedAgent: human
 dueDate:
+importedFrom:
 ---
 
 ## Contexte
@@ -40,6 +41,15 @@ What this ticket deliberately does not cover, or "n/a".
   `backlog` → `planned` → `inProgress` → `review` / `readyToMerge` → `done` (or `blocked`)
   by writing `status`.
 - `id` never changes once the file exists.
+- `importedFrom` is empty for a ticket drafted normally. It's set once, and only by
+  `litecode ticket import-board` (ticket 0050, ADR 0019) — a one-time exit for a project
+  still on the old GitHub Project v2 board (see
+  [`docs/decisions/0015-tickets-are-purely-local.md`](../decisions/0015-tickets-are-purely-local.md)),
+  not a live sync. `github:owner/repo#123` for a ticket imported from an issue-backed item,
+  `github-project-item:<id>` for one imported from a draft item with no issue. Never
+  removed once written: it's the exact string `import-board` compares against to skip an
+  item it already imported, so re-running the command after an interruption resumes rather
+  than re-importing or overwriting anything.
 
 ## The body contract (ticket 0035)
 
@@ -90,6 +100,7 @@ litecode ticket new --title "..." --label bug --priority medium --size small --b
 litecode ticket list                # status, id, priority/size
 litecode ticket doctor              # malformed / misplaced / duplicate / outdated files
 litecode ticket migrate [--apply]   # rewrite schema-v1 files as v2
+litecode ticket import-board [--apply]  # one-time import of GitHub Project board items (ADR 0019)
 litecode dashboard --build          # regenerate docs/dashboard.html
 ```
 

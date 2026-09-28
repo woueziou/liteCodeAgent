@@ -134,3 +134,61 @@ export async function gh(args: string[]): Promise<string> {
     await Bun.sleep(wait);
   }
 }
+
+/**
+ * One item on a GitHub Project (v2) board (ticket 0050): either backed by an issue, or a
+ * draft item with no issue at all. `fields` carries whatever custom field values `gh`
+ * reports for the item, keyed by the field's own name lower-cased (e.g. `status`,
+ * `priority`, `size`) — a project can name/omit these however it likes, so callers decide
+ * what to do with a missing or unrecognized value rather than this module guessing.
+ */
+export type BoardItem =
+  | { kind: "issue"; id: string; repo: string; number: number; title: string; body: string; fields: Record<string, string> }
+  | { kind: "draft"; id: string; title: string; body: string; fields: Record<string, string> };
+
+type RawProjectItem = {
+  id: string;
+  content?: { type?: string; number?: number; title?: string; body?: string; repository?: string };
+  [field: string]: unknown;
+};
+
+/** Field names `gh project item-list` reports that map to a `BoardItem.fields` key. */
+const BOARD_FIELD_KEYS = ["status", "priority", "size"] as const;
+
+function extractFields(raw: RawProjectItem): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const key of BOARD_FIELD_KEYS) {
+    const value = raw[key] ?? raw[key.charAt(0).toUpperCase() + key.slice(1)];
+    if (typeof value === "string" && value !== "") fields[key] = value;
+  }
+  return fields;
+}
+
+/**
+ * Reads every item on a GitHub Project (v2) board — draft items and issue-backed items
+ * alike, with their custom field values — plus, for each issue-backed item, that issue's
+ * own title/body (an issue's project-item body is not authoritative; the issue itself is).
+ * Read-only: `gh project item-list` and `gh issue view` never write, close, or otherwise
+ * modify anything, and both go through the `gh()` wrapper above, so a rate limit hit while
+ * importing a large board is retried/reported the same way every other `gh` call is.
+ *
+ * Content types other than `Issue`/`DraftIssue` (a linked pull request, say) are not
+ * tickets and are skipped rather than surfaced as an error.
+ */
+export async function readBoardItems(owner: string, projectNumber: number): Promise<BoardItem[]> {
+  const out = await gh(["project", "item-list", String(projectNumber), "--owner", owner, "--format", "json", "--limit", "1000"]);
+  const parsed = JSON.parse(out) as { items: RawProjectItem[] };
+  const items: BoardItem[] = [];
+  for (const raw of parsed.items) {
+    const fields = extractFields(raw);
+    const content = raw.content;
+    if (content?.type === "DraftIssue") {
+      items.push({ kind: "draft", id: raw.id, title: content.title ?? "", body: content.body ?? "", fields });
+    } else if (content?.type === "Issue" && content.number !== undefined && content.repository) {
+      const issueOut = await gh(["issue", "view", String(content.number), "--repo", content.repository, "--json", "number,title,body"]);
+      const issue = JSON.parse(issueOut) as { number: number; title: string; body: string | null };
+      items.push({ kind: "issue", id: raw.id, repo: content.repository, number: issue.number, title: issue.title, body: issue.body ?? "", fields });
+    }
+  }
+  return items;
+}

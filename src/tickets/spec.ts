@@ -118,6 +118,18 @@ export const TicketSchema = z.object({
   size: z.enum(SIZES).default("medium"),
   assignedAgent: z.string().default("human"),
   dueDate: optional(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")),
+  /**
+   * Set once by `litecode ticket import-board` (ticket 0050), when this ticket was created
+   * from an item on the old GitHub Project board — a one-time exit from that coupling
+   * (ADR 0015), not a live link. `github:owner/repo#123` for an item backed by an issue,
+   * `github-project-item:<id>` for a draft item with no issue. Never written any other
+   * way, and never removed once set: it's the key `import-board` compares against, exactly,
+   * to decide an item was already imported (idempotence), even if the source issue changed
+   * since. See ADR 0019.
+   */
+  importedFrom: optional(
+    z.string().regex(/^(github:[^/\s]+\/[^/\s]+#\d+|github-project-item:\S+)$/, "expected github:owner/repo#123 or github-project-item:<id>"),
+  ),
 });
 
 export type TicketMeta = z.infer<typeof TicketSchema>;
@@ -262,6 +274,7 @@ const KEY_ORDER: (keyof TicketMeta)[] = [
   "size",
   "assignedAgent",
   "dueDate",
+  "importedFrom",
 ];
 
 export function serializeTicket(ticket: Ticket): string {
