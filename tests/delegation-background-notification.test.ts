@@ -29,6 +29,16 @@ test("implementer.md's step 8 and hard rules both say to send exactly one final 
   expect(occurrences.length).toBeGreaterThanOrEqual(2);
 });
 
+test("implementer.md no longer tells an agent to never end its turn while waiting on a notification", async () => {
+  // bug-hunter's re-hunt on ticket 0051: a later-turn notification can only be delivered after
+  // the current turn ends, so forbidding ending the turn while waiting for one is a self-
+  // contradiction. Letting the turn end silently is the correct way to wait; only sending a
+  // report (final or interim) before every delegation has reported back is forbidden.
+  const source = await coreSource("agents/implementer.md");
+  expect(source).not.toMatch(/never end your turn/i);
+  expect(source).toMatch(/can only reach you after the current turn/);
+});
+
 test("chained-implementation's SKILL.md tells the caller what to do when implementer never sends a final report", async () => {
   const source = await coreSource("skills/chained-implementation/SKILL.md");
   expect(source).toMatch(/no final report/);

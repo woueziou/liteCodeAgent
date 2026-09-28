@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T14:37:25.575Z",
+  "installedAt": "2026-09-28T14:41:32.767Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -68,7 +68,7 @@
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "b212f53b5da06e3e"
+      "hash": "90fc165a89501667"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",

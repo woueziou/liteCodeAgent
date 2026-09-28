@@ -98,6 +98,11 @@ test("claude-code's delegation text covers both the same-turn and background-not
   expect(implementer.content).toMatch(/background/);
   expect(implementer.content).toMatch(/notification/);
   expect(implementer.content).toContain("send exactly one final report");
+  // A later-turn notification can only be delivered after the current turn ends, so telling an
+  // agent to never end its turn while waiting for one is a self-contradiction (bug-hunter,
+  // ticket 0051's re-hunt) — the rendered text must not carry that instruction.
+  expect(implementer.content).not.toMatch(/never end your turn/i);
+  expect(implementer.content).toMatch(/can only reach you after the current turn/);
   // Only claude-code's own {{> delegation}} text asserts the `Agent` tool itself can start a
   // sub-agent in the background — no other target's rendered delegation text claims that of its
   // own native mechanism (the shared implementer.md prose hedges with "on some targets", which
