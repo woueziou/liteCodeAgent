@@ -155,6 +155,37 @@ checks_passed: bun run check: pass; bun test: 386 pass, 0 fail
 adr_posted: true
 ```
 
+### 2026-09-28 — implementer: ADR 0019 approved with one correction
+
+Human approved the ADR 0019 draft above, with one correction: `cleanConfig`
+(`src/project-upgrade-config.ts`) was stripping `project.board` unconditionally —
+including `board.number` — during `litecode upgrade --apply`. Since `ticket import-board`
+reads `config.project.board.number`, and `upgrade`'s own `board-import` suggestion tells
+the user to run `import-board` right after upgrading, that meant the recommended next step
+always failed with "project.board.number is not configured".
+
+Fix applied before committing the ADR:
+- `cleanConfig` now keeps `project.board` in config while `project.board.number` is set;
+  it still removes a `board` with no `number` as before. Decision 8 and the Consequences
+  section of ADR 0019 were updated to describe this.
+- `ticket import-board` also accepts `--board <owner>/<number>` (overriding config), for
+  projects whose config was already cleaned by an earlier litecode release. Not named
+  `--project` as originally proposed — that name collides with this CLI's existing global
+  `--project <dir>` (target repo) flag, which is parsed from the whole `argv` before
+  subcommand routing; reusing it would have silently hijacked that flag instead of adding
+  a second meaning. Bad `--board` values are rejected with a clear error.
+- `docs/upgrading-to-1.0.md` step 3.5 and step 5 updated to match (order: upgrade keeps
+  `project.board`, import-board runs, then the human removes `project.board` themselves).
+- New tests: `upgrade` keeps `project.board` when `number` is set and still removes it
+  when not (`tests/project-upgrade.test.ts`); `--board` override works and a malformed
+  value is rejected, plus an end-to-end `upgrade --apply` → `ticket import-board` test
+  (`tests/import-board-cli.test.ts`).
+
+ADR 0019 committed as its own commit (`21fe748`, "docs(adr): 0019 GitHub board import
+migration"), the fix as a separate commit (`32ef4ca`, "fix(upgrade): keep project.board
+while board.number is set"), both on `feat-import-board/0050`. `bun run check` and
+`bun test` pass (391/391). Continuing to step 7 (push + PR).
+
 ### 2026-09-28 — implementer: ADR draft posted, awaiting approval
 
 Code for ticket 0050 is implemented and committed on `feat-import-board/0050`
