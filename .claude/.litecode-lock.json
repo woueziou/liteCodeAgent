@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T09:01:40.877Z",
+  "installedAt": "2026-09-28T09:57:08.443Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -23,7 +23,7 @@
     ".claude/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "bb6bba5cccdc543d"
+      "hash": "21f523eeea4aeebd"
     },
     ".claude/agents/tracker.md": {
       "pack": "core",
@@ -63,12 +63,12 @@
     ".claude/agents/bug-hunter.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "0f569e6bf9e0f55c"
+      "hash": "1b5cbbc7fca24406"
     },
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "595bb05e81457d40"
+      "hash": "9851d28767d76bbb"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
