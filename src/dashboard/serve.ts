@@ -71,7 +71,11 @@ function shortTextResponse(status: number, body: string): Response {
  * double up.
  */
 function formatHostForHeader(host: string): string {
-  const stripped = host.replace(/^\[/, "").replace(/\]$/, "");
+  // Lowercased to match the lowercased comparison in `rejectUnsafeRequest`: an explicit
+  // `--host` with any uppercase (a mixed-case hostname, or an uppercase-hex IPv6 literal
+  // like `FE80::1`) would otherwise never match the header it's meant to allow
+  // (bug-hunter finding, PR #85).
+  const stripped = host.replace(/^\[/, "").replace(/\]$/, "").toLowerCase();
   return stripped.includes(":") ? `[${stripped}]` : stripped;
 }
 
@@ -81,7 +85,7 @@ function formatHostForHeader(host: string): string {
  * host the server was actually told to bind (covers an explicit `--host` other than the
  * default, e.g. a LAN address the owner opted into).
  */
-function buildAllowedHosts(port: number, boundHost: string): Set<string> {
+export function buildAllowedHosts(port: number, boundHost: string): Set<string> {
   return new Set([
     `127.0.0.1:${port}`,
     `localhost:${port}`,

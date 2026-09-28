@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeTicket } from "../../src/tickets/store.ts";
-import { startDashboardServer, type DashboardServer } from "../../src/dashboard/serve.ts";
+import { startDashboardServer, buildAllowedHosts, type DashboardServer } from "../../src/dashboard/serve.ts";
 import type { Ticket } from "../../src/tickets/spec.ts";
 
 const dirs: string[] = [];
@@ -235,6 +235,12 @@ test("Method validation: a non-GET/HEAD method is rejected with 405", async () =
 
   const res = await fetch(`http://127.0.0.1:${port}/`, { method: "POST" });
   expect(res.status).toBe(405);
+});
+
+test("buildAllowedHosts: an explicit --host with uppercase letters is lowercased, so it matches the (lowercased) Host header comparison (bug-hunter finding on PR 85)", () => {
+  const allowed = buildAllowedHosts(4173, "MyBox.Local");
+  expect(allowed.has("mybox.local:4173")).toBe(true);
+  expect(allowed.has("MyBox.Local:4173")).toBe(false);
 });
 
 test("filters the queue from the request's query string", async () => {
