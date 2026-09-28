@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0034-feat-resume-journal-de-progression-par-ticket-et
 title: "feat(resume): journal de progression par ticket et litecode resume"
 label: feature
-status: planned
+status: inProgress
 priority: high
 size: large
 assignedAgent: human
