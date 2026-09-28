@@ -4,7 +4,7 @@ import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
-import { render, referencedPaths } from "./template.ts";
+import { render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames } from "./delegation.ts";
 import { hash, readLockfile, writeLockfile, type Lockfile } from "./lockfile.ts";
 
@@ -413,24 +413,6 @@ function validateRequiredConfigPaths(
       "\n\nRun `litecode config doctor --fix` to fill in missing agentSkills keys, or add the" +
       " missing `project.web` block by hand (required when the `web` pack is installed).",
   );
-}
-
-/**
- * Adds template-only fields the renderer needs but the config schema has no business
- * carrying: `project.testFirst` is a three-way enum (`bugs`/`all`/`off`), and the pack
- * template engine only supports truthy/falsy `{{#if}}`/`{{^if}}` on a path, not equality —
- * so packs gate the whole test-first section on `testFirstOff` (falsy block, no dead text
- * when the project opted out) and pick wording within it via `testFirstAll`.
- */
-function templateProject(project: Config["project"]): Config["project"] & {
-  testFirstOff: boolean;
-  testFirstAll: boolean;
-} {
-  return {
-    ...project,
-    testFirstOff: project.testFirst === "off",
-    testFirstAll: project.testFirst === "all",
-  };
 }
 
 /** Returns all generated output paths for a source pack file. */
