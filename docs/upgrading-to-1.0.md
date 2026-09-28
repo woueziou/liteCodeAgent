@@ -70,9 +70,18 @@ ticket file for them yet — this is the one-time move that gets them into the l
 before you drop the board for good. Not a sync: run it, commit the result, then stop using
 the board. Requires `project.board.number` still configured; see ADR 0019.
 
+`upgrade`'s config clean-up deliberately keeps `project.board` in place while
+`project.board.number` is set, specifically so this step still has it to read after
+`upgrade --apply` — it does not remove `project.board` for you (see step 5, which you do
+yourself, after this step, once you're done importing). If an earlier release's
+`upgrade --apply` already removed `project.board` before this fix, pass
+`--board <owner>/<number>` to override config and import anyway (not `--project`, which is
+already this CLI's global "target repo directory" flag).
+
 ```bash
 bunx litecodeagent@latest ticket import-board            # dry run
 bunx litecodeagent@latest ticket import-board --apply
+bunx litecodeagent@latest ticket import-board --apply --board my-org/12   # config already cleaned
 ```
 
 - Every board item (draft or issue-backed) becomes at most one ticket. Re-running is safe:
@@ -103,11 +112,12 @@ bunx litecodeagent@latest ticket import-board --apply
 
 - Remove `project.tickets.autoStateFile` and `project.tickets.autoMinIntervalMs` from
   `litecode.config.json`. They're ignored now.
-- `project.board` is also ignored by everything except `ticket import-board` (step 3.5).
-  `litecode board init` and `board doctor` were removed (ADR 0012). Once you've imported
-  what you need from the board, remove `project.board` from your config and delete the
-  files it wrote, `.claude/data/board.json` and
-  `.claude/data/github-project-item-ids.json`.
+- `project.board` is also ignored by everything except `ticket import-board` (step 3.5),
+  which is why `upgrade` leaves it in your config for you (rather than stripping it
+  itself) as long as `project.board.number` is still set. `litecode board init` and
+  `board doctor` were removed (ADR 0012). Once you've imported what you need from the
+  board, remove `project.board` from your config yourself and delete the files it wrote,
+  `.claude/data/board.json` and `.claude/data/github-project-item-ids.json`.
 
 ## If you maintain your own pack files
 

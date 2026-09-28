@@ -93,8 +93,8 @@ function usage(): void {
   ${c.bold("bunx litecodeagent ticket migrate")} [--apply] [--force] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
                                      ${c.dim("refuses to drop unknown frontmatter keys unless --force")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("bunx litecodeagent ticket import-board")} [--apply]  one-time import of the old GitHub Project board's items as local tickets
-                                     ${c.dim("read-only on GitHub; requires project.board.number; see ADR 0019")}
+  ${c.bold("bunx litecodeagent ticket import-board")} [--apply] [--board <owner>/<number>]  one-time import of the old GitHub Project board's items as local tickets
+                                     ${c.dim("read-only on GitHub; requires project.board.number, or --board if config was already cleaned; see ADR 0019")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent ticket move")} <id> <status>    validate and write a ticket's status transition
                                      ${c.dim(`refuses a transition the pipeline's status machine doesn't allow (e.g. planned -> review)`)}
@@ -660,12 +660,40 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
   }
 
   if (sub === "import-board") {
-    const boardNumber = config.project.board.number;
-    if (!boardNumber) {
-      console.log(c.red("project.board.number is not configured — nothing to import. See ADR 0019."));
-      return 1;
+    // Config's `project.board` may already have been stripped by an earlier litecode
+    // version's `upgrade --apply` (before ticket 0050 fixed `cleanConfig` to keep it
+    // while `number` is set) — `--board <owner>/<number>` lets that project still run
+    // the import, overriding whatever's in config. Named `--board`, not `--project`
+    // (ADR 0019's ticket used `--project`): `--project <dir>` is already this CLI's
+    // global "target repo directory" flag, parsed from the whole argv before subcommand
+    // routing, so reusing that name here would silently hijack it instead of adding a
+    // second meaning.
+    const boardFlagIndex = argv.indexOf("--board");
+    const boardFlag = boardFlagIndex >= 0 ? argv[boardFlagIndex + 1] : undefined;
+    let owner: string;
+    let boardNumber: number;
+    if (boardFlag !== undefined) {
+      const match = /^([^/]+)\/(\d+)$/.exec(boardFlag);
+      if (!match) {
+        console.log(c.red(`--board expects <owner>/<number>, got ${JSON.stringify(boardFlag)}.`));
+        return 1;
+      }
+      owner = match[1]!;
+      boardNumber = Number(match[2]);
+    } else {
+      const configuredNumber = config.project.board.number;
+      if (!configuredNumber) {
+        console.log(
+          c.red(
+            "project.board.number is not configured — nothing to import. See ADR 0019. " +
+              "If it was already removed from config, pass --board <owner>/<number>.",
+          ),
+        );
+        return 1;
+      }
+      boardNumber = configuredNumber;
+      owner = config.project.board.owner || config.project.repo.split("/")[0]!;
     }
-    const owner = config.project.board.owner || config.project.repo.split("/")[0]!;
     const apply = argv.includes("--apply");
     let items: Awaited<ReturnType<typeof readBoardItems>>;
     try {

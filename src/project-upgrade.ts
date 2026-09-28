@@ -359,11 +359,12 @@ const suggestBoardImport: Migration = {
   title: "GitHub Project board still configured",
   async plan(ctx) {
     const base = { id: this.id, title: this.title };
-    // `project.board` is itself an obsolete key (`cleanConfig` strips it), and every
-    // migration after `cleanConfig` is planned against the already-cleaned config (see
-    // `planUpgrade`) — so `ctx.config.project.board.number` would always read as unset
-    // here. Read the file as it still is, same as `removeLegacyData` does for the same
-    // reason.
+    // `cleanConfig` keeps `project.board` while `board.number` is set (so `import-board`
+    // still has it to read), but every migration after `cleanConfig` is planned against
+    // the already-cleaned config (see `planUpgrade`), and a `board` with no `number` is
+    // still stripped there — so `ctx.config.project.board.number` isn't a reliable read
+    // here either way. Read the file as it still is, same as `removeLegacyData` does for
+    // the same reason.
     const { raw } = await readRawConfig(ctx.root);
     const project = isObject(raw.project) ? raw.project : {};
     const board = isObject(project.board) ? project.board : {};

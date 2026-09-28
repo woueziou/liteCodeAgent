@@ -108,3 +108,45 @@ test("`ticket import-board` refuses when project.board.number is not configured"
   expect(exitCode).toBe(1);
   expect(output).toMatch(/not configured/);
 });
+
+test("`ticket import-board --board <owner>/<number>` overrides config, for a project whose config was already cleaned", async () => {
+  const root = await mkdtemp(join(tmpdir(), "litecode-import-board-boardflag-"));
+  await Bun.write(join(root, "package.json"), JSON.stringify({ name: "demo", scripts: { test: "bun test" } }));
+  const path = await init(root, { yes: true, packsRoot: PACKS, targets: ["claude-code"] });
+  const raw = ConfigSchema.parse(await Bun.file(path).json());
+  raw.project.repo = "acme/widgets";
+  raw.project.checkCommand = "bun test";
+  await Bun.write(path, `${JSON.stringify(raw, null, 2)}\n`); // no project.board at all — already cleaned
+  await stubGhForBoard();
+
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "import-board", "--board", "acme/7"]);
+  expect(exitCode).toBe(0);
+  expect(output).toContain("would import");
+  expect(output).toMatch(/2 importé/);
+});
+
+test("`ticket import-board --board` rejects a malformed value", async () => {
+  const root = await projectWithBoard();
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "import-board", "--board", "not-owner-slash-number"]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/--board expects/);
+});
+
+test("end-to-end: `upgrade --apply` keeps project.board.number, then `ticket import-board` still works", async () => {
+  const root = await projectWithBoard();
+  await stubGhForBoard();
+
+  // Exit code 1: `upgrade` always flags a configured board as a "skip" needing attention
+  // (it never imports on its own), not a failure — the config write itself still lands.
+  const upgrade = await runCliWithExit(root, ["upgrade", "--yes"]);
+  expect(upgrade.exitCode).toBe(1);
+  expect(upgrade.output).toContain("ticket import-board");
+
+  const configAfterUpgrade = await Bun.file(join(root, "litecode.config.json")).json();
+  expect(configAfterUpgrade.project.board.number).toBe(7);
+
+  const importResult = await runCliWithExit(root, ["ticket", "import-board", "--apply"]);
+  expect(importResult.exitCode).toBe(0);
+  expect(importResult.output).toContain("imported");
+  expect(importResult.output).toMatch(/2 importé/);
+});
