@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeTicket } from "../../src/tickets/store.ts";
-import { startDashboardServer, type DashboardServer } from "../../src/dashboard/serve.ts";
+import { startDashboardServer, buildAllowedHosts, type DashboardServer } from "../../src/dashboard/serve.ts";
 import type { Ticket } from "../../src/tickets/spec.ts";
 
 const dirs: string[] = [];
@@ -158,6 +158,89 @@ test("binding to a port already in use fails clearly instead of hanging or crash
   servers.push(first);
 
   await expect(startDashboardServer(root, "docs/tickets", { port })).rejects.toThrow(/already in use/);
+});
+
+test("Host header validation: a valid Host (127.0.0.1:port) is served", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const port = freshPort();
+  const server = await startDashboardServer(root, "docs/tickets", { port });
+  servers.push(server);
+
+  const res = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: `127.0.0.1:${port}` } });
+  expect(res.status).toBe(200);
+});
+
+test("Host header validation: a foreign Host is rejected with 403, before touching the filesystem", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const port = freshPort();
+  const server = await startDashboardServer(root, "docs/tickets", { port });
+  servers.push(server);
+
+  const res = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: "evil.example:1234" } });
+  expect(res.status).toBe(403);
+});
+
+test("Host header validation: a missing Host header is rejected (never reaches 200)", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const port = freshPort();
+  const server = await startDashboardServer(root, "docs/tickets", { port });
+  servers.push(server);
+
+  // fetch() always sets a Host header itself, so hit the raw socket to actually omit it.
+  // HTTP/1.0 makes Host optional at the protocol level, so this reaches our handler
+  // instead of being rejected upstream by Bun's own HTTP/1.1 Host requirement.
+  let buf = "";
+  const statusLine = await new Promise<string>(async (resolvePromise) => {
+    await Bun.connect({
+      hostname: "127.0.0.1",
+      port,
+      socket: {
+        data(_sock, data) {
+          buf += data.toString();
+          if (buf.includes("\r\n")) resolvePromise(buf.split("\r\n")[0]!);
+        },
+        open(sock) {
+          sock.write("GET / HTTP/1.0\r\nConnection: close\r\n\r\n");
+        },
+      },
+    });
+  });
+  expect(statusLine).toContain("403");
+});
+
+test("Host header validation: an IPv6 [::1] Host on an IPv6-bound server is accepted", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const server = await startDashboardServer(root, "docs/tickets", { port: 0, host: "[::1]" });
+  servers.push(server);
+
+  const res = await fetch(server.url, { headers: { host: `[::1]:${new URL(server.url).port}` } });
+  expect(res.status).toBe(200);
+});
+
+test("Method validation: a non-GET/HEAD method is rejected with 405", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const port = freshPort();
+  const server = await startDashboardServer(root, "docs/tickets", { port });
+  servers.push(server);
+
+  const res = await fetch(`http://127.0.0.1:${port}/`, { method: "POST" });
+  expect(res.status).toBe(405);
+});
+
+test("buildAllowedHosts: an explicit --host with uppercase letters is lowercased, so it matches the (lowercased) Host header comparison (bug-hunter finding on PR 85)", () => {
+  const allowed = buildAllowedHosts(4173, "MyBox.Local");
+  expect(allowed.has("mybox.local:4173")).toBe(true);
+  expect(allowed.has("MyBox.Local:4173")).toBe(false);
 });
 
 test("filters the queue from the request's query string", async () => {

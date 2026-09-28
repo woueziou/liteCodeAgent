@@ -10,6 +10,15 @@
  * - Fatal: the tickets directory's parent (`docs/`) is missing or unreadable — the whole
  *   buffer can't be located, so the response is 500 with a short HTML page, never a stack
  *   trace.
+ *
+ * Request validation (ticket 0041, DNS rebinding hardening): a web page open in the
+ * browser can make a hostname resolve to 127.0.0.1 via DNS rebinding and then send
+ * same-origin-looking requests to this server from another origin. `Bun.serve` (like most
+ * local dev servers) doesn't check the `Host` header on its own, so every request is
+ * checked against the address this server actually listens on before it touches the
+ * filesystem: only `GET`/`HEAD` are accepted (405 otherwise), and only a `Host` naming
+ * `127.0.0.1`, `localhost`, `[::1]`, or the explicit `--host` (each with the bound port)
+ * is accepted (403 otherwise).
  */
 
 import { stat } from "node:fs/promises";
@@ -49,7 +58,65 @@ async function docsRootReadable(root: string, dir: string): Promise<boolean> {
   }
 }
 
-async function handleRequest(root: string, dir: string, req: Request): Promise<Response> {
+const ALLOWED_METHODS = new Set(["GET", "HEAD"]);
+
+function shortTextResponse(status: number, body: string): Response {
+  return new Response(body, { status, headers: { "content-type": "text/plain; charset=utf-8" } });
+}
+
+/**
+ * `host` (bound or explicitly requested) formatted the way it appears in a `Host` header:
+ * an IPv6 literal is bracketed, anything else is left as-is. Strips any brackets already
+ * present first so re-bracketing an already-bracketed host (e.g. `--host [::1]`) doesn't
+ * double up.
+ */
+function formatHostForHeader(host: string): string {
+  // Lowercased to match the lowercased comparison in `rejectUnsafeRequest`: an explicit
+  // `--host` with any uppercase (a mixed-case hostname, or an uppercase-hex IPv6 literal
+  // like `FE80::1`) would otherwise never match the header it's meant to allow
+  // (bug-hunter finding, PR #85).
+  const stripped = host.replace(/^\[/, "").replace(/\]$/, "").toLowerCase();
+  return stripped.includes(":") ? `[${stripped}]` : stripped;
+}
+
+/**
+ * The set of `Host` header values this server accepts for a given bound port: the fixed
+ * local addresses named in ticket 0041 (`127.0.0.1`, `localhost`, `[::1]`), plus whichever
+ * host the server was actually told to bind (covers an explicit `--host` other than the
+ * default, e.g. a LAN address the owner opted into).
+ */
+export function buildAllowedHosts(port: number, boundHost: string): Set<string> {
+  return new Set([
+    `127.0.0.1:${port}`,
+    `localhost:${port}`,
+    `[::1]:${port}`,
+    `${formatHostForHeader(boundHost)}:${port}`,
+  ]);
+}
+
+/**
+ * Rejects a request whose method isn't read-only, or whose `Host` header doesn't name this
+ * server's own address — DNS rebinding hardening, ticket 0041. Returns `null` when the
+ * request passes both checks. Checked before any filesystem access.
+ */
+function rejectUnsafeRequest(req: Request, allowedHosts: Set<string>): Response | null {
+  const method = req.method.toUpperCase();
+  if (!ALLOWED_METHODS.has(method)) {
+    return shortTextResponse(405, "method not allowed — only GET and HEAD are served");
+  }
+
+  const host = req.headers.get("host");
+  if (!host || !allowedHosts.has(host.toLowerCase())) {
+    return shortTextResponse(403, "forbidden — Host header doesn't match this server's address");
+  }
+
+  return null;
+}
+
+async function handleRequest(root: string, dir: string, req: Request, allowedHosts: Set<string>): Promise<Response> {
+  const rejection = rejectUnsafeRequest(req, allowedHosts);
+  if (rejection) return rejection;
+
   if (!(await docsRootReadable(root, dir))) {
     return new Response(fatalErrorPage(`Le répertoire des documents ('${dirname(dir)}') est introuvable ou illisible.`), {
       status: 500,
@@ -87,12 +154,17 @@ export async function startDashboardServer(root: string, dir: string, options: S
   const port = options.port ?? DEFAULT_PORT;
   const host = options.host ?? DEFAULT_HOST;
 
+  // Populated right after `Bun.serve` returns, before any request can reach `fetch` — the
+  // actual bound port (relevant when `port: 0` asks for an ephemeral one) is only known
+  // then. `fetch` captures this variable by reference, so the later assignment is visible.
+  let allowedHosts: Set<string> = new Set();
+
   let server: ReturnType<typeof Bun.serve>;
   try {
     server = Bun.serve({
       port,
       hostname: host,
-      fetch: (req) => handleRequest(root, dir, req),
+      fetch: (req) => handleRequest(root, dir, req, allowedHosts),
     });
   } catch (e) {
     const err = e as NodeJS.ErrnoException;
@@ -109,6 +181,7 @@ export async function startDashboardServer(root: string, dir: string, options: S
   const boundHost =
     boundHostname.includes(":") && !boundHostname.startsWith("[") ? `[${boundHostname}]` : boundHostname;
   const url = `http://${boundHost}:${server.port}`;
+  allowedHosts = buildAllowedHosts(server.port ?? port, host);
   console.log(`dashboard listening on ${url}`);
 
   const onSigint = () => {
