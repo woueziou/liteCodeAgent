@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0051-fix-delegation-gerer-les-sous-agents-lances-en-a
 title: "fix(delegation): gérer les sous-agents lancés en arrière-plan au lieu de rendre un rapport intermédiaire"
 label: bug
-status: planned
+status: inProgress
 priority: high
 size: small
 assignedAgent: human
