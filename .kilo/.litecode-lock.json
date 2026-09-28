@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T10:35:18.418Z",
+  "installedAt": "2026-09-28T10:41:20.345Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -28,7 +28,7 @@
     ".kilo/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "dfac21e74277903a"
+      "hash": "92c82e02bcbd077a"
     },
     ".kilo/agents/triage.md": {
       "pack": "core",
@@ -53,7 +53,7 @@
     ".kilo/agents/planner.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "0ecfcbc8c1588ecd"
+      "hash": "691da4de3456e948"
     },
     ".kilo/agents/panel-selector.md": {
       "pack": "core",
@@ -88,7 +88,7 @@
     ".kilo/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "b16832316576c676"
+      "hash": "bfd84dd0e1a743fb"
     },
     ".kilo/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",
