@@ -12,9 +12,10 @@ import { buildDashboard } from "./dashboard/build.ts";
 import { renderDashboard } from "./dashboard/render.ts";
 import { startDashboardServer, DEFAULT_PORT, DEFAULT_HOST } from "./dashboard/serve.ts";
 import { parseReport, verifyReport, type Finding as ReportFinding } from "./report/verify.ts";
-import { realProbes } from "./report/probes.ts";
+import { realProbes, realResumeProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import { doctor as fullDoctor } from "./doctor.ts";
+import { resumeState } from "./resume.ts";
 import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
@@ -111,6 +112,11 @@ function usage(): void {
                                      check an implementer's final report (STATUS/TICKET/BRANCH/PR/CHECK_OUTPUT)
                                      against git, gh and the ticket buffer; exits 1 on any contradiction
                                      ${c.dim("reads the report from stdin when --file is omitted")}
+  ${c.bold("bunx litecodeagent resume")} <ticket> [--json]
+                                     reconstruct where an implementer run left off, from the ticket's progress
+                                     journal note, cross-checked against the worktree/branch/PR; prints the
+                                     step to resume at, or the discrepancies blocking that
+                                     ${c.dim("complements `doctor`, which finds orphaned work with no journal to go on")}
   ${c.bold("bunx litecodeagent upgrade")} [--yes]  bring this project up to date with the running release, in one go:
                                      re-render agents, remove files older versions generated (unedited ones only),
                                      migrate tickets, drop obsolete config keys and data files
@@ -797,6 +803,57 @@ async function cmdVerifyReport(root: string, argv: string[]): Promise<number> {
   return errors === 0 ? 0 : 1;
 }
 
+/** A ticket is named by its id (`0030-slug`) or its number (`0030`, `30`, `#0030`), like `ticketStatus`. */
+async function findTicketByRef(root: string, dir: string, ref: string) {
+  const { tickets } = await listTicketsDetailed(root, dir);
+  const bare = ref.replace(/^#/, "");
+  const key = /^\d{1,4}$/.test(bare) ? bare.padStart(4, "0") : bare;
+  return tickets.find((t) => t.id === key || t.id.startsWith(`${key}-`));
+}
+
+async function cmdResume(root: string, argv: string[]): Promise<number> {
+  const ref = argv[1];
+  if (!ref) {
+    console.log(c.red("resume needs a ticket: `bunx litecodeagent resume <ticket>`"));
+    return 1;
+  }
+  const { config } = await loadConfig(root);
+  const ticket = await findTicketByRef(root, config.project.tickets.dir, ref);
+  if (!ticket) {
+    console.log(c.red(`no ticket found for '${ref}'`));
+    return 1;
+  }
+
+  const result = await resumeState(
+    ticket.body,
+    realResumeProbes({ root, repo: config.project.repo, ticketsDir: config.project.tickets.dir }),
+  );
+
+  if (argv.includes("--json")) {
+    console.log(JSON.stringify({ ticket: ticket.id, ...result }, null, 2));
+    return result.kind === "no-journal" || result.findings.some((f) => f.severity === "error") ? 1 : 0;
+  }
+
+  if (result.kind === "no-journal") {
+    console.log(c.yellow(`${ticket.id}: no progress journal found on this ticket — nothing to resume from.`));
+    console.log(c.dim("Run `bunx litecodeagent doctor` to check for orphaned worktrees/branches instead."));
+    return 1;
+  }
+
+  console.log(c.bold(`${ticket.id}`));
+  console.log(`  step:     ${result.entry.step}`);
+  if (result.entry.worktree) console.log(`  worktree: ${result.entry.worktree}`);
+  if (result.entry.branch) console.log(`  branch:   ${result.entry.branch}`);
+  if (result.entry.commit) console.log(`  commit:   ${result.entry.commit}`);
+  if (result.entry.pr) console.log(`  pr:       ${result.entry.pr}`);
+  if (result.findings.length > 0) {
+    console.log("");
+    for (const f of result.findings) console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
+  }
+  console.log(`\n${c.bold(result.findings.some((f) => f.severity === "error") ? c.red("=>") : c.green("=>"))} ${result.resumeAt}`);
+  return result.findings.some((f) => f.severity === "error") ? 1 : 0;
+}
+
 /**
  * One command from "new release available" to "project up to date" (ADR 0016). A legacy
  * git-clone install pulls itself first and hands over to a fresh process, so the project
@@ -916,6 +973,7 @@ try {
       case "dashboard": return cmdDashboard(root, argv);
       case "verify-report": return cmdVerifyReport(root, argv);
       case "doctor": return cmdDoctor(root);
+      case "resume": return cmdResume(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
     }
   })();

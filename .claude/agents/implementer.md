@@ -28,7 +28,25 @@ The ticket file is the ticket's whole history — there is no issue to comment o
 - Never push; the human pushes.
 - If the commit fails (signing agent not responding, `index.lock` held by another agent), retry once a few seconds later, then leave the change uncommitted and report it. Never disable signing or delete a lock file.
 
+**Progress journal.** A session that dies mid-ticket leaves a worktree with no reliable way to reconstruct where it got to. Keep that state out of your own memory and in the ticket instead: after step 3 (worktree/branch created) and after every numbered flow step that changes what a resume would need to know (implementing, opening the PR, invoking `reviewer`/`bug-hunter`), append a fresh **progress-journal note** — same "note on the ticket" mechanism above, with a fenced `progress-journal` block at the end of it:
+
+  ````
+  ```progress-journal
+  step: <free-form label, e.g. "step 4: implement" or "step 7: PR opened">
+  worktree: ../worktrees/<NNNN>
+  branch: <branch name>
+  base: <branch this was created off — usually main>
+  commit: <sha of last local commit, or "none">
+  checks: <e.g. "bun run check: pass" or "not yet run">
+  pr: <PR url, once one exists>
+  ```
+  ````
+
+  Only include fields that apply at that point (no `pr:` line before step 7 opens one). Each new note appends another block rather than editing the last — the ticket's note history stays append-only, and `litecode resume` (below) reads the most recent one. The ADR draft approval gate's `resume-manifest` block (further down this page) is this same journal, just with a few gate-specific fields (`adr_path`, `board_status`, `adr_posted`) added on top — not a second, separate format; don't post both shapes for the same step.
+
 ## If you're asked to resume instead of start fresh
+
+Before reconstructing anything from memory, run `bunx litecodeagent resume <NNNN>`: it reads the ticket's latest progress-journal (or `resume-manifest`) note, cross-checks the worktree, branch, last commit and PR it claims against the repo (reusing the same probes `verify-report` uses), and prints either the step to resume at or the exact discrepancy blocking that. Trust its output over a caller's paraphrase of what happened — it's derived mechanically from the same durable ticket note, not from anyone's recollection of the run.
 
 If the caller tells you to resume on an existing branch (they'll name it) for a ticket that already has local commits — from a prior run that stopped because GitHub was unreachable when it tried to push or open the PR — recreate the worktree for that branch if it was cleaned up (`git worktree add ../worktrees/<NNNN> <branch-name>`), or reuse it if it's still there, then skip straight to step 7 (push/PR) below. Do not re-implement.
 
@@ -77,7 +95,7 @@ These already happened here. Don't re-learn them:
 An ADR records decisions a human should actually get to weigh in on, not a formality to auto-generate. When step 5 applies:
 
 1. Write the ADR file to its proposed path (or `docs/decisions/<NNNN>-<kebab-title>.md`, next free number, if `planner` only flagged "ADR warranted" without a path) — but do **not** `git add`/commit it, and do not push or open a PR yet. Everything else from step 4 may already be committed locally; the ADR is the one thing held back. If the ticket carries `planner`'s `ADR_DECISIONS:` list, rule only on those decisions. If no list exists, state plainly in the draft which decision(s) you're recording and why.
-2. Leave the full drafted ADR as a note on the ticket (see "Writing on the ticket"), prefixed with one line saying it is a draft awaiting approval and is not committed. Append a fenced `resume-manifest` block to the end of that same note (not a separate one — see below for why it has to be the same durable artifact):
+2. Leave the full drafted ADR as a note on the ticket (see "Writing on the ticket"), prefixed with one line saying it is a draft awaiting approval and is not committed. Append a fenced `resume-manifest` block to the end of that same note (not a separate one — see below for why it has to be the same durable artifact). `resume-manifest` is the progress journal's own shape, not a different mechanism (ADR 0008 amended by ticket 0034): same fields the journal already carries (`worktree`, `branch`, `commit`), plus three that only make sense mid-gate (`adr_path`, `board_status`, `adr_posted`) — so `litecode resume` reads this block exactly like any other journal note, no special-casing needed on its side:
 
    ````
    ```resume-manifest
