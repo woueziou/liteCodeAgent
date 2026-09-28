@@ -21,14 +21,19 @@ Load only what the diff actually touches — don't load all of these reflexively
 ## What you check
 
 1. **Plan fidelity** — if a plan was provided, does the diff match it? Flag anything done that wasn't planned, and anything planned that's missing.
-2. **Conventions** — check the diff against this project's rules:
+2. **Acceptance criteria** — the diff verifying against the objective, not just against the plan's steps (GSD's verifier checks "the objective, not just the tests passing"; converge/Spec Kit classes a gap as missing / partial / contradictory / not-requested — use that vocabulary). You need the ticket file's path to do this — whoever invoked you (per its own step 8) is required to give it to you. If it didn't, say so plainly in `ACCEPTANCE` ("no ticket path given — cannot check acceptance criteria") — this caps `VERDICT` at `changes-requested`; don't guess a path from the branch name and don't silently fall back to plan fidelity, since that would look identical to "this ticket genuinely has no criteria section" and hide the gap the whole check exists to catch. Once you have the ticket, read its `## Critères d'acceptation` section:
+   - **Present and non-empty**: emit one line per criterion in `ACCEPTANCE` — `satisfied` / `partial` / `missing` / `contradictory` — each with concrete proof (file:line, test name, or actual command output you ran; never "looks fine" on its own). Any criterion you can't back with proof is `missing`, not `satisfied` on the strength of a plausible read. Any criterion that is anything other than `satisfied` — `partial`, `missing`, or `contradictory` — caps `VERDICT` at `changes-requested`: a criterion that's half-done is not proven, so it doesn't get to ride on `approve-with-notes` just because it has *some* proof. Don't let a clean `bug-hunter` pass or a tidy diff talk you out of that.
+   - **Present but empty** (the heading exists, nothing under it): this is a broken 0035 contract on the ticket itself, not something you can check the diff against — say so explicitly in `ACCEPTANCE` ("`## Critères d'acceptation` is present but empty — broken ticket contract, nothing to verify against") — this caps `VERDICT` at `changes-requested` too; flag it as a `FINDINGS` item for `triage` to fix on the ticket, since `implementer` can't invent criteria to satisfy it either.
+   - **Missing entirely** (no such heading at all): older tickets predate the 0035 body contract and were never planned with it, but a ticket without the heading can still reach you (e.g. a `backlog`/pre-contract ticket dispatched before doctor's warning was heeded) — don't assume it can't happen. Say so explicitly in `ACCEPTANCE` ("no `## Critères d'acceptation` section on this ticket") and fall back to plan fidelity alone. Never invent criteria from the ticket's prose or the diff itself to fill the gap.
+   - Anything the diff does that the ticket didn't ask for (not in `## Critères d'acceptation` or `## Plan`) is a **not-requested** addition — flag it in `FINDINGS`, tagged non-blocking unless it changes behavior a consumer depends on.
+3. **Conventions** — check the diff against this project's rules:
    - Use
    - Use functional programming if possible
    - Write tests, follow TDD pattern
    - No single large file
-3. **Obvious defects you see while reading** — report them, but you are not the correctness pass: `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
-4. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `bun run check` and report actual output. If you weren't given a worktree path and the branch under review isn't what your working directory has checked out, say so in `CHECK_OUTPUT` instead of running the check against the wrong code.
-5. **Attribution** — per `agent-attribution` skill, if the diff includes commits made by an agent, verify the `Agent:` trailer is present.
+4. **Obvious defects you see while reading** — report them, but you are not the correctness pass: `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
+5. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `bun run check` and report actual output. If you weren't given a worktree path and the branch under review isn't what your working directory has checked out, say so in `CHECK_OUTPUT` instead of running the check against the wrong code.
+6. **Attribution** — per `agent-attribution` skill, if the diff includes commits made by an agent, verify the `Agent:` trailer is present.
 
 ## When you find a bug
 
@@ -46,6 +51,7 @@ Return exactly this, nothing else:
 ```
 VERDICT: <approve|approve-with-notes|changes-requested>
 CHECK_OUTPUT: <actual output of bun run check, truncated if long>
+ACCEPTANCE: <one line per criterion in "## Critères d'acceptation" — "satisfied|partial|missing|contradictory: <proof>" — or "no ticket path given", "no Critères d'acceptation section on this ticket", or "section present but empty">
 FINDINGS: <bullet list of issues found, each tagged (blocking|non-blocking) with file/line, or "none">
 PLAN_FIDELITY: <matches|deviates: explain>
 REENTRY: <for each blocking/non-blocking finding: "same-PR fixup" or "new ticket via triage", plus proposed Priority if blocking — or "none needed">
