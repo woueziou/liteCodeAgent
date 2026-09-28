@@ -1,7 +1,7 @@
 /** The real `git`/`gh`/ticket-buffer lookups behind `verifyReport` and `resumeState`. Read-only throughout. */
 
 import { stat } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { gh, GhError } from "../gh.ts";
 import { listTickets } from "../tickets/store.ts";
 import type { ResumeProbes } from "../resume.ts";
@@ -15,6 +15,23 @@ async function git(root: string, args: string[]): Promise<{ stdout: string; code
 
 async function refExists(root: string, ref: string): Promise<boolean> {
   return (await git(root, ["rev-parse", "--verify", "--quiet", ref])).code === 0;
+}
+
+/**
+ * The primary checkout's root, even when `root` is itself a linked worktree — `implementer`
+ * always writes journal `worktree:` paths (e.g. `../worktrees/0049`) relative to the primary
+ * checkout it ran step 2/3 from, so resolving them against whatever directory `resume` was
+ * launched from (`root`) gives the wrong answer the moment `resume` runs from inside a
+ * worktree itself (ticket 0049). `git rev-parse --git-common-dir` names the shared `.git`
+ * directory every worktree of a repo points back to; its parent is the primary checkout.
+ */
+async function primaryCheckoutRoot(root: string): Promise<string> {
+  const { stdout, code } = await git(root, ["rev-parse", "--git-common-dir"]);
+  if (code !== 0) return root;
+  const commonDir = stdout.trim();
+  if (!commonDir) return root;
+  const absoluteCommonDir = resolve(root, commonDir);
+  return dirname(absoluteCommonDir);
 }
 
 /**
@@ -93,13 +110,14 @@ export function realProbes(ctx: ProbeContext): Probes {
 
 /** Adds `resumeState`'s two extra probes (worktree presence, commit reachability) to `realProbes`. */
 export function realResumeProbes(ctx: ProbeContext): ResumeProbes {
-  const { root } = ctx;
+  const { root, repo } = ctx;
   return {
     ...realProbes(ctx),
 
     async worktreeExists(path) {
       try {
-        return (await stat(resolve(root, path))).isDirectory();
+        const base = await primaryCheckoutRoot(root);
+        return (await stat(resolve(base, path))).isDirectory();
       } catch {
         return false;
       }
@@ -113,6 +131,24 @@ export function realResumeProbes(ctx: ProbeContext): ResumeProbes {
       if (!(await refExists(root, commit))) return null;
       const { code } = await git(root, ["merge-base", "--is-ancestor", commit, ref]);
       return code === 0;
+    },
+
+    async headCommit(branch) {
+      const ref = (await refExists(root, `refs/heads/${branch}`))
+        ? `refs/heads/${branch}`
+        : `refs/remotes/origin/${branch}`;
+      const { stdout, code } = await git(root, ["rev-parse", ref]);
+      return code === 0 ? stdout.trim() : null;
+    },
+
+    async openPrForBranch(branch) {
+      try {
+        const out = await gh(["pr", "list", "--head", branch, "--state", "open", "--json", "number,url", "--repo", repo]);
+        const prs = JSON.parse(out) as { number: number; url: string }[];
+        return prs.length > 0 ? prs[0]!.url : null;
+      } catch {
+        return null;
+      }
     },
   };
 }
