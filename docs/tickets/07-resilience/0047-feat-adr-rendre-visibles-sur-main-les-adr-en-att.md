@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0047-feat-adr-rendre-visibles-sur-main-les-adr-en-att
 title: "feat(adr): rendre visibles sur main les ADR en attente d'approbation"
 label: feature
-status: planned
+status: readyToMerge
 priority: high
 size: medium
 assignedAgent: human
@@ -28,3 +28,25 @@ La porte d'approbation ADR (implementer, ADR 0008) interdit de commiter un ADR a
 
 ## Hors périmètre
 Commiter les brouillons d'ADR sur main (écarté : l'ADR précéderait son code et devrait être supprimé en cas de refus).
+
+### 2026-09-28 — implementer: PR ouverte, reviewer + bug-hunter passés, Ready to Merge
+
+PR : https://github.com/woueziou/liteCodeAgent/pull/89 (branche `feat-adr-visible-pending/0047`, base `main`).
+
+Implémentation : `src/decisions/pending.ts` (nouveau — détection des brouillons ADR en attente, réutilise `parseJournalEntries` de `src/report/journal.ts` en import seulement, sans le modifier), `src/dashboard/build.ts` + `src/dashboard/render-adrs.ts` + `src/dashboard/render.ts` (section « ADR en attente d'approbation » sur l'écran ADR), `src/doctor.ts` (nouveau finding `checkPendingAdrDrafts`), `src/cli.ts` (`ticket list` signale la ligne d'avertissement), `packs/core/agents/implementer.md` (porte ADR : brouillon écrit dans une section dédiée `## ADR à valider : NNNN`, agents installés régénérés).
+
+`reviewer` : **approve**, aucun finding bloquant, fidélité au plan confirmée (aucune modification de `src/report/journal.ts`, `src/resume.ts`, `src/report/probes.ts`, conformément à la contrainte de parallélisme avec le ticket 0049 ; diff `implementer.md` confiné à la section de la porte ADR).
+
+`bug-hunter` (1er passage) : **1 finding bloquant** — `listPendingAdrs` ne redevenait jamais « non en attente » une fois l'ADR approuvé et le gate repris (l'ADR est commité sur la branche du ticket, pas immédiatement visible sur `root`), tant qu'aucune note de journal postérieure sans `adr_path` n'existait. Corrigé (commit `1638229`) : seule la toute dernière entrée de journal (peu importe sa forme) détermine l'état « en attente » — une note `progress-journal` postérieure sans `adr_path` fait sortir le ticket de la liste. Findings non bloquants également corrigés dans le même commit : indentation du fence `resume-manifest` tolérée, texte après le numéro dans le heading toléré, normalisation NFC pour un « à » décomposé, id HTML du dashboard namespacé par ticket pour éviter les collisions.
+
+`bug-hunter` (2e passage, sur le fixup) : **HUNT: complete**, 0 finding bloquant. Un finding non bloquant restant (la nouvelle regex du heading avalait la ligne suivante en l'absence de ligne vide après le heading) a été corrigé dans un fixup supplémentaire (commit `39a56bd`, `bun run check` et `bun test` re-vérifiés, 356 tests passent). Un dernier finding non bloquant (un heading avec un suffixe collé sans espace donne `text: null`, dégradation visible et non silencieuse) est volontairement laissé ouvert, comme convenu avec `bug-hunter`.
+
+Hors périmètre de cette PR, signalé par `bug-hunter` comme faiblesses préexistantes de `src/report/journal.ts` (partagé avec `litecode resume`), à traiter via `triage`/nouveau ticket si jugé utile par un humain :
+- un `resume-manifest` cité à titre d'exemple dans un fence de documentation à l'intérieur d'un corps de ticket est compté comme un brouillon réellement en attente (parsing non conscient des fences imbriquées) ;
+- un corps de ticket en CRLF n'est pas détecté par la regex `BLOCK` de `journal.ts` (elle exige `\n` immédiatement après ```` ```resume-manifest ````).
+
+Les trois verdicts complets (`reviewer` approve, `bug-hunter` 1er passage avec le finding bloquant, `bug-hunter` 2e passage HUNT: complete) sont postés verbatim sur la PR #89.
+
+`bun run check` et `bun test` (356 pass, 0 fail) exécutés dans le worktree avant l'ouverture de la PR et après chaque fixup.
+
+Statut : `In Progress` → `Ready to Merge`.
