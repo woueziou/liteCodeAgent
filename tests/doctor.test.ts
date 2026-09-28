@@ -272,6 +272,62 @@ test("a review ticket whose PR is already merged is flagged stale", async () => 
   }
 });
 
+test("an uncommitted change in the primary checkout identical to an open ticket branch is flagged as a leak", async () => {
+  const root = await tmpRepo();
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await Bun.write(join(root, "a.txt"), "leaked content\n");
+  await commitAll(root, "work");
+  await sh(root, "git", "switch", "-q", "main");
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+  // Simulate the leak: a sub-agent wrote the branch's exact content into the primary
+  // checkout without committing it.
+  await Bun.write(join(root, "a.txt"), "leaked content\n");
+
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+  expect(findings).toContainEqual({
+    severity: "error",
+    message: "a.txt: uncommitted change in the primary checkout is identical to branch 'feat/thing/0099' (0099-orphan) — likely a leaked sub-agent write, discard it here",
+  });
+});
+
+test("a leaked file inside a brand-new untracked directory is still flagged, not collapsed into a directory-only line", async () => {
+  const root = await tmpRepo();
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await mkdir(join(root, "newdir"), { recursive: true });
+  await Bun.write(join(root, "newdir", "b.txt"), "leaked content\n");
+  await commitAll(root, "work");
+  await sh(root, "git", "switch", "-q", "main");
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+  // The directory itself is new and untracked in the primary checkout — a plain
+  // `git status --porcelain` (without `--untracked-files=all`) would collapse this into a
+  // single `?? newdir/` line and never surface the leaked file inside it.
+  await mkdir(join(root, "newdir"), { recursive: true });
+  await Bun.write(join(root, "newdir", "b.txt"), "leaked content\n");
+
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+  expect(findings).toContainEqual({
+    severity: "error",
+    message: "newdir/b.txt: uncommitted change in the primary checkout is identical to branch 'feat/thing/0099' (0099-orphan) — likely a leaked sub-agent write, discard it here",
+  });
+});
+
+test("an uncommitted change in the primary checkout that differs from the ticket branch is not flagged", async () => {
+  const root = await tmpRepo();
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await Bun.write(join(root, "a.txt"), "branch content\n");
+  await commitAll(root, "work");
+  await sh(root, "git", "switch", "-q", "main");
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+  // A human's own unrelated, legitimate edit in the primary checkout.
+  await Bun.write(join(root, "a.txt"), "a human's own edit\n");
+
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+  expect(findings.some((f) => f.message.includes("a.txt"))).toBe(false);
+});
+
 test("ticket doctor and config doctor findings are surfaced through the aggregate doctor", async () => {
   const root = await tmpRepo();
   // Malformed ticket file: no frontmatter delimiter, so `ticket doctor` reports a load error.
