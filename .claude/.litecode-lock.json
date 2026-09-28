@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.1.1",
-  "installedAt": "2026-09-28T08:30:51.053Z",
+  "installedAt": "2026-09-28T08:52:50.892Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -23,7 +23,7 @@
     ".claude/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "8aa35028bef52ff8"
+      "hash": "55a2eb425db89753"
     },
     ".claude/agents/tracker.md": {
       "pack": "core",
