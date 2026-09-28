@@ -36,6 +36,7 @@ function emptyData(overrides: Partial<DashboardData> = {}): DashboardData {
     loadErrors: [],
     adrs: [],
     adrLoadErrors: [],
+    pendingAdrs: [],
     ...overrides,
   };
 }
@@ -95,6 +96,28 @@ test("readyToMerge and done are rendered as visually distinct counts", () => {
   const html = renderDashboard(data);
   expect(html).toContain("Ready to Merge: 3");
   expect(html).toContain("Done: 5");
+});
+
+test("a pending ADR draft is listed on the ADRs screen with its full text and owning ticket", () => {
+  const data = emptyData({
+    pendingAdrs: [
+      {
+        ticketId: "0047-x",
+        ticketPath: "docs/tickets/07-resilience/0047-x.md",
+        adrPath: "docs/decisions/0019-pending.md",
+        adrNumber: "0019",
+        branch: "feat/x/0047",
+        worktree: "../worktrees/0047",
+        text: "# 0019. Pending decision\n\nSome draft text.",
+      },
+    ],
+  });
+  const html = renderDashboard(data);
+
+  expect(html).toContain("en attente d'approbation");
+  expect(html).toContain("0019");
+  expect(html).toContain("docs/tickets/07-resilience/0047-x.md");
+  expect(html).toContain("Some draft text.");
 });
 
 test("end-to-end: buildDashboard output renders without throwing on an empty buffer", async () => {

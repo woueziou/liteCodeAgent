@@ -19,6 +19,7 @@ import { doctor as configDoctor } from "./config-doctor.ts";
 import { listTickets } from "./tickets/store.ts";
 import type { Ticket } from "./tickets/spec.ts";
 import { gh } from "./gh.ts";
+import { listPendingAdrs } from "./decisions/pending.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
@@ -298,6 +299,20 @@ async function checkPrimaryCheckoutLeak(root: string, tickets: Ticket[]): Promis
   return findings;
 }
 
+/**
+ * A ticket blocked behind an unapproved ADR draft (ticket 0047): `implementer` stopped at
+ * the ADR gate and is waiting on a human, but nothing else says so or points at where to
+ * read/approve it. Reuses `listPendingAdrs` (`src/decisions/pending.ts`), the same
+ * detector the dashboard's ADR screen and `ticket list` both use.
+ */
+async function checkPendingAdrDrafts(root: string, tickets: Ticket[]): Promise<Finding[]> {
+  const pending = await listPendingAdrs(root, tickets);
+  return pending.map((p) => ({
+    severity: "warn" as const,
+    message: `${p.ticketId}: ADR draft awaiting approval (${p.adrPath}) — read/approve it in ${p.ticketPath}`,
+  }));
+}
+
 export type DoctorContext = { root: string; packsRoot: string; config: Config };
 
 export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
@@ -319,6 +334,7 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   findings.push(...(await checkStalePrStatus(root, config.project.repo, tickets)));
   findings.push(...(await checkInstallDrift(root, packsRoot, config)));
   findings.push(...(await checkPrimaryCheckoutLeak(root, tickets)));
+  findings.push(...(await checkPendingAdrDrafts(root, tickets)));
 
   return findings;
 }
