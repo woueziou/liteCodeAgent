@@ -43,3 +43,17 @@ test("a default branch named something other than 'main' is guarded the same way
   const result = checkBranchGuard({ branch: "trunk", defaultBranch: "trunk", allowDefaultBranchCommits: false });
   expect(result.allowed).toBe(false);
 });
+
+test("allows a commit on the default branch made only of ticket files", () => {
+  const base = { branch: "main", defaultBranch: "main", allowDefaultBranchCommits: false, ticketsDir: "docs/tickets" };
+  expect(checkBranchGuard({ ...base, stagedPaths: ["docs/tickets/07-x/0042-a.md", "docs/tickets/0043-b.md"] }).allowed).toBe(true);
+  expect(checkBranchGuard({ ...base, ticketsDir: "./docs/tickets/", stagedPaths: ["docs/tickets/0043-b.md"] }).allowed).toBe(true);
+});
+
+test("still refuses the default branch when a commit mixes ticket files with anything else", () => {
+  const base = { branch: "main", defaultBranch: "main", allowDefaultBranchCommits: false, ticketsDir: "docs/tickets" };
+  expect(checkBranchGuard({ ...base, stagedPaths: ["docs/tickets/0043-b.md", "src/cli.ts"] }).allowed).toBe(false);
+  expect(checkBranchGuard({ ...base, stagedPaths: [] }).allowed).toBe(false);
+  expect(checkBranchGuard({ ...base, stagedPaths: ["docs/tickets-old/x.md"] }).allowed).toBe(false);
+  expect(checkBranchGuard({ ...base, stagedPaths: ["docs/tickets/../../src/cli.ts"] }).allowed).toBe(false);
+});
