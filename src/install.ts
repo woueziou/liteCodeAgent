@@ -4,7 +4,7 @@ import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
-import { render, referencedPaths } from "./template.ts";
+import { render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames } from "./delegation.ts";
 import { hash, readLockfile, writeLockfile, type Lockfile } from "./lockfile.ts";
 
@@ -422,7 +422,12 @@ function outputFiles(
   target: InstallTarget,
   agents: ReadonlySet<string>,
 ): { rel: string; content: string }[] {
-  const rendered = render(file.source, { project: config.project }, `${file.rel}`, delegationHelpers(target, agents));
+  const rendered = render(
+    file.source,
+    { project: templateProject(config.project) },
+    `${file.rel}`,
+    delegationHelpers(target, agents),
+  );
   const { data, body } = parseFrontmatter(rendered, file.rel);
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
   const skill = /^(skills\/.+)$/.exec(file.rel);

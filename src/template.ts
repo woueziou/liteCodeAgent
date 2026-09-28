@@ -169,6 +169,28 @@ export function render(tpl: string, ctx: Ctx, where = "template", helpers: Helpe
   return renderScope(stripStandaloneTags(tpl), [ctx], where, helpers);
 }
 
+/**
+ * Adds template-only fields the renderer needs but the config schema has no business
+ * carrying: `project.testFirst` is a three-way enum (`bugs`/`all`/`off`), and this engine
+ * only supports truthy/falsy `{{#if}}`/`{{^if}}` on a path, not equality — so packs gate
+ * the whole test-first section on `testFirstOff` (falsy block, no dead text when the
+ * project opted out) and pick wording within it via `testFirstAll`. Every call site that
+ * renders pack files from a project's config must build its `project` context through this
+ * function, not the raw `config.project` — a call site that skips it silently renders the
+ * `bugs`-mode wording regardless of what `testFirst` is actually set to, since an
+ * undefined path is falsy in `{{#if}}`/`{{^if}}` the same way `off`'s gate would need it
+ * to be true.
+ */
+export function templateProject<P extends { testFirst: "bugs" | "all" | "off" }>(
+  project: P,
+): P & { testFirstOff: boolean; testFirstAll: boolean } {
+  return {
+    ...project,
+    testFirstOff: project.testFirst === "off",
+    testFirstAll: project.testFirst === "all",
+  };
+}
+
 const LEAF = /\{\{([^#^/][^}]*)\}\}/g;
 
 /**
