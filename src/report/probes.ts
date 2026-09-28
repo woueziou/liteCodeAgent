@@ -1,7 +1,10 @@
-/** The real `git`/`gh`/ticket-buffer lookups behind `verifyReport`. Read-only throughout. */
+/** The real `git`/`gh`/ticket-buffer lookups behind `verifyReport` and `resumeState`. Read-only throughout. */
 
+import { stat } from "node:fs/promises";
+import { resolve } from "node:path";
 import { gh, GhError } from "../gh.ts";
 import { listTickets } from "../tickets/store.ts";
+import type { ResumeProbes } from "../resume.ts";
 import type { PrLookup, Probes } from "./verify.ts";
 
 async function git(root: string, args: string[]): Promise<{ stdout: string; code: number }> {
@@ -84,6 +87,32 @@ export function realProbes(ctx: ProbeContext): Probes {
       const bare = ref.replace(/^#/, "");
       const key = /^\d{1,4}$/.test(bare) ? bare.padStart(4, "0") : bare;
       return tickets.find((t) => t.id === key || t.id.startsWith(`${key}-`))?.status;
+    },
+  };
+}
+
+/** Adds `resumeState`'s two extra probes (worktree presence, commit reachability) to `realProbes`. */
+export function realResumeProbes(ctx: ProbeContext): ResumeProbes {
+  const { root } = ctx;
+  return {
+    ...realProbes(ctx),
+
+    async worktreeExists(path) {
+      try {
+        return (await stat(resolve(root, path))).isDirectory();
+      } catch {
+        return false;
+      }
+    },
+
+    async commitInBranch(branch, commit) {
+      const branchExists =
+        (await refExists(root, `refs/heads/${branch}`)) || (await refExists(root, `refs/remotes/origin/${branch}`));
+      if (!branchExists) return null;
+      const ref = (await refExists(root, `refs/heads/${branch}`)) ? branch : `origin/${branch}`;
+      if (!(await refExists(root, commit))) return null;
+      const { code } = await git(root, ["merge-base", "--is-ancestor", commit, ref]);
+      return code === 0;
     },
   };
 }
