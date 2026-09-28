@@ -220,6 +220,8 @@ look:
 | `project.conventions` | the rules `implementer`/`reviewer` are held to — the highest-leverage field in the file |
 | `project.trustBoundaries` | what `security-expert` must assume; only you know these |
 | `project.lessons` | incidents this project already lived through, injected into `implementer` so the lesson travels with the agent |
+| `project.testFirst` | `bugs` (default), `all` or `off`: which tickets `implementer` must start with a failing-test commit, which `reviewer` then checks |
+| `project.allowDefaultBranchCommits` | `false` by default. Set it to `true` only if this project really commits straight to its default branch (see step 4) |
 
 `bunx litecodeagent install` refuses to run while any `TODO` remains, because a `TODO` left in an
 agent prompt reads to the model as an instruction rather than as something you forgot.
@@ -236,6 +238,12 @@ This writes each tool's native agent and skill files and a lockfile under its co
 directory. For example: `.codex/agents/*.toml`, `.agents/skills/*/SKILL.md`,
 `.opencode/agents/*.md`, `.kilo/agents/*.md`, and the Pi prompt/extension under `.pi/`.
 Claude Code keeps `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`.
+
+`install` also writes `.githooks/pre-commit`, a branch guard: it refuses a commit on your
+default branch unless the commit holds only ticket files (see "Work with tickets"). It
+points `core.hooksPath` at `.githooks` when that's safe. It never replaces a hook you
+already have and never touches `core.hooksPath` if it's set, or if `.git/hooks` holds real
+hooks. In those cases it prints the one line to add to your own hook instead.
 
 ### Updating preferences later
 
@@ -269,12 +277,18 @@ and other project files are never rewritten or deleted by the CLI.
 ### 4. Commit
 
 ```bash
-git add litecode.config.json
+git switch -c chore/add-litecodeagent
+git add litecode.config.json .githooks
 git commit -m "chore: add liteCodeAgent pipeline"
 ```
 
 Also add the generated harness directories you enabled, including their `.litecode-lock.json`
-files.
+files, then open a pull request as usual.
+
+Do it on a branch: once the guard from step 3 is active, a commit of anything other than
+ticket files on your default branch is refused. For a one-off exception, prefix the commit
+with `LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT=1`. If your project always commits straight to
+its default branch, set `project.allowDefaultBranchCommits: true` instead.
 
 ---
 
@@ -307,16 +321,31 @@ ever runs after you've explicitly approved.
 
 ### Work with tickets
 
-Tickets are plain files you can read, edit and commit like any other (ADR 0015). Agents
-move them through `Planned`/`In Progress`/`Review`/`Ready to Merge`/`Blocked` by editing
-their `status`, and leave dated notes at the end of their body.
+Tickets are plain files you can read and edit like any other (ADR 0015). The rules:
+
+- **Status changes go through `ticket move`,** which refuses a transition the pipeline
+  doesn't allow (`planned` straight to `review`, say). Agents use it too.
+- **Agents commit every ticket change themselves,** right away, on your default branch, in
+  your main checkout: a status change, a note, a new ticket. They commit ticket files only,
+  by path, and never push. Pushing is yours. That's the one kind of commit the branch guard
+  lets through on the default branch (ADR 0015, amended).
+- **A ticket body has four sections,** in this order: `## Contexte`,
+  `## Critères d'acceptation`, `## Plan`, `## Hors périmètre`. `tracker` writes them, and
+  `reviewer` checks the work against the acceptance criteria one by one.
+- **`[À CLARIFIER]` marks an open question** only you can settle. While it's in a ticket,
+  `ticket move … planned` refuses it. `planner` and `tracker` add it themselves when the
+  debate left a question open. See `docs/tickets/README.md`.
+- **Agents leave dated notes** at the end of the body, including a progress journal that
+  `resume` reads.
 
 ```bash
 bunx litecodeagent ticket new --title "Fix the flaky install test" --label bug \
   --priority medium --size small --body "Body goes here."
 bunx litecodeagent ticket list
+bunx litecodeagent ticket move 0042 planned
 bunx litecodeagent ticket doctor
 bunx litecodeagent ticket migrate --apply   # once, if your tickets predate schema v2
+bunx litecodeagent ticket import-board      # once, if you still used the old GitHub board
 ```
 
 ### Plan the queue
@@ -329,12 +358,19 @@ rather than silently resolving it.
 
 ### Implement one ticket
 
-> "Run the implementer on #42"
+> "Run the implementer on 0042"
 
-`implementer` moves the item to `In Progress`, works in a dedicated git worktree, follows
-your `conventions`, runs your `checkCommand`, opens a PR, then invokes `reviewer` and
-`bug-hunter` for real verdicts before moving the item to `Ready to Merge` or `Review`. On a blocker it
-escalates to `triage` rather than guessing.
+`implementer` moves the ticket to `In Progress`, then works on its own branch in a dedicated
+git worktree. It never commits code on your default branch, and never lets its sub-agents
+write outside that worktree. It follows your `conventions`, starts with a failing test when
+`project.testFirst` says so, runs your `checkCommand` and opens a PR. Then it invokes
+`reviewer` and `bug-hunter` for real verdicts, posts both on the PR, and moves the ticket to
+`Ready to Merge` or `Review`. On a blocker it escalates to `triage` rather than guessing.
+
+If the change needs an ADR, `implementer` stops before committing it and waits for you. The
+draft goes under an `## ADR à valider : NNNN` section in the ticket. `ticket list`,
+`doctor` and the dashboard all point you at it. Once you approve, ask for the implementer
+again on the same ticket: it picks up from its progress journal.
 
 ### Shortcuts
 
@@ -350,9 +386,19 @@ with the subject in hand:
 
 ```bash
 bunx litecodeagent status          # installed packs, versions, files the kit owns
+bunx litecodeagent doctor          # orphaned work: stranded worktrees and branches, PR-less
+                                   # branches, stale review tickets, pending ADRs, leaked writes,
+                                   # lockfile drift; plus ticket doctor and config doctor
 bunx litecodeagent ticket doctor   # local ticket buffer: malformed/misplaced/duplicate files
+bunx litecodeagent resume 0042     # where an interrupted implementer run left off, checked
+                                   # against the worktree, branch and PR
 bunx litecodeagent verify-report --file report.txt  # implementer report vs. git, gh, ticket status
+bunx litecodeagent dashboard --serve   # live, read-only view of tickets and ADRs
+bunx litecodeagent dashboard --build   # or a static snapshot, docs/dashboard.html
 ```
+
+`doctor` and `verify-report` only read. When GitHub is unreachable they mark its checks
+"non vérifié" instead of failing.
 
 ---
 
@@ -490,6 +536,12 @@ something rather than guessing.
   no installed pack and has no local overlay, `install` stops and tells you where each
   reference came from — rather than rendering an agent that asks the harness for something
   that isn't there.
+- **The default branch is guarded in code, not just in prompts.** The pre-commit hook
+  refuses code on it, and `ticket move` refuses invalid status transitions. A rule that
+  only lives in a prompt gets broken eventually.
+- **An agent's report is a claim, not a fact.** `verify-report` checks it against git, the
+  PR and the ticket. `reviewer` has to prove each acceptance criterion rather than assert
+  it.
 - **Lockfile, not templating-by-copy.** `install` can tell "you're behind this pack
   version" apart from "you edited this file by hand", and refuses to clobber the latter
   without `--force`.
@@ -519,6 +571,18 @@ the new version.
 Coming from 0.x? [`docs/upgrading-to-1.0.md`](docs/upgrading-to-1.0.md) explains what 1.0
 changes and what `upgrade` does about it.
 
+Still on the old GitHub Project board? `upgrade` keeps `project.board` and points you at a
+one-time import, which only reads from GitHub (ADR 0019):
+
+```bash
+bunx litecodeagent@latest ticket import-board           # dry run: what would be imported
+bunx litecodeagent@latest ticket import-board --apply   # write the tickets
+```
+
+Each imported ticket records where it came from, so running it again imports nothing twice.
+A value the board used that has no local equivalent lands in `backlog` with an
+`[À CLARIFIER]`, for you to settle. Remove `project.board` from the config afterwards.
+
 To re-render only, without the other steps: `bunx litecodeagent@latest install --apply`.
 
 If you edited a managed file by hand, `install` reports it as `DRIFT` and stops. Either
@@ -533,9 +597,13 @@ untouched.
 
 ## Status
 
-Phases 1–5 and the npm/bunx distribution path are implemented: packs/install/board, native
-Claude Code/Codex/Pi/OpenCode/Kilo Code integrations, the direct API runner with recursive `Agent`, usage/cost reporting, runner
-reliability, and ephemeral CLI execution. Provider adapters, orchestration semantics, retries,
+Phases 1–5 and the npm/bunx distribution path are implemented: packs and install, local
+tickets, native Claude Code/Codex/Pi/OpenCode/Kilo Code integrations, the direct API runner
+with recursive `Agent`, usage/cost reporting, runner reliability, and ephemeral CLI
+execution. The resilience work compared the pipeline with GSD, Superpowers and Spec Kit
+(epic `docs/tickets/07-resilience`). It added the branch guard, validated status moves, the
+ticket contract, per-criterion review, test-first, `doctor`, `resume` with its progress
+journal, visible pending ADRs, leak detection and the board import. Provider adapters, orchestration semantics, retries,
 cancellation, timeouts, budgets, partial failure reports, package contents, and structured CLI
 calls are covered with deterministic tests; a live provider smoke run requires the corresponding
 API key. The npm package is ready for publication as `litecodeagent`.
