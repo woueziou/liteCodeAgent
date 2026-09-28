@@ -1,3 +1,62 @@
+# [1.2.0](https://github.com/woueziou/liteCodeAgent/compare/v1.1.1...v1.2.0) (2026-09-28)
+
+
+### Bug Fixes
+
+* address bug-hunter blocking findings on the branch/status guard ([ba5898b](https://github.com/woueziou/liteCodeAgent/commit/ba5898b294a31bc31590884c43f13d981daa7e4f))
+* **adr:** heading regex no longer swallows the line right after it ([39a56bd](https://github.com/woueziou/liteCodeAgent/commit/39a56bd3151635bef60249fe489ac20604c061c5)), closes [#89](https://github.com/woueziou/liteCodeAgent/issues/89)
+* **adr:** pending-ADR detection clears after gate approval, tolerates layout variance ([1638229](https://github.com/woueziou/liteCodeAgent/commit/1638229542e56e98dbb94da04f3fccf73b1039b5)), closes [#89](https://github.com/woueziou/liteCodeAgent/issues/89)
+* **agents:** correct leak-check comparison and untracked-dir/porcelain parsing ([45037db](https://github.com/woueziou/liteCodeAgent/commit/45037db384656a864d12abc032c7e88bf518f427))
+* **agents:** discard staged leaks correctly, keep re-check flags consistent ([7b0ca56](https://github.com/woueziou/liteCodeAgent/commit/7b0ca56a6e62f5f93305846708a1f20edcba921e))
+* **agents:** prevent and detect source writes into the primary checkout ([ac22e2f](https://github.com/woueziou/liteCodeAgent/commit/ac22e2f8c36b7be544cacbfe3161ca9b3d984f57))
+* **agents:** resolve bug-hunter findings on PR [#87](https://github.com/woueziou/liteCodeAgent/issues/87) ([b92f537](https://github.com/woueziou/liteCodeAgent/commit/b92f5377b0af4ab580efd5ba2c9a288e741f4909))
+* cd-qualify and shell-quote the guard-branch line in the preexisting-hook notice too ([039d2f9](https://github.com/woueziou/liteCodeAgent/commit/039d2f9c6e4d3c44d3f364e5c0b66c4170bb82e1))
+* **cli:** --board with no trailing value must error, not fall back to config ([7216184](https://github.com/woueziou/liteCodeAgent/commit/72161846bdc1fad7b334c6f16355d607e66b018f))
+* **dashboard:** lowercase an explicit --host so it matches the lowercased Host header ([b2e67bf](https://github.com/woueziou/liteCodeAgent/commit/b2e67bfe97cf18dd1831eb1d255751f8c986b04a))
+* **dashboard:** reject requests whose Host header isn't the server's own address ([a39da21](https://github.com/woueziou/liteCodeAgent/commit/a39da21bde5c3328eaa3444c1e3f0b6b264cc33c))
+* **delegation:** address bug-hunter's non-blocking re-hunt findings ([4da2767](https://github.com/woueziou/liteCodeAgent/commit/4da276767303fdfb8cbcbb02b0795c599d178bac))
+* **delegation:** describe claude-code's background sub-agent notifications ([2538699](https://github.com/woueziou/liteCodeAgent/commit/25386994bb2424c6644a91f38541a7cc56eb6ebd))
+* **delegation:** resolve contradiction between "never end your turn" and background notifications ([bcaae9b](https://github.com/woueziou/liteCodeAgent/commit/bcaae9b977c4f46c3dd89c6c769d37502f2ba5be))
+* **doctor:** degrade any gh failure to unverified, not just GhError ([db8d065](https://github.com/woueziou/liteCodeAgent/commit/db8d065ec744e5f6e430c541925971d72147f895))
+* **doctor:** don't flag review/readyToMerge worktrees as stale ([42ba0dc](https://github.com/woueziou/liteCodeAgent/commit/42ba0dcb3f1077fe451d827a60af0b8c193459e6))
+* don't double-bracket an already-bracketed IPv6 --host in the log; fix stale error wording ([112c339](https://github.com/woueziou/liteCodeAgent/commit/112c339f795d2e648a502d67a38e2198bb43b8ac))
+* **guard:** let ticket-only commits through on the default branch ([a94c17c](https://github.com/woueziou/liteCodeAgent/commit/a94c17c6d793f54ab085b58ea25539c3e22247ab)), closes [#77](https://github.com/woueziou/liteCodeAgent/issues/77) [#76](https://github.com/woueziou/liteCodeAgent/issues/76)
+* **implementer:** post the second reviewer verdict on the PR too ([82ef802](https://github.com/woueziou/liteCodeAgent/commit/82ef802b14f54a6d6afa3f604cbb00998b17a7da)), closes [#83](https://github.com/woueziou/liteCodeAgent/issues/83)
+* never replace a project's pre-existing hook, never silently rewire core.hooksPath ([d9268e5](https://github.com/woueziou/liteCodeAgent/commit/d9268e50931fd7ccfd9bcaf5e8fd54266b5626c7))
+* pin hook notices to the CLI version, fix subdirectory guard-branch instruction ([d9db4de](https://github.com/woueziou/liteCodeAgent/commit/d9db4de58eff93244f5ff665b32667b8ad37a926))
+* **resume:** five bug-hunter findings from PR [#84](https://github.com/woueziou/liteCodeAgent/issues/84) ([a702005](https://github.com/woueziou/liteCodeAgent/commit/a702005551b4b17ddd08a55975bebf38df0c685b))
+* **resume:** two blocking bug-hunter findings on PR [#88](https://github.com/woueziou/liteCodeAgent/issues/88) ([e393ebc](https://github.com/woueziou/liteCodeAgent/commit/e393ebc665f5000ce63582a0b8fbfa4bde3c7cad))
+* **reviewer:** close gaps bug-hunter found in acceptance-criteria check ([5034d7f](https://github.com/woueziou/liteCodeAgent/commit/5034d7f0aeed7e122dbf8a0bc5d06ad050249933))
+* **reviewer:** diff base...branch with three dots, not two ([f58c8a1](https://github.com/woueziou/liteCodeAgent/commit/f58c8a1adcde7c29fffb4c65cfb83144a94966ce)), closes [#77](https://github.com/woueziou/liteCodeAgent/issues/77) [#81](https://github.com/woueziou/liteCodeAgent/issues/81)
+* **reviewer:** minor non-blocking wording fixes from bug-hunter re-hunt ([3bedeb2](https://github.com/woueziou/liteCodeAgent/commit/3bedeb2bd131a9756119135786b74011985ebc0a))
+* **reviewer:** test-first check must run the specific test, with node_modules available ([4f4b27f](https://github.com/woueziou/liteCodeAgent/commit/4f4b27f53ae2cf1052d726f91e561881f402edc9))
+* **runner:** honor project.testFirst in AgentCatalog rendering; avoid mutating reviewer worktree ([00c42f0](https://github.com/woueziou/liteCodeAgent/commit/00c42f0dce4a432ccfe5c8256570233db4ac83ef))
+* symlink-escape boundary was the project root, not the listed dir ([56293f2](https://github.com/woueziou/liteCodeAgent/commit/56293f269d1ccd729c7ab1ea79c9845d46b725e0))
+* **tests:** pass --no-self-update in the upgrade → import-board end-to-end test ([87507a4](https://github.com/woueziou/liteCodeAgent/commit/87507a4430456038bb42e647ebdf92ecb7e57b1e)), closes [#93](https://github.com/woueziou/liteCodeAgent/issues/93)
+* **tickets:** ignore marker in code spans, fix triage/tracker prose gaps ([96a6a1e](https://github.com/woueziou/liteCodeAgent/commit/96a6a1ec8587771c25b682cc25b66058ef6cbc74)), closes [#80](https://github.com/woueziou/liteCodeAgent/issues/80)
+* **tickets:** stop auto-migrating tickets with risky unknown frontmatter, quote embedded newlines ([f67ac7a](https://github.com/woueziou/liteCodeAgent/commit/f67ac7adfaf26f9fa961a3f04c0be6b875595d41)), closes [#79](https://github.com/woueziou/liteCodeAgent/issues/79)
+* **tickets:** ticket move (and any other serializeTicket rewrite) keeps unknown frontmatter keys ([f28f206](https://github.com/woueziou/liteCodeAgent/commit/f28f206d9e7d3561fb9a477868b58c1416267b6d))
+* **upgrade:** keep project.board while board.number is set ([32ef4ca](https://github.com/woueziou/liteCodeAgent/commit/32ef4ca181b3e607fb18138f488fbf51b9225e0f))
+
+
+### Features
+
+* add ADR 0017 for read-only dashboard server; update status in ticket 0032 ([c3b8f16](https://github.com/woueziou/liteCodeAgent/commit/c3b8f167d5c33634d4b54ee8f7420e801c651bba))
+* **adr:** surface pending ADR drafts on main (ticket 0047) ([e9b3d2f](https://github.com/woueziou/liteCodeAgent/commit/e9b3d2f882463b50b25bd04b300f2e8f3e2bd2d4))
+* **agents:** agents commit ticket-file changes on the default branch ([e8a80cc](https://github.com/woueziou/liteCodeAgent/commit/e8a80ccb4141ce8f35d5524d34316aaf8a82ac8f))
+* **agents:** planner/tracker surface open questions as [À CLARIFIER] ([2a80483](https://github.com/woueziou/liteCodeAgent/commit/2a8048316dd9105cc1bf2de8874ff8938b1e9197))
+* **cli:** litecode doctor detects orphaned work ([aa7130f](https://github.com/woueziou/liteCodeAgent/commit/aa7130fe2fefa622b94597dfceee4ed571bd7b68))
+* **dashboard:** mark ticket 0032 as done and document implementation details ([112f467](https://github.com/woueziou/liteCodeAgent/commit/112f46773eb9ece56307c391ba0250f080ede89e))
+* **dashboard:** read-only `litecode dashboard --serve` with live ADR screen ([1020714](https://github.com/woueziou/liteCodeAgent/commit/10207149ac8983770f094b75837e036f1bac1fc4))
+* **guard:** impose branch and status rules in code, not just prose ([8aeb280](https://github.com/woueziou/liteCodeAgent/commit/8aeb2809b8758ad70b8b8e1aae9aa1fc678910c9))
+* **implementer:** configurable test-first discipline ([7f34e3d](https://github.com/woueziou/liteCodeAgent/commit/7f34e3d2efb6a1909b7843e978e1c10beb072f47))
+* **migrate:** import GitHub board items as local tickets (0050) ([a3f05d5](https://github.com/woueziou/liteCodeAgent/commit/a3f05d59f58968ccfb5b9c10a338ed5214d9738e))
+* **resume:** progress journal per ticket and litecode resume ([d95fa20](https://github.com/woueziou/liteCodeAgent/commit/d95fa2014a39993e1408f2eb6cec2d4577e470ad))
+* **reviewer:** verify each acceptance criterion with proof ([4b3faac](https://github.com/woueziou/liteCodeAgent/commit/4b3faac00a1952e766a7600206da72dafd5f2eb1))
+* **tickets:** structured body contract, [À CLARIFIER] gate on planned, acceptance-criteria doctor check ([26d515f](https://github.com/woueziou/liteCodeAgent/commit/26d515fb4304d031d7a99eeacb23929efe9179cf))
+* **ticket:** update status of ticket 0033 to inProgress ([ee2a57d](https://github.com/woueziou/liteCodeAgent/commit/ee2a57da990afa8fcce7661d9198ecd254e15d0d))
+* update litecodeVersion to 1.1.1 and adjust installedAt timestamps; enhance dashboard and ticket features ([c4d4eb3](https://github.com/woueziou/liteCodeAgent/commit/c4d4eb3c68224bb209c1a3fb4ea32f094a5802f6))
+
 ## [1.1.1](https://github.com/woueziou/liteCodeAgent/compare/v1.1.0...v1.1.1) (2026-09-23)
 
 
