@@ -24,11 +24,28 @@ export type JournalEntry = {
   adrPosted?: boolean;
 };
 
-const BLOCK = /```(progress-journal|resume-manifest)\n([\s\S]*?)```/g;
+// Up to 3 leading spaces, like CommonMark (and `fenceRegions` in src/tickets/spec.ts):
+// implementer.md's own templates nest both fences inside a numbered-list item, indented 2-3
+// spaces, so an agent that copies them verbatim writes an indented fence, not a column-0 one.
+const OPEN_FENCE = /^ {0,3}```(progress-journal|resume-manifest)\s*$/;
+const CLOSE_FENCE = /^ {0,3}```\s*$/;
+
+/** Sha-like commit value, or the literal "none" the templates use before anything is committed. */
+const COMMIT_RE = /^(none|[0-9a-f]{4,40})$/i;
+/** A PR reference: a bare/`#`-prefixed number, or a URL — the two shapes `gh pr view` accepts. */
+const PR_RE = /^(#?\d+|https?:\/\/\S+)$/;
+
+export function isValidCommitValue(value: string): boolean {
+  return COMMIT_RE.test(value.trim());
+}
+
+export function isValidPrValue(value: string): boolean {
+  return PR_RE.test(value.trim());
+}
 
 function parseFields(text: string): Map<string, string> {
   const fields = new Map<string, string>();
-  for (const rawLine of text.split(/\r?\n/)) {
+  for (const rawLine of text.split(/\r\n|\r|\n/)) {
     const line = rawLine.trim();
     const colon = line.indexOf(":");
     if (colon === -1) continue;
@@ -39,12 +56,31 @@ function parseFields(text: string): Map<string, string> {
   return fields;
 }
 
+/**
+ * `commit`/`pr` are kept as-is when they look valid (sha-like, "none", a bare/`#` number, or
+ * a URL) and dropped otherwise — an unvalidated value from a ticket note must never reach
+ * `git`/`gh`, which `resume.ts` calls with these fields directly (ticket 0049).
+ */
+/**
+ * Normalizes "none" to a canonical lowercase so every `!== "none"` check downstream — in
+ * `resume.ts` and anywhere else a `JournalEntry.commit` is read — can compare case-sensitively
+ * without also having to know the value might have come in as "None"/"NONE".
+ */
+function validCommit(raw: string | undefined): string | undefined {
+  if (raw === undefined || !isValidCommitValue(raw)) return undefined;
+  return raw.trim().toLowerCase() === "none" ? "none" : raw.trim();
+}
+
+function validPr(raw: string | undefined): string | undefined {
+  return raw !== undefined && isValidPrValue(raw) ? raw : undefined;
+}
+
 function fromResumeManifest(fields: Map<string, string>): JournalEntry {
   return {
     step: "adr-pending-approval",
     worktree: fields.get("worktree"),
     branch: fields.get("branch"),
-    commit: fields.get("commit"),
+    commit: validCommit(fields.get("commit")),
     adrPath: fields.get("adr_path"),
     boardStatus: fields.get("board_status"),
     checks: fields.get("checks_passed"),
@@ -58,22 +94,52 @@ function fromProgressJournal(fields: Map<string, string>): JournalEntry {
     worktree: fields.get("worktree"),
     branch: fields.get("branch"),
     base: fields.get("base"),
-    commit: fields.get("commit"),
+    commit: validCommit(fields.get("commit")),
     checks: fields.get("checks"),
-    pr: fields.get("pr"),
+    pr: validPr(fields.get("pr")),
   };
 }
 
-/** Every journal-shaped block found in a ticket body, in document order. */
+/**
+ * Every journal-shaped block found in a ticket body, in document order. Scans line-by-line
+ * (like `fenceRegions` in `src/tickets/spec.ts`) rather than a single greedy regex, so CRLF
+ * line endings parse the same as LF, and a fence a run forgot to close can't silently
+ * swallow the next block as its own closing fence.
+ */
 export function parseJournalEntries(body: string): JournalEntry[] {
   const entries: JournalEntry[] = [];
-  BLOCK.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = BLOCK.exec(body))) {
-    const kind = m[1]!;
-    const fields = parseFields(m[2]!);
-    entries.push(kind === "resume-manifest" ? fromResumeManifest(fields) : fromProgressJournal(fields));
+  let openKind: "progress-journal" | "resume-manifest" | undefined;
+  let buffer: string[] = [];
+
+  for (const rawLine of body.split(/\r\n|\r|\n/)) {
+    if (!openKind) {
+      const m = OPEN_FENCE.exec(rawLine);
+      if (m) {
+        openKind = m[1] as "progress-journal" | "resume-manifest";
+        buffer = [];
+      }
+      continue;
+    }
+    if (CLOSE_FENCE.test(rawLine)) {
+      const fields = parseFields(buffer.join("\n"));
+      entries.push(openKind === "resume-manifest" ? fromResumeManifest(fields) : fromProgressJournal(fields));
+      openKind = undefined;
+      continue;
+    }
+    if (OPEN_FENCE.test(rawLine)) {
+      throw new Error(
+        `unclosed \`\`\`${openKind}\`\`\` block in ticket notes — a new fenced block started before it was closed, which would otherwise get folded into it`,
+      );
+    }
+    buffer.push(rawLine);
   }
+
+  if (openKind) {
+    throw new Error(
+      `unclosed \`\`\`${openKind}\`\`\` block in ticket notes — add a closing \`\`\` fence instead of leaving it to run into whatever follows`,
+    );
+  }
+
   return entries;
 }
 

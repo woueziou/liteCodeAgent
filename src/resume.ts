@@ -17,6 +17,10 @@ export type ResumeProbes = Probes & {
   worktreeExists(path: string): Promise<boolean>;
   /** `null` when git couldn't tell (e.g. the branch doesn't exist at all). */
   commitInBranch(branch: string, commit: string): Promise<boolean | null>;
+  /** The branch's current tip sha, or `null` when the branch can't be resolved. */
+  headCommit(branch: string): Promise<string | null>;
+  /** An open PR's url/number for `branch`, or `null` when there isn't one. */
+  openPrForBranch(branch: string): Promise<string | null>;
 };
 
 export type ResumeResult =
@@ -83,6 +87,26 @@ export async function resumeState(ticketBody: string, probes: ResumeProbes): Pro
   if (entry.pr) {
     const pr = await probes.prView(entry.pr);
     describePr(pr, entry.pr, findings, entry.branch);
+  }
+
+  // A journal is only as good as its last write: if the branch or the PR moved on since,
+  // resume must say so rather than hand back stale state as if it were current (ticket 0049).
+  if (entry.branch && !findings.some((f) => f.severity === "error")) {
+    const head = await probes.headCommit(entry.branch);
+    // The journal may hold an abbreviated sha (implementer.md only asks for "sha of last
+    // local commit", and `git commit` prints a 7-char one) in any case, so this must compare
+    // as a case-insensitive prefix of the full tip sha, not for exact equality — otherwise
+    // every abbreviated or differently-cased (but still current) commit looks stale.
+    if (head && entry.commit && entry.commit !== "none" && !head.toLowerCase().startsWith(entry.commit.toLowerCase())) {
+      warn(`branch '${entry.branch}' has moved to '${head}' since the journal recorded '${entry.commit}' — journal is behind the repo`);
+    }
+
+    if (!entry.pr) {
+      const openPr = await probes.openPrForBranch(entry.branch);
+      if (openPr) {
+        warn(`branch '${entry.branch}' has an open PR (${openPr}) the journal never recorded — journal is behind the repo`);
+      }
+    }
   }
 
   return { kind: "resolved", entry, findings, resumeAt: nextStep(entry, findings) };

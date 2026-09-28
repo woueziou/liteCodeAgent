@@ -24,6 +24,8 @@ function probes(overrides: Partial<ResumeProbes> = {}): ResumeProbes {
     ticketStatus: async () => "inProgress",
     worktreeExists: async (p) => p === "../worktrees/0034",
     commitInBranch: async (b, c) => b === "feat/x/0034" && c === "abc123",
+    headCommit: async (b) => (b === "feat/x/0034" ? "abc123" : null),
+    openPrForBranch: async () => null,
     ...overrides,
   };
 }
@@ -82,6 +84,26 @@ adr_posted: true
   if (result.kind !== "resolved") throw new Error("expected resolved");
   expect(result.resumeAt).toContain("ADR draft approval gate");
   expect(result.resumeAt).toContain("docs/decisions/0009-x.md");
+});
+
+test("a branch that moved past the journal's commit is flagged as a stale journal", async () => {
+  const result = await resumeState(JOURNAL_BODY, probes({ headCommit: async () => "def456" }));
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.findings.some((f) => f.severity === "warn" && f.message.includes("journal is behind the repo"))).toBe(true);
+});
+
+test("an abbreviated (or differently-cased) commit that's still a prefix of the tip is not flagged stale", async () => {
+  const result = await resumeState(JOURNAL_BODY, probes({ headCommit: async () => "ABC123def456" }));
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.findings.some((f) => f.message.includes("journal is behind the repo"))).toBe(false);
+});
+
+test("an open PR the journal never recorded is flagged as a stale journal", async () => {
+  const result = await resumeState(JOURNAL_BODY, probes({ openPrForBranch: async () => "https://github.com/o/r/pull/7" }));
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(
+    result.findings.some((f) => f.severity === "warn" && f.message.includes("open PR") && f.message.includes("never recorded")),
+  ).toBe(true);
 });
 
 test("a PR whose head branch differs from the journal's branch is an error", async () => {
