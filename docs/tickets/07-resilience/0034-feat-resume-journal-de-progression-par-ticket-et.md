@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0034-feat-resume-journal-de-progression-par-ticket-et
 title: "feat(resume): journal de progression par ticket et litecode resume"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: high
 size: large
 assignedAgent: human
@@ -138,3 +138,39 @@ board_status: In Progress
 checks_passed: bun run check: pass; bun test: 318 pass / 0 fail
 adr_posted: true
 ```
+
+### 2026-09-28 — implementer: ADR approved, PR opened, ready to merge
+
+Human approved ADR 0018 verbatim, no edits. Committed it (`78b8c85`) on
+`feat-resume-journal/0034` in `/Users/woueziou/works/personal_projects/worktrees/0034`,
+merged `origin/main` (`fe4900a`, no conflicts) to pick up PR #83's step 10 false-positive
+re-review rule and the three-dot diff-scope guidance in `reviewer.md`/`bug-hunter.md`,
+re-rendered installed agents (`5c61472`), reran `bun run check` (pass) and `bun test`
+(322 pass / 0 fail), then pushed and opened
+https://github.com/woueziou/liteCodeAgent/pull/84 (base `main`).
+
+`reviewer` verdict: `approve-with-notes`. One non-blocking finding: commit `d95fa20` is
+missing the `Task:` attribution trailer (has `Agent:` only) — deferred as a traceability
+hygiene item, not a functional defect. Plan fidelity: matches; all four acceptance criteria
+verified with concrete proof.
+
+`bug-hunter` report: `HUNT: complete`, no blocking findings. Five non-blocking findings, all
+confirmed or plausible via direct probing: (1) `resume` doesn't detect a stale journal
+relative to repo state when a gate step (ADR commit, PR open) happens without a fresh
+journal note — the journal-trigger list in `implementer.md` doesn't cover "after the ADR
+commit"; (2) `worktreeExists` resolves the journal's relative `worktree:` path against cwd,
+so running `resume` from inside a worktree (rather than the main checkout) misreports the
+worktree as gone; (3) the journal block regex isn't CRLF-aware, unlike
+`src/tickets/spec.ts`'s existing `fenceRegions`; (4) an unclosed fenced block silently
+swallows a later valid one instead of erroring; (5) the journal's `commit`/`pr` values are
+passed to git/gh without format validation (argv-only, not exploitable, hardening only).
+`bug-hunter` recommended same-PR fixups for (1) and (2), and triage-filed follow-up tickets
+for (3)-(5); given both verdicts are non-blocking and MERGEABLE/CLEAN, these were deferred
+rather than fixed in this run — flagging here for whoever files the follow-up tickets rather
+than letting them go untracked.
+
+Both full verdicts posted verbatim on the PR:
+https://github.com/woueziou/liteCodeAgent/pull/84#issuecomment-5868034821 (reviewer),
+https://github.com/woueziou/liteCodeAgent/pull/84#issuecomment-5868035328 (bug-hunter).
+
+Ticket moved `In Progress` → `Ready to Merge`.
