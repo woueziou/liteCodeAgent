@@ -127,6 +127,14 @@ export type Ticket = TicketMeta & {
   path: string;
   /** Everything after the frontmatter, the ticket's own history included. */
   body: string;
+  /**
+   * Frontmatter keys `TicketSchema` doesn't know about (a hand-added `epic:`,
+   * `generated_by:`/`task:` from the agent-attribution skill, ...), in file order, values
+   * as written. `parseTicket` captures these so any path that round-trips a ticket through
+   * `serializeTicket` — `ticket move` included — keeps them instead of silently dropping
+   * them on the next status write. Empty for a ticket with no such keys.
+   */
+  extraFrontmatter: Frontmatter;
 };
 
 const LEGACY_COMMENT_BLOCK = /<!-- litecode:comment -->\n?([\s\S]*?)\n?<!-- \/litecode:comment -->/g;
@@ -139,9 +147,22 @@ const LEGACY_KEYS = new Set(["issue", "synced", "syncedAt"]);
  * `epic:`, say. `serializeTicket` only writes known keys, so these would vanish silently.
  */
 export function unknownKeys(source: string, path: string): string[] {
+  return Object.keys(extraFrontmatter(source, path));
+}
+
+/**
+ * The subset of a ticket file's frontmatter `TicketSchema` doesn't know about, in file
+ * order — everything `unknownKeys` reports, but with values kept too so `parseTicket` can
+ * carry them forward on `Ticket.extraFrontmatter`.
+ */
+function extraFrontmatter(source: string, path: string): Frontmatter {
   const { data } = parseFrontmatter(source, path);
   const known = new Set<string>(KEY_ORDER);
-  return Object.keys(data).filter((key) => !known.has(key) && !LEGACY_KEYS.has(key));
+  const extra: Frontmatter = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (!known.has(key) && !LEGACY_KEYS.has(key)) extra[key] = value;
+  }
+  return extra;
 }
 
 /**
@@ -212,7 +233,7 @@ export function parseTicket(source: string, path: string): Ticket {
     const issues = parsed.error.issues.map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`).join("\n");
     throw new Error(`${path} is not a valid ticket:\n${issues}`);
   }
-  return { ...parsed.data, path, body: body.trimEnd() + "\n" };
+  return { ...parsed.data, path, body: body.trimEnd() + "\n", extraFrontmatter: extraFrontmatter(source, path) };
 }
 
 /**
@@ -237,6 +258,12 @@ export function serializeTicket(ticket: Ticket): string {
   for (const key of KEY_ORDER) {
     const value = ticket[key];
     data[key] = value === undefined || value === null ? "" : String(value);
+  }
+  // Unknown frontmatter keys (`epic:`, `generated_by:`, ...) are written back after the
+  // known ones, in the order they were read — a status/field write must not silently drop
+  // information some other tool or a human added by hand.
+  for (const [key, value] of Object.entries(ticket.extraFrontmatter ?? {})) {
+    data[key] = value;
   }
   return serializeFrontmatter(data, `${ticket.body.trimEnd()}\n`);
 }

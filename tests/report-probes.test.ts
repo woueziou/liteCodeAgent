@@ -57,6 +57,7 @@ function ticket(status: Ticket["status"]): Ticket {
     dueDate: undefined,
     path: "docs/tickets/03-epic/0017-fix-something.md",
     body: "Body.\n",
+    extraFrontmatter: {},
   };
 }
 

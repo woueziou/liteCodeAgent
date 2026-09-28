@@ -23,7 +23,6 @@ import {
   PRIORITIES,
   SIZES,
   TICKET_STATUSES,
-  unknownKeys,
   type Priority,
   type Size,
   type StatusRole,
@@ -585,21 +584,16 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(c.green(`Every ticket in ${dir} is already schema v${CURRENT_SCHEMA_VERSION}.`));
       return errors.length > 0 ? 1 : 0;
     }
-    const dropped = new Map<string, string[]>();
+    // Unknown frontmatter keys (`epic:`, `generated_by:`, ...) used to be silently dropped
+    // here, so this used to gate on `--force` before rewriting. `serializeTicket` now
+    // carries them through any rewrite (ticket 0042), migrate included, so there's nothing
+    // left to lose — this is purely informational.
     for (const t of legacy) {
       console.log(`  ${c.yellow("migrate")} ${t.path} ${c.dim(`(v${t.schemaVersion} → v${CURRENT_SCHEMA_VERSION})`)}`);
-      const extra = unknownKeys(await Bun.file(resolve(root, t.path)).text(), t.path);
+      const extra = Object.keys(t.extraFrontmatter);
       if (extra.length > 0) {
-        dropped.set(t.path, extra);
-        console.log(`    ${c.red("drops")} unknown frontmatter key(s): ${extra.join(", ")}`);
+        console.log(`    ${c.dim(`keeps unknown frontmatter key(s): ${extra.join(", ")}`)}`);
       }
-    }
-    if (dropped.size > 0 && !argv.includes("--force")) {
-      console.log(
-        c.red(`\n${dropped.size} ticket(s) carry frontmatter keys v2 doesn't know; migrating would delete them.`) +
-          c.dim("\nMove that information into the ticket body first, or re-run with --force to drop the keys."),
-      );
-      return 1;
     }
     if (!argv.includes("--apply")) {
       console.log(c.dim(`\nDry run. Re-run with --apply to rewrite ${legacy.length} ticket(s).`));

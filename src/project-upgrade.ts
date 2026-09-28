@@ -17,7 +17,7 @@ import { applyPlan, buildPlan, lockPath, SKILL_ROOTS } from "./install.ts";
 import { hash, readLockfile } from "./lockfile.ts";
 import { cleanedConfig, formatLike, isObject, obsoleteConfig, REMOVED_SKILLS, type Json } from "./project-upgrade-config.ts";
 import { listTicketsDetailed, writeTicket } from "./tickets/store.ts";
-import { CURRENT_SCHEMA_VERSION, migrateTicket, unknownKeys } from "./tickets/spec.ts";
+import { CURRENT_SCHEMA_VERSION, migrateTicket } from "./tickets/spec.ts";
 
 export type UpgradeContext = {
   root: string;
@@ -238,18 +238,11 @@ const migrateTickets: Migration = {
       summary: `leave ${e.path} as it is`,
       reason: `it isn't a valid ticket — run \`litecode ticket doctor\` for details, fix it, then run \`upgrade\` again`,
     }));
+    // Unknown frontmatter keys (`epic:`, `generated_by:`, ...) used to get skipped here
+    // because migrating would have dropped them. `serializeTicket` now carries them
+    // through any rewrite (ticket 0042), so every legacy ticket can migrate unconditionally.
     for (const ticket of tickets.filter((t) => t.schemaVersion < CURRENT_SCHEMA_VERSION)) {
-      const extra = unknownKeys(await Bun.file(resolve(ctx.root, ticket.path)).text(), ticket.path);
-      if (extra.length > 0) {
-        skipped.push({
-          summary: `leave ${ticket.path} at v${ticket.schemaVersion}`,
-          reason:
-            `its frontmatter has key(s) v${CURRENT_SCHEMA_VERSION} would drop (${extra.join(", ")}). ` +
-            "Move them into the body, or run `litecode ticket migrate --apply --force`",
-        });
-      } else {
-        changes.push({ summary: `migrate ${ticket.path}`, apply: () => writeTicket(ctx.root, migrateTicket(ticket)) });
-      }
+      changes.push({ summary: `migrate ${ticket.path}`, apply: () => writeTicket(ctx.root, migrateTicket(ticket)) });
     }
     return { ...base, changes, skipped };
   },

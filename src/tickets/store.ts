@@ -139,6 +139,7 @@ export async function createTicket(root: string, dir: string, input: NewTicket):
       dueDate: input.dueDate,
       path: join(dir, `${id}.md`),
       body: input.body.trimEnd() + "\n",
+      extraFrontmatter: {},
     };
 
     try {
