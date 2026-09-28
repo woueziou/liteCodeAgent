@@ -1,8 +1,8 @@
 import { afterEach, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { realProbes } from "../src/report/probes.ts";
+import { join, relative } from "node:path";
+import { realProbes, realResumeProbes } from "../src/report/probes.ts";
 import { writeTicket } from "../src/tickets/store.ts";
 import type { Ticket } from "../src/tickets/spec.ts";
 
@@ -108,6 +108,20 @@ test("ticketStatuses finds a ticket by id, number, or #number", async () => {
   expect(await p.ticketStatus("17")).toBe("review");
   expect(await p.ticketStatus("1")).toBeUndefined();
   expect(await p.ticketStatus("0018")).toBeUndefined();
+});
+
+test("worktreeExists resolves a relative worktree path against the primary checkout, not the cwd it's called from", async () => {
+  const root = await repo();
+  const worktreesDir = join(root, "..", "worktrees-" + root.split("/").pop());
+  dirs.push(worktreesDir);
+  await sh(root, "git", "worktree", "add", "-q", join(worktreesDir, "0049"), "feat/x/issue-7");
+
+  // `resume` launched from inside the linked worktree, not the primary checkout — the
+  // journal's `worktree:` path is relative to the primary checkout regardless (ticket 0049).
+  const fromInsideTheWorktree = realResumeProbes({ root: join(worktreesDir, "0049"), repo: "o/r", ticketsDir: "docs/tickets" });
+  const relativePath = relative(root, join(worktreesDir, "0049"));
+  expect(await fromInsideTheWorktree.worktreeExists(relativePath)).toBe(true);
+  expect(await fromInsideTheWorktree.worktreeExists("../does-not-exist/0049")).toBe(false);
 });
 
 test("ticketStatus reads only the primary checkout, never a stale copy committed on a branch", async () => {
