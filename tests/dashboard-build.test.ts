@@ -121,3 +121,36 @@ test("buildDashboard also loads ADRs from docs/decisions under the same root", a
   expect(data.adrs.map((a) => a.id)).toEqual(["0017"]);
   expect(data.adrLoadErrors.length).toBe(1);
 });
+
+test("buildDashboard surfaces ADR drafts pending approval (ticket 0047), and drops them once committed", async () => {
+  const root = await tmpRoot();
+  const draftBody = `
+## ADR à valider : 0019
+
+Draft awaiting approval.
+
+# 0019. Pending decision
+
+\`\`\`resume-manifest
+worktree: ../worktrees/0047
+branch: feat/x/0047
+commit: none
+adr_path: docs/decisions/0019-pending.md
+board_status: In Progress
+checks_passed: not yet run
+adr_posted: true
+\`\`\`
+`;
+  await writeTicket(root, fixture("docs/tickets/0047-x.md", { status: "inProgress", body: draftBody }));
+
+  const pending = await buildDashboard(root, "docs/tickets");
+  expect(pending.pendingAdrs).toHaveLength(1);
+  expect(pending.pendingAdrs[0]).toMatchObject({ ticketId: "0047-x", adrPath: "docs/decisions/0019-pending.md", adrNumber: "0019" });
+
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+  await writeFile(join(root, "docs/decisions/0019-pending.md"), "# 0019. Pending decision\n\nStatus: accepted\n");
+
+  const committed = await buildDashboard(root, "docs/tickets");
+  expect(committed.pendingAdrs).toEqual([]);
+});

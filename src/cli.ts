@@ -15,6 +15,7 @@ import { parseReport, verifyReport, type Finding as ReportFinding } from "./repo
 import { realProbes, realResumeProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import { doctor as fullDoctor } from "./doctor.ts";
+import { listPendingAdrs } from "./decisions/pending.ts";
 import { resumeState } from "./resume.ts";
 import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import {
@@ -577,8 +578,13 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
 
   if (sub === "list") {
     const { tickets, errors } = await listTicketsDetailed(root, dir);
+    const pendingByTicket = new Map((await listPendingAdrs(root, tickets)).map((p) => [p.ticketId, p]));
     for (const t of tickets) {
       console.log(`  ${t.status.padEnd(12)} ${t.id.padEnd(52)} ${c.dim(`${t.priority}/${t.size}`)}`);
+      const pending = pendingByTicket.get(t.id);
+      if (pending) {
+        console.log(`    ${c.yellow("⚠ ADR en attente d'approbation")} ${pending.adrPath} — lire dans ${pending.ticketPath}`);
+      }
     }
     for (const e of errors) {
       console.log(`  ${c.red("error ")} ${e.path}: ${e.error}`);

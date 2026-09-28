@@ -102,6 +102,7 @@ const STYLE = `
   .badge-readyToMerge { background: var(--readybg); color: var(--ready); }
   .badge-done { background: #d1fae5; color: #065f46; }
   .badge-adr { background: var(--humanbg); color: var(--human); }
+  .badge-adr-pending { background: var(--blockbg); color: var(--block); }
   .note { color: var(--fg2); font-size: 0.9rem; }
   .cmd-hint { font-size: 0.85rem; }
   .queue-layout { display: grid; grid-template-columns: 200px 1fr; gap: 1.5rem; }

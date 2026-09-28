@@ -339,3 +339,45 @@ test("ticket doctor and config doctor findings are surfaced through the aggregat
   expect(findings.some((f) => f.message.includes("0001-broken.md"))).toBe(true);
   expect(findings.some((f) => f.message.includes("project.agentSkills.tracker"))).toBe(true);
 });
+
+function pendingAdrDraftBody(): string {
+  return `
+## ADR à valider : 0019
+
+Draft awaiting approval.
+
+\`\`\`resume-manifest
+worktree: ../worktrees/0047
+branch: feat/x/0047
+commit: none
+adr_path: docs/decisions/0019-pending.md
+board_status: In Progress
+checks_passed: not yet run
+adr_posted: true
+\`\`\`
+`;
+}
+
+test("a ticket blocked behind an unapproved ADR draft is flagged, with the ticket path to read it in", async () => {
+  const root = await tmpRepo();
+  const draft: Ticket = { ...ticket("0047-x", "inProgress"), body: pendingAdrDraftBody() };
+  await writeTicket(root, draft);
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+  expect(findings).toContainEqual({
+    severity: "warn",
+    message:
+      "0047-x: ADR draft awaiting approval (docs/decisions/0019-pending.md) — read/approve it in docs/tickets/0047-x.md",
+  });
+});
+
+test("once the ADR is committed at adr_path, the ticket is no longer flagged", async () => {
+  const root = await tmpRepo();
+  const draft: Ticket = { ...ticket("0047-x", "inProgress"), body: pendingAdrDraftBody() };
+  await writeTicket(root, draft);
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+  await Bun.write(join(root, "docs/decisions/0019-pending.md"), "# 0019. Pending decision\n\nStatus: accepted\n");
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+  expect(findings.some((f) => f.message.includes("ADR draft"))).toBe(false);
+});

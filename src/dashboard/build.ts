@@ -14,6 +14,7 @@
 import { relative, dirname } from "node:path";
 import { listTicketsDetailed, type TicketLoadError } from "../tickets/store.ts";
 import { listAdrsDetailed, type AdrSummary, type AdrLoadError } from "../decisions/store.ts";
+import { listPendingAdrs, type PendingAdr } from "../decisions/pending.ts";
 import { STATUS_ROLES, PRIORITIES, SIZES, type StatusRole, type Priority, type Size, type Ticket } from "../tickets/spec.ts";
 
 export type StatusCount = { role: StatusRole; label: string; count: number };
@@ -45,6 +46,13 @@ export type DashboardData = {
   adrs: AdrSummary[];
   /** Malformed or unreadable ADR files — surfaced the same way `loadErrors` is. */
   adrLoadErrors: AdrLoadError[];
+  /**
+   * ADR drafts sitting behind `implementer`'s draft approval gate (ticket 0047): a
+   * `resume-manifest` note names an `adr_path` that doesn't exist under `docs/decisions/`
+   * yet. Surfaced separately from `adrs` since they aren't committed ADRs — the dashboard's
+   * ADR screen lists them as "awaiting approval" rather than mixing them into the real list.
+   */
+  pendingAdrs: PendingAdr[];
 };
 
 /** Where the dashboard reads ADRs from, relative to `root`. Not configurable (yet). */
@@ -73,6 +81,7 @@ function zeroByStatus(): Record<StatusRole, number> {
 export async function buildDashboard(root: string, dir: string, now: Date = new Date()): Promise<DashboardData> {
   const { tickets, errors } = await listTicketsDetailed(root, dir);
   const { adrs, errors: adrLoadErrors } = await listAdrsDetailed(root, ADRS_DIR);
+  const pendingAdrs = await listPendingAdrs(root, tickets);
 
   const byStatus = STATUS_ROLES.map((s) => ({
     role: s.role,
@@ -114,5 +123,6 @@ export async function buildDashboard(root: string, dir: string, now: Date = new 
     loadErrors: errors,
     adrs,
     adrLoadErrors,
+    pendingAdrs,
   };
 }
