@@ -93,7 +93,7 @@ test("a 0.x project gets one plan covering every migration, and planning writes 
   const before = await Bun.file(join(root, "litecode.config.json")).text();
   const plans = await plan(root);
 
-  expect(plans.map((p) => p.id)).toEqual(["config", "packs", "orphans", "tickets", "legacy-data"]);
+  expect(plans.map((p) => p.id)).toEqual(["config", "packs", "orphans", "tickets", "legacy-data", "board-import"]);
   expect(plans.find((p) => p.id === "config")!.changes[0]!.details).toEqual([
     "project.tickets.autoStateFile",
     "project.tickets.autoMinIntervalMs",
@@ -133,6 +133,42 @@ test("applying the plan brings the project fully up to date, and a second run ha
   expect(ticket).not.toMatch(/^issue:/m);
 
   expect(hasChanges(await plan(root))).toBe(false);
+});
+
+test("`upgrade` only mentions `ticket import-board` when project.board.number is still configured, never runs it", async () => {
+  const root = await legacyProject();
+  const withoutNumber = (await plan(root)).find((p) => p.id === "board-import")!;
+  expect(withoutNumber.changes).toEqual([]);
+  expect(withoutNumber.skipped).toEqual([]);
+
+  const raw = await Bun.file(join(root, "litecode.config.json")).json();
+  raw.project.board.number = 7;
+  await Bun.write(join(root, "litecode.config.json"), `${JSON.stringify(raw, null, 2)}\n`);
+  const withNumber = (await plan(root)).find((p) => p.id === "board-import")!;
+  expect(withNumber.changes).toEqual([]);
+  expect(withNumber.skipped).toHaveLength(1);
+  expect(withNumber.skipped[0]!.reason).toContain("ticket import-board");
+});
+
+test("`upgrade` keeps `project.board` when `board.number` is set, so `ticket import-board` can still read it", async () => {
+  const root = await legacyProject();
+  const raw = await Bun.file(join(root, "litecode.config.json")).json();
+  raw.project.board.number = 7;
+  await Bun.write(join(root, "litecode.config.json"), `${JSON.stringify(raw, null, 2)}\n`);
+
+  const plans = await plan(root);
+  expect(plans.find((p) => p.id === "config")!.changes[0]!.details).not.toContain("project.board");
+
+  await applyUpgrade(plans, () => {});
+  const config = await Bun.file(join(root, "litecode.config.json")).json();
+  expect(config.project.board).toEqual({ enabled: true, owner: "demo", dataFile: ".claude/data/board.json", number: 7 });
+});
+
+test("`upgrade` still removes `project.board` when it has no `number`", async () => {
+  const root = await legacyProject();
+  await applyUpgrade(await plan(root), () => {});
+  const config = await Bun.file(join(root, "litecode.config.json")).json();
+  expect(config.project.board).toBeUndefined();
 });
 
 test("a ticket with an unknown frontmatter key is left alone and reported, not migrated blind", async () => {

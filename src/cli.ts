@@ -6,7 +6,8 @@ import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, typ
 import { buildPlan, applyPlan } from "./install.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
-import { RateLimitError } from "./gh.ts";
+import { RateLimitError, readBoardItems } from "./gh.ts";
+import { runImportBoard } from "./tickets/import-board.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { buildDashboard } from "./dashboard/build.ts";
 import { renderDashboard } from "./dashboard/render.ts";
@@ -91,6 +92,9 @@ function usage(): void {
   ${c.bold("bunx litecodeagent ticket doctor")}            check the ticket directory for malformed/misplaced/duplicate/outdated files
   ${c.bold("bunx litecodeagent ticket migrate")} [--apply] [--force] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
                                      ${c.dim("refuses to drop unknown frontmatter keys unless --force")}
+                                     ${c.dim("(dry-run by default; --apply writes)")}
+  ${c.bold("bunx litecodeagent ticket import-board")} [--apply] [--board <owner>/<number>]  one-time import of the old GitHub Project board's items as local tickets
+                                     ${c.dim("read-only on GitHub; requires project.board.number, or --board if config was already cleaned; see ADR 0019")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
   ${c.bold("bunx litecodeagent ticket move")} <id> <status>    validate and write a ticket's status transition
                                      ${c.dim(`refuses a transition the pipeline's status machine doesn't allow (e.g. planned -> review)`)}
@@ -653,6 +657,76 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     for (const t of legacy) await writeTicket(root, migrateTicket(t));
     console.log(c.green(`\nMigrated ${legacy.length} ticket(s).`));
     return errors.length > 0 ? 1 : 0;
+  }
+
+  if (sub === "import-board") {
+    // Config's `project.board` may already have been stripped by an earlier litecode
+    // version's `upgrade --apply` (before ticket 0050 fixed `cleanConfig` to keep it
+    // while `number` is set) — `--board <owner>/<number>` lets that project still run
+    // the import, overriding whatever's in config. Named `--board`, not `--project`
+    // (ADR 0019's ticket used `--project`): `--project <dir>` is already this CLI's
+    // global "target repo directory" flag, parsed from the whole argv before subcommand
+    // routing, so reusing that name here would silently hijack it instead of adding a
+    // second meaning.
+    const boardFlagIndex = argv.indexOf("--board");
+    // `argv[boardFlagIndex + 1]` is `undefined` both when `--board` wasn't passed at all
+    // and when it's the last token with no value — those must not be treated the same:
+    // the latter is a malformed value (like a regex mismatch), not "flag absent", or a
+    // typo'd/forgotten override would silently import from whatever's in config instead.
+    const boardFlagPresent = boardFlagIndex >= 0;
+    const boardFlag = boardFlagPresent ? argv[boardFlagIndex + 1] : undefined;
+    let owner: string;
+    let boardNumber: number;
+    if (boardFlagPresent) {
+      const match = boardFlag !== undefined ? /^([^/]+)\/(\d+)$/.exec(boardFlag) : null;
+      if (!match) {
+        console.log(c.red(`--board expects <owner>/<number>, got ${JSON.stringify(boardFlag)}.`));
+        return 1;
+      }
+      owner = match[1]!;
+      boardNumber = Number(match[2]);
+    } else {
+      const configuredNumber = config.project.board.number;
+      if (!configuredNumber) {
+        console.log(
+          c.red(
+            "project.board.number is not configured — nothing to import. See ADR 0019. " +
+              "If it was already removed from config, pass --board <owner>/<number>.",
+          ),
+        );
+        return 1;
+      }
+      boardNumber = configuredNumber;
+      owner = config.project.board.owner || config.project.repo.split("/")[0]!;
+    }
+    const apply = argv.includes("--apply");
+    let items: Awaited<ReturnType<typeof readBoardItems>>;
+    try {
+      items = await readBoardItems(owner, boardNumber);
+    } catch (e) {
+      console.log(c.red(`ticket import-board: ${(e as Error).message}`));
+      return 1;
+    }
+    const summary = await runImportBoard(root, dir, items, apply);
+    const imported = summary.entries.filter((e) => e.outcome === "imported");
+    const skipped = summary.entries.filter((e) => e.outcome === "skipped");
+    const failed = summary.entries.filter((e) => e.outcome === "failed");
+    for (const e of imported) {
+      console.log(`  ${c.green(apply ? "imported" : "would import")} ${e.importedFrom}${apply ? ` -> ${e.path}` : ""}`);
+    }
+    for (const e of skipped) {
+      console.log(`  ${c.dim("skipped")}  ${e.importedFrom} ${c.dim(`(${e.reason})`)}`);
+    }
+    for (const e of failed) {
+      console.log(`  ${c.red("failed")}   ${e.importedFrom} ${c.dim(`(${e.reason})`)}`);
+    }
+    console.log(
+      `\n${c.bold("Bilan")}: ${imported.length} importé(s), ${skipped.length} ignoré(s), ${failed.length} en échec.`,
+    );
+    if (!apply && imported.length > 0) {
+      console.log(c.dim("Simulation. Relancer avec --apply pour écrire les tickets."));
+    }
+    return failed.length > 0 ? 1 : 0;
   }
 
   if (sub === "move") {

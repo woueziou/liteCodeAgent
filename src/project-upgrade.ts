@@ -348,11 +348,46 @@ const removeLegacyData: Migration = {
 };
 
 /**
+ * Points a project still on the old GitHub Project board (`project.board.number` set) at
+ * `litecode ticket import-board` (ticket 0050, ADR 0019) — purely a mention, never run:
+ * importing is a one-time, human-approved exit from board coupling, not something an
+ * unattended `upgrade` should do on someone's behalf. Reports nothing when the board isn't
+ * configured, so a project already migrated (or that never used the board) sees no change.
+ */
+const suggestBoardImport: Migration = {
+  id: "board-import",
+  title: "GitHub Project board still configured",
+  async plan(ctx) {
+    const base = { id: this.id, title: this.title };
+    // `cleanConfig` keeps `project.board` while `board.number` is set (so `import-board`
+    // still has it to read), but every migration after `cleanConfig` is planned against
+    // the already-cleaned config (see `planUpgrade`), and a `board` with no `number` is
+    // still stripped there — so `ctx.config.project.board.number` isn't a reliable read
+    // here either way. Read the file as it still is, same as `removeLegacyData` does for
+    // the same reason.
+    const { raw } = await readRawConfig(ctx.root);
+    const project = isObject(raw.project) ? raw.project : {};
+    const board = isObject(project.board) ? project.board : {};
+    if (typeof board.number !== "number") return { ...base, changes: [], skipped: [] };
+    return {
+      ...base,
+      changes: [],
+      skipped: [
+        {
+          summary: "GitHub Project board still configured (project.board.number)",
+          reason: "run `litecode ticket import-board` to import its items as local tickets, then remove `project.board` — see ADR 0019",
+        },
+      ],
+    };
+  },
+};
+
+/**
  * In apply order. Config cleanup comes first, and every later migration is planned
  * against the cleaned config (see `planUpgrade`), so agents are re-rendered without a
  * reference to a removed skill. Legacy data paths are read from the file as it still is.
  */
-export const MIGRATIONS: Migration[] = [cleanConfig, renderPacks, removeOrphans, migrateTickets, removeLegacyData];
+export const MIGRATIONS: Migration[] = [cleanConfig, renderPacks, removeOrphans, migrateTickets, removeLegacyData, suggestBoardImport];
 
 /**
  * Plans every migration. `ctx.config` is replaced by the config as it will be once

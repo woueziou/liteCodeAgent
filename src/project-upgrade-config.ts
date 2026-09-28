@@ -16,6 +16,19 @@ const OBSOLETE_KEYS = [
 ] as const;
 
 /**
+ * `project.board` is obsolete except while `project.board.number` is still set: that's
+ * the one value `ticket import-board` (ticket 0050, ADR 0019) still reads, and stripping
+ * it during `upgrade --apply` — before the user has had a chance to run `import-board` —
+ * would send them straight into "project.board.number is not configured". Only a `board`
+ * with no `number` (already imported, or never really configured) is removed as before.
+ */
+function boardStillNeeded(raw: Json): boolean {
+  const project = isObject(raw.project) ? raw.project : {};
+  const board = isObject(project.board) ? project.board : {};
+  return typeof board.number === "number";
+}
+
+/**
  * Skills earlier packs shipped and this one doesn't. A config still naming one keeps
  * rendering it into agents' frontmatter, and install only accepts it because the old
  * installed copy passes for a local overlay — until that orphan is deleted.
@@ -36,9 +49,15 @@ function parentOf(raw: Json, path: readonly string[]): Json | undefined {
   return isObject(node) && path.at(-1)! in node ? node : undefined;
 }
 
+function keysToStrip(raw: Json): readonly (readonly string[])[] {
+  return boardStillNeeded(raw)
+    ? OBSOLETE_KEYS.filter((path) => path.join(".") !== "project.board")
+    : OBSOLETE_KEYS;
+}
+
 function withoutObsoleteKeys(raw: Json): Json {
   const copy = structuredClone(raw);
-  for (const path of OBSOLETE_KEYS) delete parentOf(copy, path)?.[path.at(-1)!];
+  for (const path of keysToStrip(raw)) delete parentOf(copy, path)?.[path.at(-1)!];
   return copy;
 }
 
@@ -82,7 +101,9 @@ function stripRemovedSkills(raw: Json): string[] {
 
 /** What `cleanedConfig` would remove, as human-readable items; empty when nothing. */
 export function obsoleteConfig(raw: Json): string[] {
-  const keys = OBSOLETE_KEYS.filter((path) => parentOf(raw, path)).map((path) => path.join("."));
+  const keys = keysToStrip(raw)
+    .filter((path) => parentOf(raw, path))
+    .map((path) => path.join("."));
   // Skills under a key that is itself going away aren't worth listing twice.
   return [...keys, ...stripRemovedSkills(withoutObsoleteKeys(raw))];
 }

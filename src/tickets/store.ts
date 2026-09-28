@@ -137,6 +137,7 @@ export async function createTicket(root: string, dir: string, input: NewTicket):
       size: input.size ?? "medium",
       assignedAgent: input.assignedAgent ?? "human",
       dueDate: input.dueDate,
+      importedFrom: input.importedFrom,
       path: join(dir, `${id}.md`),
       body: input.body.trimEnd() + "\n",
       extraFrontmatter: {},

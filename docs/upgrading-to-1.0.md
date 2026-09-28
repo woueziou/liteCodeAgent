@@ -16,7 +16,9 @@ It shows its plan, asks for confirmation, and does steps 1 to 3 and 5 below in o
   edited them;
 - migrates your tickets;
 - removes the obsolete settings, including `github-project-sync` from `agentSkills`, and
-  the board's data files.
+  the board's data files;
+- if `project.board.number` is still configured, points you at step 3.5 below — it never
+  imports on its own.
 
 Anything it leaves alone (an edited file, a ticket with an unknown frontmatter key) is
 listed with the reason. Then commit the result and read step 4, which changes how you
@@ -61,12 +63,47 @@ bunx litecodeagent@latest ticket migrate --apply
 Existing GitHub issues are left as they are. A migrated ticket's old issue number stays
 in its git history.
 
+## 3.5. Import items still only on the board (if you used it)
+
+If you were still on the old GitHub Project v2 board — items and issues with no local
+ticket file for them yet — this is the one-time move that gets them into the local buffer
+before you drop the board for good. Not a sync: run it, commit the result, then stop using
+the board. Requires `project.board.number` still configured; see ADR 0019.
+
+`upgrade`'s config clean-up deliberately keeps `project.board` in place while
+`project.board.number` is set, specifically so this step still has it to read after
+`upgrade --apply` — it does not remove `project.board` for you (see step 5, which you do
+yourself, after this step, once you're done importing). If an earlier release's
+`upgrade --apply` already removed `project.board` before this fix, pass
+`--board <owner>/<number>` to override config and import anyway (not `--project`, which is
+already this CLI's global "target repo directory" flag).
+
+```bash
+bunx litecodeagent@latest ticket import-board            # dry run
+bunx litecodeagent@latest ticket import-board --apply
+bunx litecodeagent@latest ticket import-board --apply --board my-org/12   # config already cleaned
+```
+
+- Every board item (draft or issue-backed) becomes at most one ticket. Re-running is safe:
+  an item already imported (same `importedFrom`) is skipped, so an interrupted run resumes
+  where it left off.
+- A status/priority/size value the local enums don't know about lands the ticket in
+  `backlog` with an `[À CLARIFIER]` note citing the original value, which blocks planning it
+  until a human resolves it.
+- An issue body that doesn't already split into the four contract sections (0035) is kept
+  in full under "Contexte"; the other three sections get an `[À CLARIFIER]` placeholder.
+- The command prints a final tally of imported/skipped/failed items, with the reason for
+  each failure — one item failing never stops the rest.
+- Then commit the imported tickets, and remove `project.board` from your config
+  (see step 5).
+
 ## 4. Adjust how you work with tickets
 
 - `litecode ticket sync` is gone: there is nothing to push.
-- Agents write a ticket's `status` and dated notes in the main checkout's copy, and never
-  commit ticket files. **You commit them**, like any other change. Until you do, a
-  `git stash` or `git checkout -- docs/tickets` discards them.
+- Agents write a ticket's `status` and dated notes, and now commit those ticket files
+  themselves as they go (PR #77) — not just the main checkout's copy left dirty for a human
+  to commit separately. A ticket-only commit is the one standing exception to "an agent
+  never commits on the default branch."
 - `implementer` names its ticket in the pull request (`Ticket: <NNNN-slug>`) instead of
   "Closes #n", and reports `TICKET:` instead of `ISSUE:`. `litecode verify-report` still
   reads `ISSUE:` from agents installed before 1.0, but can't check their ticket status.
@@ -75,9 +112,12 @@ in its git history.
 
 - Remove `project.tickets.autoStateFile` and `project.tickets.autoMinIntervalMs` from
   `litecode.config.json`. They're ignored now.
-- `project.board` is also ignored. `litecode board init` and `board doctor` were removed
-  (ADR 0012). The files they wrote, `.claude/data/board.json` and
-  `.claude/data/github-project-item-ids.json`, can be deleted.
+- `project.board` is also ignored by everything except `ticket import-board` (step 3.5),
+  which is why `upgrade` leaves it in your config for you (rather than stripping it
+  itself) as long as `project.board.number` is still set. `litecode board init` and
+  `board doctor` were removed (ADR 0012). Once you've imported what you need from the
+  board, remove `project.board` from your config yourself and delete the files it wrote,
+  `.claude/data/board.json` and `.claude/data/github-project-item-ids.json`.
 
 ## If you maintain your own pack files
 
