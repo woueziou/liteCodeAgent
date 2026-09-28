@@ -132,6 +132,13 @@ test("`ticket import-board --board` rejects a malformed value", async () => {
   expect(output).toMatch(/--board expects/);
 });
 
+test("`ticket import-board --board` with no trailing value errors instead of silently using the configured board", async () => {
+  const root = await projectWithBoard();
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "import-board", "--board"]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/--board expects/);
+});
+
 test("end-to-end: `upgrade --apply` keeps project.board.number, then `ticket import-board` still works", async () => {
   const root = await projectWithBoard();
   await stubGhForBoard();

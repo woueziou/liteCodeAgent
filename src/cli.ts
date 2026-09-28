@@ -669,11 +669,16 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     // routing, so reusing that name here would silently hijack it instead of adding a
     // second meaning.
     const boardFlagIndex = argv.indexOf("--board");
-    const boardFlag = boardFlagIndex >= 0 ? argv[boardFlagIndex + 1] : undefined;
+    // `argv[boardFlagIndex + 1]` is `undefined` both when `--board` wasn't passed at all
+    // and when it's the last token with no value — those must not be treated the same:
+    // the latter is a malformed value (like a regex mismatch), not "flag absent", or a
+    // typo'd/forgotten override would silently import from whatever's in config instead.
+    const boardFlagPresent = boardFlagIndex >= 0;
+    const boardFlag = boardFlagPresent ? argv[boardFlagIndex + 1] : undefined;
     let owner: string;
     let boardNumber: number;
-    if (boardFlag !== undefined) {
-      const match = /^([^/]+)\/(\d+)$/.exec(boardFlag);
+    if (boardFlagPresent) {
+      const match = boardFlag !== undefined ? /^([^/]+)\/(\d+)$/.exec(boardFlag) : null;
       if (!match) {
         console.log(c.red(`--board expects <owner>/<number>, got ${JSON.stringify(boardFlag)}.`));
         return 1;
