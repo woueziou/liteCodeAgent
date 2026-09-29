@@ -1096,7 +1096,15 @@ async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
 }
 
 const argv = process.argv.slice(2);
-const root = resolve(arg(argv, "--project") ?? process.cwd());
+// A `--project` with no usable value must never fall back to the cwd: an isolated
+// implementer passing an unset/empty path would otherwise write its ticket changes into
+// its own worktree copy while reporting success (ticket 0057, bug-hunter finding).
+const projectArg = arg(argv, "--project");
+if (argv.includes("--project") && (!projectArg || projectArg.startsWith("--"))) {
+  console.log(c.red("--project requires a non-empty directory path"));
+  process.exit(1);
+}
+const root = resolve(projectArg ?? process.cwd());
 
 try {
   const code = await (async () => {

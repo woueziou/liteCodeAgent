@@ -5,7 +5,7 @@ task: "0057"
 
 # 0020. Implementer in an isolated worktree, ticket writes rooted explicitly
 
-Status: proposed
+Status: accepted
 Date: 2026-09-29
 
 ## Context

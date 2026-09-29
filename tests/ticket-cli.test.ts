@@ -400,3 +400,21 @@ test("`ticket note` refuses an empty file and a duplicate/unknown id, same as `t
   expect(unknown.exitCode).toBe(1);
   expect(unknown.output).toMatch(/No ticket/);
 });
+
+test("an empty or valueless `--project` is refused instead of falling back to cwd (isolated-worktree leak)", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "No silent cwd", "--label", "feature"]);
+  const notePath = join(root, "note.txt");
+  await Bun.write(notePath, "### note\n");
+
+  const empty = await runCliWithExit(root, ["ticket", "note", "--project", "", "0001", "--file", notePath]);
+  expect(empty.exitCode).toBe(1);
+  expect(empty.output).toMatch(/--project requires/);
+
+  const trailing = await runCliWithExit(root, ["ticket", "move", "0001", "planned", "--project"]);
+  expect(trailing.exitCode).toBe(1);
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-no-silent-cwd.md")).text();
+  expect(file).not.toContain("### note");
+  expect(file).toMatch(/^status: backlog$/m);
+});
