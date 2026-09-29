@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0052-feat-dashboard-autoriser-des-hotes-supplementair
 title: "feat(dashboard): autoriser des hôtes supplémentaires pour dashboard --serve"
 label: feature
-status: planned
+status: inProgress
 priority: low
 size: small
 assignedAgent: human
@@ -28,3 +28,15 @@ Depuis la PR #85 (ticket 0041), `dashboard --serve` refuse (403) toute requête 
 
 ## Hors périmètre
 Authentification du dashboard.
+
+### 2026-09-29 — implementer: PR opened
+
+```progress-journal
+step: step 7: PR opened
+worktree: ../worktrees/0052
+branch: feat-dashboard-allow-host/0052
+base: main
+commit: db0f1ef9ad7bb8812d7ebc7105a69dc727066c46
+checks: bun run check: pass; bun test (full suite): pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/97
+```
