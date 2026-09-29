@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0063-chore-git-ignorer-les-worktrees-isoles-des-agent
 title: "chore(git): ignorer les worktrees isolés des agents (.claude/worktrees/)"
 label: chore
-status: readyToMerge
+status: done
 priority: medium
 size: small
 assignedAgent: human
