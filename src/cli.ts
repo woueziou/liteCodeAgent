@@ -397,7 +397,7 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
     process.off("SIGTERM", onSigterm);
   }
   const ticketRef = arg(argv, "--ticket");
-  if (ticketRef) {
+  if (ticketRef && report.usage.input + report.usage.output > 0) {
     const ticket = await findTicketByRef(root, config.project.tickets.dir, ticketRef);
     if (!ticket) console.error(c.red(`--ticket: no ticket matches ${ticketRef}; tokens not journaled`));
     else await appendTicketNote(root, ticket, runnerJournalNote(agent, report.usage, new Date().toISOString().slice(0, 10)));
