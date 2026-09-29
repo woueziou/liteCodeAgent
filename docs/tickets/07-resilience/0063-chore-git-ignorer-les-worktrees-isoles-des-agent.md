@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0063-chore-git-ignorer-les-worktrees-isoles-des-agent
 title: "chore(git): ignorer les worktrees isolés des agents (.claude/worktrees/)"
 label: chore
-status: planned
+status: readyToMerge
 priority: medium
 size: small
 assignedAgent: human
@@ -28,3 +28,17 @@ Depuis l'ADR 0020, Claude Code crée le worktree isolé de chaque implémenteur 
 
 ## Hors périmètre
 Supprimer automatiquement les worktrees des agents.
+
+### 2026-09-29 — implementer: PR opened, reviewed, ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/111
+reviewer: VERDICT: approve. bug-hunter: HUNT: complete, no findings. CI: test pass. (Installed bunx CLI 1.1.1 lacked ticket note; used the worktree's own CLI.)
+
+```progress-journal
+step: step 10: ready to merge
+worktree: ../worktrees/0063
+branch: chore-ignore-agent-worktrees/0063
+base: main
+checks: bun run check: pass; bun test: 569 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/111
+```
