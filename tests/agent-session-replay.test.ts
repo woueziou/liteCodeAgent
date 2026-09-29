@@ -130,7 +130,7 @@ describe("implementer report replay (real parseReport)", () => {
   });
 
   test("the prompt still lists the fields parseReport reads", async () => {
-    expect(outputKeys(await prompt("implementer"))).toEqual(["STATUS", "TICKET", "BRANCH", "PR", "BLOCKER", "CI", "CHECK_OUTPUT"]);
+    expect(outputKeys(await prompt("implementer"))).toEqual(["STATUS", "TICKET", "BRANCH", "PR", "BLOCKER", "CI", "CHECK_OUTPUT", "TOKENS"]);
   });
 });
 
