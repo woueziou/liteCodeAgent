@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0067-perf-pipeline-rediger-et-valider-l-adr-avant-de
 title: "perf(pipeline): rédiger et valider l'ADR avant de lancer l'implémentation"
 label: feature
-status: inProgress
+status: review
 priority: medium
 size: medium
 assignedAgent: human
@@ -27,3 +27,18 @@ Un arrêt pour ADR en cours d'implémentation suivi d'une reprise a rendu 0034, 
 
 ## Hors périmètre
 Changer le format des ADR.
+
+### 2026-09-29 — implementer: PR opened, moved to Review
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/114 (CI: test pass).
+reviewer: approve-with-notes. bug-hunter: hunt 1 complete with a blocking finding, fixed; re-hunt complete with a new blocking finding (section cut at the first `## `), fixed in the last commit and verified by probe on real 0066/0061 tickets, but not re-hunted (one re-hunt per run) — hence Review. Open non-blocking follow-ups: ADR number reservation now spans the ticket's backlog life (planner should also check pending `## ADR à valider/approuvé` numbers in tickets); tracker pastes the ADR verbatim so its `## ` headings split the ticket sections; approval is a manual heading rename.
+
+```progress-journal
+step: step 10: review
+worktree: ../worktrees/0067
+branch: adr-before-implementation/0067
+base: origin/main
+commit: see PR head
+checks: bun run check pass; bun test 592 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/114
+```
