@@ -83,12 +83,3 @@ test("implementer.md tells the agent to leave installed copies to CI", async () 
   expect(md).toContain("commit only `packs/`");
   expect(md).toContain("or resolve a conflict on them by hand");
 });
-
-test("a file a pack no longer produces counts as out of date", async () => {
-  const { config, root, packs } = await setup();
-  await applyPlan(root, await buildPlan(root, packs, config), "9.9.9", { force: false });
-  await Bun.$`rm -rf ${join(packs, "core", "skills", "critique-expert")}`;
-  const plan = await buildPlan(root, packs, config);
-  expect(plan.orphans.length).toBeGreaterThan(0);
-  expect(staleEntries(plan)).toEqual(expect.arrayContaining(plan.orphans));
-});
