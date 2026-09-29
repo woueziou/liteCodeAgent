@@ -42,9 +42,9 @@ function fixture(path: string, overrides: Partial<Ticket> = {}): Ticket {
   };
 }
 
-let nextPort = 41730;
-function freshPort(): number {
-  return nextPort++;
+/** Real port of a server started with `port: 0` (OS-assigned, so parallel runs never collide). */
+function portOf(server: DashboardServer): number {
+  return Number(new URL(server.url).port);
 }
 
 test("serves 200 with the rendered dashboard on the configured port/host", async () => {
@@ -52,8 +52,9 @@ test("serves 200 with the rendered dashboard on the configured port/host", async
   await mkdir(join(root, "docs/decisions"), { recursive: true });
   await writeTicket(root, fixture("docs/tickets/0001-x.md"));
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port, host: "127.0.0.1" });
+  port = portOf(server);
   servers.push(server);
 
   const res = await fetch(`http://127.0.0.1:${port}/`);
@@ -78,8 +79,9 @@ test("an already-bracketed IPv6 --host isn't double-bracketed in the logged/retu
 test("rebuilds on every request: a ticket added after startup shows up without restarting", async () => {
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   let res = await fetch(`http://127.0.0.1:${port}/`);
@@ -99,8 +101,9 @@ test("a partial load error (malformed ticket) still returns 200 with the error l
   await mkdir(join(root, "docs/decisions"), { recursive: true });
   await Bun.write(join(root, "docs/tickets/0001-bad.md"), "not a valid ticket\n");
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   const res = await fetch(`http://127.0.0.1:${port}/`);
@@ -112,8 +115,9 @@ test("a partial load error (malformed ticket) still returns 200 with the error l
 test("a missing docs/ directory entirely is a fatal error: 500, no stack trace", async () => {
   const root = await tmpRoot(); // docs/ never created at all
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   const res = await fetch(`http://127.0.0.1:${port}/`);
@@ -131,8 +135,9 @@ test("an unexpected fatal build failure (docs/ present, but a subdir can't be tr
   // itself exists) — it must be caught inside the request handler instead.
   await Bun.write(join(root, "docs/decisions"), "not a directory\n");
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   const originalError = console.error;
@@ -153,8 +158,9 @@ test("an unexpected fatal build failure (docs/ present, but a subdir can't be tr
 test("binding to a port already in use fails clearly instead of hanging or crashing silently", async () => {
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
-  const port = freshPort();
+  let port = 0;
   const first = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(first);
   servers.push(first);
 
   await expect(startDashboardServer(root, "docs/tickets", { port })).rejects.toThrow(/already in use/);
@@ -164,8 +170,9 @@ test("Host header validation: a valid Host (127.0.0.1:port) is served", async ()
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   const res = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: `127.0.0.1:${port}` } });
@@ -176,8 +183,9 @@ test("Host header validation: a foreign Host is rejected with 403, before touchi
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   const res = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: "evil.example:1234" } });
@@ -188,8 +196,9 @@ test("Host header validation: a missing Host header is rejected (never reaches 2
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   // fetch() always sets a Host header itself, so hit the raw socket to actually omit it.
@@ -229,8 +238,9 @@ test("Method validation: a non-GET/HEAD method is rejected with 405", async () =
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   const res = await fetch(`http://127.0.0.1:${port}/`, { method: "POST" });
@@ -286,12 +296,13 @@ test("startDashboardServer: a Host matching --allow-host is served; anything els
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", {
     port,
     host: "0.0.0.0",
     allowHosts: ["my.lan.example"],
   });
+  port = portOf(server);
   servers.push(server);
 
   const allowed = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: `my.lan.example:${port}` } });
@@ -309,8 +320,9 @@ test("startDashboardServer: binding a wildcard host with no --allow-host warns o
   const warnings: unknown[][] = [];
   console.warn = (...args: unknown[]) => warnings.push(args);
   try {
-    const port = freshPort();
+    let port = 0;
     const server = await startDashboardServer(root, "docs/tickets", { port, host: "0.0.0.0" });
+    port = portOf(server);
     servers.push(server);
     expect(warnings.length).toBeGreaterThan(0);
     expect(String(warnings[0]![0])).toContain("--allow-host");
@@ -327,8 +339,9 @@ test("startDashboardServer: an all-zeros IPv6 --host spelling other than '::' st
   const warnings: unknown[][] = [];
   console.warn = (...args: unknown[]) => warnings.push(args);
   try {
-    const port = freshPort();
+    let port = 0;
     const server = await startDashboardServer(root, "docs/tickets", { port, host: "0:0:0:0:0:0:0:0" });
+    port = portOf(server);
     servers.push(server);
     expect(warnings.length).toBeGreaterThan(0);
   } finally {
@@ -344,12 +357,13 @@ test("startDashboardServer: binding a wildcard host WITH --allow-host does not w
   const warnings: unknown[][] = [];
   console.warn = (...args: unknown[]) => warnings.push(args);
   try {
-    const port = freshPort();
+    let port = 0;
     const server = await startDashboardServer(root, "docs/tickets", {
       port,
       host: "0.0.0.0",
       allowHosts: ["my.lan.example"],
     });
+    port = portOf(server);
     servers.push(server);
     expect(warnings.length).toBe(0);
   } finally {
@@ -363,8 +377,9 @@ test("filters the queue from the request's query string", async () => {
   await writeTicket(root, fixture("docs/tickets/0001-alpha.md", { label: "bug" }));
   await writeTicket(root, fixture("docs/tickets/0002-beta.md", { label: "feature" }));
 
-  const port = freshPort();
+  let port = 0;
   const server = await startDashboardServer(root, "docs/tickets", { port });
+  port = portOf(server);
   servers.push(server);
 
   const res = await fetch(`http://127.0.0.1:${port}/?label=bug`);

@@ -83,19 +83,38 @@ export async function writeTicket(root: string, ticket: Ticket): Promise<void> {
 }
 
 /**
- * Appends a note to a ticket's body and writes it back (ticket 0057). This is the one
- * sanctioned way to add a note/progress-journal entry to a ticket from a Bash command
- * instead of an Edit/Write on the file directly — the append-only rule ("never rewrite or
- * delete what's already there") is kept here: the body is only ever extended (the file is
- * re-serialized, so frontmatter formatting may be normalized, as `ticket move` already does). `note` is appended verbatim after a blank-line separator; callers
- * own their own heading formatting (e.g. `### <date> — implementer: ...`).
+ * Appends a note to the end of a ticket file (ticket 0057, made byte-preserving by 0060).
+ * This is the one sanctioned way to add a note/progress-journal entry from a Bash command
+ * instead of an Edit/Write on the file directly. Nothing is parsed or re-serialized: the
+ * raw file is read and only its end is extended, so frontmatter formatting (quotes, key
+ * order, comments) and the existing body survive byte for byte — the append-only rule
+ * ("never rewrite or delete what's already there") holds literally. `note` goes after a
+ * blank-line separator; callers own their own heading formatting.
  */
-export async function appendTicketNote(root: string, ticket: Ticket, note: string): Promise<Ticket> {
-  const trimmedNote = note.trim();
-  const body = `${ticket.body.trimEnd()}\n\n${trimmedNote}\n`;
-  const updated: Ticket = { ...ticket, body };
-  await writeTicket(root, updated);
-  return updated;
+export async function appendTicketNote(root: string, ticket: Ticket, note: string): Promise<void> {
+  const abs = resolve(root, ticket.path);
+  const raw = await Bun.file(abs).text();
+  await Bun.write(abs, `${raw.replace(/\n+$/, "")}\n\n${note.trim()}\n`);
+}
+
+/**
+ * Sets a ticket's `status` by rewriting only its `status:` line inside the frontmatter
+ * (ticket 0060); every other byte of the file is preserved, unlike a parse + re-serialize
+ * round trip that can change quoting, key order or comments. Throws when the frontmatter
+ * carries no `status:` line to replace, rather than guessing where to insert one.
+ */
+export async function setTicketStatus(root: string, ticket: Ticket, status: string): Promise<void> {
+  const abs = resolve(root, ticket.path);
+  const lines = (await Bun.file(abs).text()).split("\n");
+  // Same delimiter rule as the parser: a line that is exactly `---`. When a key appears
+  // twice the parser keeps the last one, so that is the line to rewrite.
+  const close = lines.findIndex((l, i) => i > 0 && l === "---");
+  const statusLine = lines.findLastIndex((l, i) => close > 0 && i > 0 && i < close && /^\s*status\s*:/.test(l));
+  if (lines[0] !== "---" || statusLine === -1) {
+    throw new Error(`${ticket.path}: no 'status:' line in the frontmatter to update`);
+  }
+  lines[statusLine] = `status: ${status}`;
+  await Bun.write(abs, lines.join("\n"));
 }
 
 /**
