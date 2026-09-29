@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0056-fix-agents-le-test-d-abord-ne-doit-jamais-exiger
 title: "fix(agents): le test d'abord ne doit jamais exiger de réécrire l'historique"
 label: bug
-status: backlog
+status: planned
 priority: high
 size: small
 assignedAgent: human
