@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0054-feat-implementer-verifier-la-ci-de-la-pr-avant-r
 title: "feat(implementer): vérifier la CI de la PR avant readyToMerge"
 label: feature
-status: readyToMerge
+status: done
 priority: medium
 size: small
 assignedAgent: human

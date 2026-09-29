@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0052-feat-dashboard-autoriser-des-hotes-supplementair
 title: "feat(dashboard): autoriser des hôtes supplémentaires pour dashboard --serve"
 label: feature
-status: readyToMerge
+status: done
 priority: low
 size: small
 assignedAgent: human
