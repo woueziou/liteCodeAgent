@@ -381,3 +381,267 @@ test("once the ADR is committed at adr_path, the ticket is no longer flagged", a
   const findings = await doctor({ root, packsRoot: PACKS, config });
   expect(findings.some((f) => f.message.includes("ADR draft"))).toBe(false);
 });
+
+test("a ticket with an abandoned first branch (PR closed) and a live second branch (PR open) is not flagged stale", async () => {
+  const root = await tmpRepo();
+  const bare = await mkdtemp(join(tmpdir(), "litecode-doctor-bare-"));
+  dirs.push(bare);
+  await sh(bare, "git", "init", "-q", "--bare");
+  await sh(root, "git", "remote", "add", "origin", bare);
+
+  await sh(root, "git", "switch", "-q", "-c", "feat/attempt-one/0099");
+  await Bun.write(join(root, "a.txt"), "attempt one\n");
+  await commitAll(root, "attempt one");
+  await sh(root, "git", "push", "-q", "origin", "feat/attempt-one/0099");
+  await sh(root, "git", "switch", "-q", "main");
+
+  await sh(root, "git", "switch", "-q", "-c", "feat/attempt-two/0099");
+  await Bun.write(join(root, "b.txt"), "attempt two\n");
+  await commitAll(root, "attempt two");
+  await sh(root, "git", "push", "-q", "origin", "feat/attempt-two/0099");
+  await sh(root, "git", "switch", "-q", "main");
+
+  await writeTicket(root, ticket("0099-orphan", "review"));
+
+  const ghBin = await fakeGh(
+    root,
+    `case "$*" in
+      *feat/attempt-one/0099*) echo '[{"state":"CLOSED","url":"https://github.com/o/r/pull/1"}]' ;;
+      *feat/attempt-two/0099*) echo '[{"state":"OPEN","url":"https://github.com/o/r/pull/2"}]' ;;
+      *) echo "[]" ;;
+    esac`,
+  );
+  const prevGh = process.env.LITECODE_GH_BIN;
+  process.env.LITECODE_GH_BIN = ghBin;
+  try {
+    const config = await exampleConfig();
+    const findings = await doctor({ root, packsRoot: PACKS, config });
+    expect(findings.some((f) => f.message.includes("0099-orphan") && f.message.includes("is closed"))).toBe(false);
+    expect(findings.some((f) => f.message.includes("0099-orphan") && f.message.includes("is merged"))).toBe(false);
+  } finally {
+    if (prevGh === undefined) delete process.env.LITECODE_GH_BIN;
+    else process.env.LITECODE_GH_BIN = prevGh;
+  }
+});
+
+test("a merged PR whose remote branch was already deleted (gh pr merge --delete-branch) is still flagged stale", async () => {
+  const root = await tmpRepo();
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await Bun.write(join(root, "a.txt"), "x\n");
+  await commitAll(root, "work");
+  await sh(root, "git", "switch", "-q", "main");
+  // No `git push` here at all: the local branch exists (as it would inside the ticket's own
+  // worktree, still checked out), but the remote branch is gone — simulating
+  // `gh pr merge --delete-branch` having already run. `remoteBranchExists` must not gate this
+  // check, or the merged PR is silently masked.
+  await writeTicket(root, ticket("0099-orphan", "review"));
+
+  const ghBin = await fakeGh(
+    root,
+    `echo '[{"state":"MERGED","url":"https://github.com/o/r/pull/1"}]'`,
+  );
+  const prevGh = process.env.LITECODE_GH_BIN;
+  process.env.LITECODE_GH_BIN = ghBin;
+  try {
+    const config = await exampleConfig();
+    const findings = await doctor({ root, packsRoot: PACKS, config });
+    expect(findings).toContainEqual({
+      severity: "error",
+      message: "0099-orphan: status 'review' but its PR (https://github.com/o/r/pull/1) is merged — update the ticket",
+    });
+  } finally {
+    if (prevGh === undefined) delete process.env.LITECODE_GH_BIN;
+    else process.env.LITECODE_GH_BIN = prevGh;
+  }
+});
+
+test("doctor run from inside a ticket worktree resolves project.worktreeRoot relative to the primary checkout", async () => {
+  const root = await tmpRepo();
+  await mkdir(join(root, "..", "worktrees"), { recursive: true });
+  // A stale worktree with no matching ticket at all — should be flagged regardless of which
+  // worktree `doctor` itself is invoked from.
+  await sh(root, "git", "worktree", "add", "-q", "-b", "feat/thing/0088", join(root, "..", "worktrees", "0088"));
+  // The worktree `doctor` runs from — itself belongs to an inProgress ticket, so it must not
+  // be flagged as stale against itself.
+  await sh(root, "git", "worktree", "add", "-q", "-b", "feat/thing/0099", join(root, "..", "worktrees", "0099"));
+  const config = await exampleConfig();
+  const runningFromWorktree = join(root, "..", "worktrees", "0099");
+  // Ticket status must be read against the primary checkout, not whichever worktree `doctor`
+  // is invoked from — this is written (uncommitted) straight into the primary checkout, the
+  // same way a real ticket status change lands before a branch is ever cut from it, and must
+  // still be visible when `doctor` is run with `root` pointed at the ticket's own worktree.
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+  const findings = await doctor({ root: runningFromWorktree, packsRoot: PACKS, config });
+
+  expect(findings.some((f) => f.message.includes("worktrees/0088"))).toBe(true);
+  expect(findings.some((f) => f.message.includes("worktrees/0099"))).toBe(false);
+
+  await sh(root, "git", "worktree", "remove", "-f", join(root, "..", "worktrees", "0088"));
+  await sh(root, "git", "worktree", "remove", "-f", join(root, "..", "worktrees", "0099"));
+});
+
+test("doctor run from inside a ticket worktree reads current ticket status from the primary checkout, not the worktree's stale copy", async () => {
+  const root = await tmpRepo();
+  // Ticket was `planned` (no status file entry needed here) when the branch was cut; it's
+  // since moved to `inProgress`, committed on `main` in the primary checkout, per the real
+  // `implementer` flow — the worktree's own checkout of `docs/tickets` predates that commit.
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await sh(root, "git", "switch", "-q", "main");
+  await mkdir(join(root, "..", "worktrees"), { recursive: true });
+  await sh(root, "git", "worktree", "add", "-q", join(root, "..", "worktrees", "0099"), "feat/thing/0099");
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+  await commitAll(root, "move ticket to inProgress");
+
+  const config = await exampleConfig();
+  const runningFromWorktree = join(root, "..", "worktrees", "0099");
+  const findings = await doctor({ root: runningFromWorktree, packsRoot: PACKS, config });
+
+  // The worktree's own stale (pre-commit) copy of docs/tickets has no ticket at all, which
+  // would make this worktree look orphaned (no matching inProgress ticket) if `doctor` read
+  // ticket status from wherever it's invoked from instead of the primary checkout.
+  expect(findings.some((f) => f.message.includes("worktrees/0099"))).toBe(false);
+
+  await sh(root, "git", "worktree", "remove", "-f", join(root, "..", "worktrees", "0099"));
+});
+
+test("gh failing for one of a ticket's branches does not turn a sibling's closed PR into a false stale-status error", async () => {
+  const root = await tmpRepo();
+  const bare = await mkdtemp(join(tmpdir(), "litecode-doctor-bare-"));
+  dirs.push(bare);
+  await sh(bare, "git", "init", "-q", "--bare");
+  await sh(root, "git", "remote", "add", "origin", bare);
+
+  await sh(root, "git", "switch", "-q", "-c", "feat/attempt-one/0099");
+  await Bun.write(join(root, "a.txt"), "attempt one\n");
+  await commitAll(root, "attempt one");
+  await sh(root, "git", "push", "-q", "origin", "feat/attempt-one/0099");
+  await sh(root, "git", "switch", "-q", "main");
+
+  await sh(root, "git", "switch", "-q", "-c", "feat/attempt-two/0099");
+  await Bun.write(join(root, "b.txt"), "attempt two\n");
+  await commitAll(root, "attempt two");
+  await sh(root, "git", "push", "-q", "origin", "feat/attempt-two/0099");
+  await sh(root, "git", "switch", "-q", "main");
+
+  await writeTicket(root, ticket("0099-orphan", "review"));
+
+  // attempt-one's gh lookup succeeds and reports CLOSED; attempt-two's gh lookup fails
+  // outright (simulating a transient gh error on the branch that might actually hold the
+  // live, open PR) — the check must not conclude "closed" off attempt-one alone.
+  const ghBin = await fakeGh(
+    root,
+    `case "$*" in
+      *feat/attempt-one/0099*) echo '[{"state":"CLOSED","url":"https://github.com/o/r/pull/1"}]' ;;
+      *feat/attempt-two/0099*) echo "network unreachable" >&2; exit 1 ;;
+      *) echo "[]" ;;
+    esac`,
+  );
+  const prevGh = process.env.LITECODE_GH_BIN;
+  process.env.LITECODE_GH_BIN = ghBin;
+  try {
+    const config = await exampleConfig();
+    const findings = await doctor({ root, packsRoot: PACKS, config });
+    expect(findings.some((f) => f.severity === "error" && f.message.includes("0099-orphan"))).toBe(false);
+    expect(findings.some((f) => f.message.includes("0099-orphan") && f.message.includes("non vérifié"))).toBe(true);
+  } finally {
+    if (prevGh === undefined) delete process.env.LITECODE_GH_BIN;
+    else process.env.LITECODE_GH_BIN = prevGh;
+  }
+});
+
+test("a MERGED branch is preferred over a sibling CLOSED branch when reporting a stale PR status", async () => {
+  const root = await tmpRepo();
+  const bare = await mkdtemp(join(tmpdir(), "litecode-doctor-bare-"));
+  dirs.push(bare);
+  await sh(bare, "git", "init", "-q", "--bare");
+  await sh(root, "git", "remote", "add", "origin", bare);
+
+  await sh(root, "git", "switch", "-q", "-c", "feat/attempt-one/0099");
+  await Bun.write(join(root, "a.txt"), "attempt one\n");
+  await commitAll(root, "attempt one");
+  await sh(root, "git", "push", "-q", "origin", "feat/attempt-one/0099");
+  await sh(root, "git", "switch", "-q", "main");
+
+  await sh(root, "git", "switch", "-q", "-c", "feat/attempt-two/0099");
+  await Bun.write(join(root, "b.txt"), "attempt two\n");
+  await commitAll(root, "attempt two");
+  await sh(root, "git", "push", "-q", "origin", "feat/attempt-two/0099");
+  await sh(root, "git", "switch", "-q", "main");
+
+  await writeTicket(root, ticket("0099-orphan", "review"));
+
+  const ghBin = await fakeGh(
+    root,
+    `case "$*" in
+      *feat/attempt-one/0099*) echo '[{"state":"CLOSED","url":"https://github.com/o/r/pull/1"}]' ;;
+      *feat/attempt-two/0099*) echo '[{"state":"MERGED","url":"https://github.com/o/r/pull/2"}]' ;;
+      *) echo "[]" ;;
+    esac`,
+  );
+  const prevGh = process.env.LITECODE_GH_BIN;
+  process.env.LITECODE_GH_BIN = ghBin;
+  try {
+    const config = await exampleConfig();
+    const findings = await doctor({ root, packsRoot: PACKS, config });
+    expect(findings).toContainEqual({
+      severity: "error",
+      message: "0099-orphan: status 'review' but its PR (https://github.com/o/r/pull/2) is merged — update the ticket",
+    });
+  } finally {
+    if (prevGh === undefined) delete process.env.LITECODE_GH_BIN;
+    else process.env.LITECODE_GH_BIN = prevGh;
+  }
+});
+
+test("a prunable worktree (directory deleted, still registered) is not counted as present and is flagged to clean up", async () => {
+  const root = await tmpRepo();
+  await mkdir(join(root, "..", "worktrees"), { recursive: true });
+  const wtPath = join(root, "..", "worktrees", "0099");
+  await sh(root, "git", "worktree", "add", "-q", "-b", "feat/thing/0099", wtPath);
+  await rm(wtPath, { recursive: true, force: true });
+  await writeTicket(root, ticket("0099-orphan", "inProgress"));
+
+  const config = await exampleConfig();
+  const findings = await doctor({ root, packsRoot: PACKS, config });
+
+  // Not counted as present: since the worktree is gone but a branch still matches the
+  // ticket's number, it's not reported as fully abandoned either — only the prunable finding
+  // fires.
+  expect(findings.some((f) => f.message.includes("prunable"))).toBe(true);
+  expect(findings.some((f) => f.message.includes("0099-orphan") && f.message.includes("abandoned"))).toBe(false);
+
+  await sh(root, "git", "worktree", "prune");
+});
+
+test("gh pr list is called at most once per branch across checkPushedBranchWithoutPr and checkStalePrStatus", async () => {
+  const root = await tmpRepo();
+  await sh(root, "git", "switch", "-q", "-c", "feat/thing/0099");
+  await Bun.write(join(root, "a.txt"), "x\n");
+  await commitAll(root, "work");
+  await sh(root, "git", "switch", "-q", "main");
+  const bare = await mkdtemp(join(tmpdir(), "litecode-doctor-bare-"));
+  dirs.push(bare);
+  await sh(bare, "git", "init", "-q", "--bare");
+  await sh(root, "git", "remote", "add", "origin", bare);
+  await sh(root, "git", "push", "-q", "origin", "feat/thing/0099");
+  // `review` makes both checkPushedBranchWithoutPr and checkStalePrStatus look at this branch.
+  await writeTicket(root, ticket("0099-orphan", "review"));
+
+  const callLog = join(root, "gh-calls.log");
+  const ghBin = await fakeGh(
+    root,
+    `echo "$*" >> ${JSON.stringify(callLog)}\necho '[{"state":"OPEN","url":"https://github.com/o/r/pull/1"}]'`,
+  );
+  const prevGh = process.env.LITECODE_GH_BIN;
+  process.env.LITECODE_GH_BIN = ghBin;
+  try {
+    const config = await exampleConfig();
+    await doctor({ root, packsRoot: PACKS, config });
+    const log = await Bun.file(callLog).text();
+    const calls = log.split("\n").filter((l) => l.includes("pr list") && l.includes("feat/thing/0099"));
+    expect(calls.length).toBe(1);
+  } finally {
+    if (prevGh === undefined) delete process.env.LITECODE_GH_BIN;
+    else process.env.LITECODE_GH_BIN = prevGh;
+  }
+});
