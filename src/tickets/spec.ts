@@ -303,19 +303,43 @@ export function serializeTicket(ticket: Ticket): string {
 export const CONTRACT_SECTIONS = ["Contexte", "Critères d'acceptation", "Plan", "Hors périmètre"] as const;
 
 /**
+ * Normalizes a section heading for comparison, so a title's exact Unicode encoding never
+ * decides whether `ticketSection()` finds it (ticket 0044): different editors and macOS's
+ * autocorrect write the straight apostrophe (U+0027) in "Critères d'acceptation" as the
+ * typographic one (U+2019), and some tools decompose accented letters into a base letter
+ * plus a combining mark (NFD) rather than the precomposed form (NFC) `CONTRACT_SECTIONS`
+ * uses. Folds both variations away, along with case and surrounding whitespace, none of
+ * which should matter for "is this the same heading".
+ */
+function normalizeHeading(heading: string): string {
+  return heading
+    .normalize("NFC")
+    .replace(/[‘’ʼ]/g, "'")
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * Returns the text of a `## <heading>` section (everything up to the next `##` heading, or
  * the end of the body), trimmed — or `null` if that heading isn't present at all. An empty
  * string means the heading exists but has no content under it; callers that care about
  * "did the author actually fill this in" (e.g. `ticket doctor`'s acceptance-criteria check)
  * must check for that themselves rather than treating `null` and `""` as the same thing.
+ *
+ * Heading comparison is Unicode-normalization-insensitive (see `normalizeHeading`): a
+ * heading written with a typographic apostrophe or in NFD still matches.
  */
 export function ticketSection(body: string, heading: string): string | null {
-  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(`^##\\s+${escaped}\\s*$`, "mi").exec(body);
-  if (!match) return null;
-  const rest = body.slice(match.index + match[0].length);
-  const next = /^##\s+/m.exec(rest);
-  return (next ? rest.slice(0, next.index) : rest).trim();
+  const target = normalizeHeading(heading);
+  const headingLine = /^##\s+(.*?)\s*$/gm;
+  let match: RegExpExecArray | null;
+  while ((match = headingLine.exec(body))) {
+    if (normalizeHeading(match[1] ?? "") !== target) continue;
+    const rest = body.slice(match.index + match[0].length);
+    const next = /^##\s+/m.exec(rest);
+    return (next ? rest.slice(0, next.index) : rest).trim();
+  }
+  return null;
 }
 
 /**
