@@ -73,3 +73,12 @@ test("hasPendingAdr detects an '## ADR à valider' heading, not one quoted in co
   expect(hasPendingAdr("```\n## ADR à valider : 0023\n```")).toBe(false);
   expect(hasPendingAdr("## ADR à valider :0023")).toBe(true);
 });
+
+test("hasPendingAdr is case/accent/NFD insensitive and ignores a mid-implementation draft holding a resume-manifest", () => {
+  expect(hasPendingAdr("## ADR À valider : 0023\nx")).toBe(true);
+  expect(hasPendingAdr("## ADR a valider : 0023\nx")).toBe(true);
+  expect(hasPendingAdr("## ADR a\u0300 valider : 0023\nx")).toBe(true);
+  const gate = "## ADR à valider : 0022\ndraft\n```resume-manifest\nadr_posted: true\n```\n";
+  expect(hasPendingAdr(gate)).toBe(false);
+  expect(hasPendingAdr(`${gate}\n## ADR à valider : 0023\nplain draft`)).toBe(true);
+});

@@ -389,17 +389,25 @@ export const PENDING_ADR_HEADING = "## ADR à valider";
 /**
  * Whether `body` still has an `## ADR à valider` heading outside any fenced code block —
  * `ticket move ... planned` refuses such a ticket, so `implementer` never starts on an ADR
- * that nobody approved (ticket 0067).
+ * that nobody approved (ticket 0067). Matching is case-, accent- and Unicode-normalization
+ * insensitive. A section that already holds a `resume-manifest` fence is the one
+ * `implementer`'s mid-implementation gate wrote (ticket 0047, approved in conversation and
+ * never renamed), so it does not count as pending here.
  */
 export function hasPendingAdr(body: string): boolean {
-  let prose = "";
-  let last = 0;
-  for (const [start, end] of fenceRegions(body)) {
-    prose += body.slice(last, start);
-    last = end;
+  const text = body.normalize("NFC");
+  const fences = fenceRegions(text);
+  const inFence = (at: number) => fences.some(([a, b]) => at >= a && at < b);
+  const heading = /^##[ \t]+ADR[ \t]+[àa][ \t]+valider\b/gim;
+  let m: RegExpExecArray | null;
+  while ((m = heading.exec(text))) {
+    if (inFence(m.index)) continue;
+    const rest = text.slice(m.index + m[0].length);
+    const next = /^##[ \t]+/m.exec(rest);
+    const section = next ? rest.slice(0, next.index) : rest;
+    if (!/^\s*(`{3,}|~{3,})\s*resume-manifest\b/m.test(section)) return true;
   }
-  prose += body.slice(last);
-  return /^##[ \t]+ADR à valider\b/m.test(prose);
+  return false;
 }
 
 /** `Fix the flaky board test!` -> `fix-the-flaky-board-test` */
