@@ -49,6 +49,11 @@ test("ticketSection matches a heading with trailing whitespace", () => {
   expect(ticketSection(body, "Critères d'acceptation")).toBe("Done when X.");
 });
 
+test("ticketSection does not let an empty ## line swallow the heading on the next line", () => {
+  const body = "##\n## Critères d'acceptation\nX";
+  expect(ticketSection(body, "Critères d'acceptation")).toBe("X");
+});
+
 test("hasUnresolvedClarification detects the marker anywhere in prose", () => {
   expect(hasUnresolvedClarification("## Plan\nDo the thing.")).toBe(false);
   expect(hasUnresolvedClarification(`## Contexte\n${CLARIFICATION_MARKER} which approach?`)).toBe(true);

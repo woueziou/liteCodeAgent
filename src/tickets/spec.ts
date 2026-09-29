@@ -331,7 +331,13 @@ function normalizeHeading(heading: string): string {
  */
 export function ticketSection(body: string, heading: string): string | null {
   const target = normalizeHeading(heading);
-  const headingLine = /^##\s+(.*?)\s*$/gm;
+  // A single-line, non-backtracking capture: `[ \t]+` (not `\s+`) keeps the match from
+  // crossing a newline, so an empty `## ` line can't swallow the heading on the line right
+  // after it, and `[^\r\n]*` (not a lazy `.*?` re-scanned by a trailing `\s*$`) keeps this
+  // linear instead of quadratic on a heading line with a long run of trailing whitespace
+  // (bug-hunter's finding on this ticket's PR). `normalizeHeading` already trims, so the
+  // capture doesn't need to.
+  const headingLine = /^##[ \t]+([^\r\n]*)$/gm;
   let match: RegExpExecArray | null;
   while ((match = headingLine.exec(body))) {
     if (normalizeHeading(match[1] ?? "") !== target) continue;
