@@ -264,8 +264,19 @@ async function checkStalePrStatus(root: string, repo: string, tickets: Ticket[],
     // flight — a sibling branch's closed/merged PR (an abandoned earlier attempt) isn't
     // stale, it's just history.
     const hasOpenPr = lookups.some((l) => l.pr.kind === "found" && l.pr.state === "OPEN");
-    if (!hasOpenPr) {
-      const closed = lookups.find((l) => l.pr.kind === "found" && (l.pr.state === "CLOSED" || l.pr.state === "MERGED"));
+    // If `gh` failed for any of this ticket's branches, we can't tell whether *that* branch
+    // holds the live open PR — raising a closed/merged error off a sibling branch here would
+    // be exactly the false positive this check exists to avoid, just via a different path
+    // (an unverified branch standing in for a missing open one instead of a genuinely absent
+    // one). Degrade to the "unverified" warn only, same as any other `gh` failure.
+    const hasUnknown = lookups.some((l) => l.pr.kind === "unknown");
+    if (!hasOpenPr && !hasUnknown) {
+      // Prefer a MERGED lookup over a CLOSED one: when a ticket has both an abandoned
+      // attempt (closed) and the attempt that actually landed (merged), the merged PR is the
+      // one whose URL and remediation ("mark the ticket done") are actually correct.
+      const closed =
+        lookups.find((l) => l.pr.kind === "found" && l.pr.state === "MERGED") ??
+        lookups.find((l) => l.pr.kind === "found" && l.pr.state === "CLOSED");
       if (closed && closed.pr.kind === "found") {
         findings.push({
           severity: "error",
@@ -395,16 +406,24 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   const { root, packsRoot, config } = ctx;
   const findings: Finding[] = [];
 
-  // Reuse ticket doctor / config doctor verbatim.
-  const ticketFindings = await ticketDoctor(root, config.project.tickets.dir);
+  // `git worktree list` (unlike a file read) is root-independent — it reports every worktree
+  // of the repo regardless of which one it's invoked from — so this is safe to compute before
+  // anything that needs to know the *primary* checkout specifically.
+  const worktrees = await listWorktrees(root);
+  const primaryRoot = primaryCheckoutRoot(root, worktrees);
+  const prCache = newPrCache();
+
+  // Ticket status, ticket file validity and "did a sub-agent leak into the primary checkout"
+  // are all properties of the primary checkout's working tree, not of whichever worktree
+  // `doctor` itself happens to be invoked from (ADR 0015's worktree-per-ticket flow means a
+  // ticket worktree's own copy of `docs/tickets` reflects an older commit, not the ticket's
+  // current status). Reuse ticket doctor / config doctor verbatim, against the primary root.
+  const ticketFindings = await ticketDoctor(primaryRoot, config.project.tickets.dir);
   findings.push(...ticketFindings);
   const configFindings = await configDoctor(packsRoot, config);
   for (const f of configFindings) findings.push(f);
 
-  const tickets = await listTickets(root, config.project.tickets.dir);
-  const worktrees = await listWorktrees(root);
-  const primaryRoot = primaryCheckoutRoot(root, worktrees);
-  const prCache = newPrCache();
+  const tickets = await listTickets(primaryRoot, config.project.tickets.dir);
 
   findings.push(...(await checkOrphanedInProgressTickets(root, worktrees, tickets)));
   findings.push(...(await checkOrphanedWorktrees(primaryRoot, config.project.worktreeRoot, worktrees, tickets)));
@@ -412,8 +431,8 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   findings.push(...(await checkPushedBranchWithoutPr(root, config.project.repo, tickets, prCache)));
   findings.push(...(await checkStalePrStatus(root, config.project.repo, tickets, prCache)));
   findings.push(...(await checkInstallDrift(root, packsRoot, config)));
-  findings.push(...(await checkPrimaryCheckoutLeak(root, tickets)));
-  findings.push(...(await checkPendingAdrDrafts(root, tickets)));
+  findings.push(...(await checkPrimaryCheckoutLeak(primaryRoot, tickets)));
+  findings.push(...(await checkPendingAdrDrafts(primaryRoot, tickets)));
 
   return findings;
 }
