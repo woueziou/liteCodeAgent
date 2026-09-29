@@ -230,5 +230,16 @@ export function realResumeProbes(ctx: ProbeContext): ResumeProbes {
         return null;
       }
     },
+
+    async closedPrForBranch(branch) {
+      try {
+        const out = await gh(["pr", "list", "--head", branch, "--state", "all", "--json", "number,url,state", "--repo", repo]);
+        const prs = JSON.parse(out) as { url: string; state: string }[];
+        const done = prs.find((p) => p.state === "MERGED" || p.state === "CLOSED");
+        return done ? { url: done.url, state: done.state } : null;
+      } catch {
+        return null;
+      }
+    },
   };
 }

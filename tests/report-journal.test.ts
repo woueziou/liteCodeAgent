@@ -92,7 +92,7 @@ test("a progress-journal block with CRLF line endings parses the same as LF", ()
   expect(entry?.commit).toBe("abc123");
 });
 
-test("an unclosed progress-journal block throws instead of swallowing the next block", () => {
+test("an unclosed block is skipped (never swallows the next block); an unclosed trailing block throws", () => {
   const body = `
 \`\`\`progress-journal
 step: step 4: implement
@@ -104,7 +104,8 @@ branch: feat/x/0034
 pr: 42
 \`\`\`
 `;
-  expect(() => parseJournalEntries(body)).toThrow(/unclosed/);
+  expect(parseJournalEntries(body).map((e) => e.step)).toEqual(["step 7: PR opened"]);
+  expect(() => parseJournalEntries("```progress-journal\nstep: x\n")).toThrow(/unclosed/);
 });
 
 test("an invalid commit value is dropped rather than kept for a probe to consume", () => {

@@ -65,12 +65,10 @@ function draftTextFor(rawBody: string, adrNumber: string, adrPath: string): stri
   }
   if (fenceStart === undefined) return null;
 
-  // Allow trailing text after the number on the *same line* (e.g. "## ADR à valider : 0018
-  // — Use X") instead of requiring the line to end right after it. `[^\S\n]` (whitespace
-  // other than newline) keeps this from also swallowing the next line when the trailing
-  // group is empty — `\s` alone matches `\n` too, which a bare `(?:\s.*)?` would have let
-  // through, silently eating the very next line into the "heading" match.
-  const headingRe = new RegExp(`^##\\s+ADR à valider\\s*:\\s*${escapeRegExp(adrNumber)}(?:[^\\S\\n].*)?$`, "gm");
+  // The whole heading lives on its own line: `[^\S\n]` (whitespace other than newline)
+  // keeps every gap from crossing a line break, and `(?!\d)` ends the number without
+  // requiring whitespace after it, so a glued suffix ("0018: X", "0018—X") still matches.
+  const headingRe = new RegExp(`^##[^\\S\\n]+ADR à valider[^\\S\\n]*:[^\\S\\n]*${escapeRegExp(adrNumber)}(?!\\d).*$`, "gm");
   const before = body.slice(0, fenceStart);
   let headingEnd: number | undefined;
   let h: RegExpExecArray | null;

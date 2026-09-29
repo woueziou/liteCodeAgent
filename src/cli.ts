@@ -17,7 +17,7 @@ import { realProbes, realResumeProbes } from "./report/probes.ts";
 import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
-import { resumeState } from "./resume.ts";
+import { primaryCheckoutRoot, resumeState } from "./resume.ts";
 import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
@@ -979,7 +979,9 @@ async function cmdResume(root: string, argv: string[]): Promise<number> {
     return 1;
   }
   const { config } = await loadConfig(root);
-  const ticket = await findTicketByRef(root, config.project.tickets.dir, ref);
+  // Run from a linked worktree, `root`'s copy of the ticket is a stale snapshot: read the
+  // primary checkout's, where every note and status change is actually written.
+  const ticket = await findTicketByRef(await primaryCheckoutRoot(root), config.project.tickets.dir, ref);
   if (!ticket) {
     console.log(c.red(`no ticket found for '${ref}'`));
     return 1;
@@ -997,6 +999,7 @@ async function cmdResume(root: string, argv: string[]): Promise<number> {
 
   if (result.kind === "no-journal") {
     console.log(c.yellow(`${ticket.id}: no progress journal found on this ticket — nothing to resume from.`));
+    for (const f of result.findings) console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
     console.log(c.dim("Run `bunx litecodeagent doctor` to check for orphaned worktrees/branches instead."));
     return 1;
   }
