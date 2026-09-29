@@ -1,0 +1,20 @@
+{
+  "provider": "pr-comment",
+  "agent": "reviewer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T11:11:20Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "VERDICT: changes-requested\nCHECK_OUTPUT: `tsc --noEmit` — clean, no output/errors.\nACCEPTANCE:\n- \"La recherche de section normalise en NFC et traite ' (U+2019) et ' comme équivalents, pour tous les titres de CONTRACT_SECTIONS\": satisfied — src/tickets/spec.ts normalizeHeading() (NFC normalize + apostrophe fold `/[‘’ʼ]/g`) applied to both target and candidate heading inside ticketSection()'s loop over all `## ` headings; generic to any CONTRACT_SECTIONS title since ticketSection() takes the heading as a parameter. Verified by tests/tickets-contract.test.ts \"matches a heading written with a typographic apostrophe (U+2019)\" (bun test: 9 pass).\n- \"La casse et les espaces en fin de titre n'empêchent pas la correspondance\": satisfied — normalizeHeading() does `.trim().toLowerCase()`; covered by pre-existing case-insensitive test and new \"matches a heading with trailing whitespace\" test (both passing).\n- \"Tests : titre avec U+2019, titre en NFD, titre avec espace final\": satisfied — all three new tests present in tests/tickets-contract.test.ts and passing (`bun test tests/tickets-contract.test.ts`: 9 pass, 0 fail).\nTEST_FIRST: missing — the branch is a single commit (e27ec5f) that adds the fix and the new tests together. Ticket is labeled `bug`, so `testFirst: bugs` requires a commit demonstrating the red state before the fix; that's absent here.\nFINDINGS:\n- (blocking) No commit on the branch shows the new tests failing before the fix — violates `testFirst: bugs` for this bug-labeled ticket. Fix: split into a test-first commit (tests only, failing against old ticketSection()) followed by the existing fix commit, or otherwise demonstrate the red state.\n- (non-blocking) tests/tickets-contract.test.ts:36-39 — the NFD test only exercises NFD decomposition of the \"è\" accent, not decomposition combined with the apostrophe variant. Minor coverage gap, not required by acceptance criteria. Fine as-is.\nPLAN_FIDELITY: matches — changes are confined to src/tickets/spec.ts and tests/tickets-contract.test.ts exactly as planned; no scope creep into other files.\nREENTRY:\n- Blocking test-first gap: same-PR fixup — implementer should restructure the branch into a commit that adds the three new tests against the pre-fix ticketSection() (and observe/report the failure), followed by the fix commit (or equivalent evidence), then re-request review. Priority: keep at ticket's existing `low`.\n- Non-blocking NFD/apostrophe combined-case note: no action needed, already covered by stated acceptance criteria; not a re-entry item.\n\nNote: commit e27ec5f carries `Agent: implementer` / `Task: 0044` trailer correctly — agent-attribution check passes.\n",
+  "error": null
+}

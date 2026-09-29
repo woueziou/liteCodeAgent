@@ -1,0 +1,20 @@
+{
+  "provider": "pr-comment",
+  "agent": "bug-hunter",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T12:39:42Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "HUNT: complete\nCHECK_OUTPUT: `tsc --noEmit` passed. `bun test`: 463 pass, 0 fail. Worktree clean before and after.\nFINDINGS:\n- The earlier blocking finding is fixed (confirmed). Global guard at src/cli.ts: `ticket note --project \"\" ...`, trailing `--project`, `--project --file f` and `ticket new ... --project` all exit 1 with \"--project requires a non-empty directory path\"; ticket file hashes unchanged in both scratch projects.\n- A valid `--project` works in any position on a ticket line (confirmed) for `ticket move`, `ticket note`, `ticket list`; other commands (`setup`, `run`, `--version`) unaffected.\n- (non-blocking) (confirmed) `--project=<path>` is still silently ignored and falls back to cwd (predates this PR; documented flow never uses it).\n- (non-blocking) (confirmed) a whitespace-only `--project \" \"` passes the guard but fails loudly, writes nothing.\nNo new blocking regression.\nREENTRY: `--project=<path>`: optional two-line same-PR fixup, else triage. Whitespace-only: optional `!projectArg?.trim()`.\n\nBoth non-blocking notes were then fixed in 589aca0 (`--project=<dir>` refused, whitespace-only refused, with a test); `bun run check` and `bun test` (464 pass) green, PR CI green.\n",
+  "error": null
+}

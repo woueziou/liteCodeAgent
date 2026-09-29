@@ -367,6 +367,14 @@ write outside that worktree. It follows your `conventions`, starts with a failin
 `reviewer` and `bug-hunter` for real verdicts, posts both on the PR, and moves the ticket to
 `Ready to Merge` or `Review`. On a blocker it escalates to `triage` rather than guessing.
 
+The flow is proportioned to the ticket's `size`: a `small` ticket runs `bug-hunter` at the
+cheaper `balanced` tier (where the target lets a call pick its model), with no re-hunt unless
+a finding blocks and no second review for non-blocking corrections; `medium` and `large` keep
+the full flow. The rarely-needed procedures (ADR gate, resume, GitHub outage, sub-agent
+steps, stacked PRs, leak cleanup) live in `implementer-*` skills loaded only when the case
+arises, so the everyday prompt stays short. A launch prompt only needs the ticket and what
+is specific to this launch.
+
 If the change needs an ADR, `implementer` stops before committing it and waits for you. The
 draft goes under an `## ADR à valider : NNNN` section in the ticket. `ticket list`,
 `doctor` and the dashboard all point you at it. Once you approve, ask for the implementer

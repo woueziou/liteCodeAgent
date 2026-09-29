@@ -53,7 +53,7 @@ test("implementer.md routes every ticket status/note write through the CLI, expl
 });
 
 test("implementer.md never tells the agent to clean a leak in the primary checkout with git restore/checkout without first comparing byte-for-byte", async () => {
-  const source = await coreSource("agents/implementer.md");
+  const source = await coreSource("skills/implementer-leak-cleanup/SKILL.md");
   expect(source).toMatch(/byte for byte|byte-identical|no difference/);
   expect(source).toMatch(/do not touch or discard it/);
 });

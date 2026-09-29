@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0058-fix-dashboard-install-petits-durcissements-laiss
 title: "fix(dashboard,install): petits durcissements laissés par bug-hunter sur #96, #97 et #98"
 label: bug
-status: backlog
+status: planned
 priority: low
 size: small
 assignedAgent: human

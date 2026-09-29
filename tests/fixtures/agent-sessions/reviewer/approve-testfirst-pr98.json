@@ -1,0 +1,20 @@
+{
+  "provider": "pr-comment",
+  "agent": "reviewer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T11:23:27Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "VERDICT: approve\nCHECK_OUTPUT: `bun run check` (tsc --noEmit) — no output, clean. `bun test tests/doctor.test.ts` at aff73dd (HEAD of branch) — 23 pass, 0 fail, 31 expect() calls.\nACCEPTANCE (docs/tickets/07-resilience/0046-fix-doctor-cinq-faux-positifs-et-faux-negatifs-l.md):\n- satisfied: two-branch (closed+open PR) ticket no longer flagged stale — test \"a ticket with an abandoned first branch (PR closed) and a live second branch (PR open) is not flagged stale\" passes at aff73dd (failed at b240eec).\n- satisfied: merged PR with deleted remote branch still flagged (no longer masked) — test \"a merged PR whose remote branch was already deleted (gh pr merge --delete-branch) is still flagged stale\" passes at aff73dd.\n- satisfied: worktreeRoot resolved against primary checkout, not invoking worktree — test \"doctor run from inside a ticket worktree resolves project.worktreeRoot relative to the primary checkout\" passes at aff73dd; aff73dd additionally threads a `primaryCheckoutRoot()` helper through ticketDoctor/listTickets/checkPrimaryCheckoutLeak per bug-hunter's re-hunt finding that this wasn't fully fixed at 155c32a.\n- satisfied: prunable worktree not counted present, flagged for `git worktree prune` — test \"a prunable worktree (directory deleted, still registered) is not counted as present and is flagged to clean up\" passes at aff73dd.\n- satisfied: single `gh pr list` call per branch shared across the two checks — test \"gh pr list is called at most once per branch across checkPushedBranchWithoutPr and checkStalePrStatus\" passes at aff73dd.\n- satisfied: one test per case — tests/doctor.test.ts has one test per criterion above (5 tests), plus regression tests for the two aff73dd fixup findings (primaryCheckoutRoot threading, checkStalePrStatus degrading to warn on gh failure for a sibling branch) and the MERGED-over-CLOSED preference.\n\nTEST_FIRST: commit b240eec02552575c1bfaeee54dbd52053cc186a. Checked it out into a throwaway detached worktree (`git worktree add --detach /tmp/0046-tf/wt b240eec`, node_modules symlinked in, removed after) and ran `bun test tests/doctor.test.ts` there: 15 pass, 5 fail — the five failures are exactly the five bug-hunter findings (stale-PR false positive, stale-PR false negative on deleted branch, worktreeRoot resolved against wrong root, prunable worktree counted present, duplicate gh pr list call), confirming the commit's tests genuinely failed pre-fix. Fix lands in 155c32a, with aff73dd adding a further fixup + new regression tests for the two blocking findings bug-hunter raised on PR #98 itself (primaryCheckoutRoot threading, degrade-to-warn on gh failure) plus the non-blocking MERGED-over-CLOSED preference. This resolves my prior changes-requested verdict on 18b5a15, which flagged the fix and its tests being squashed into one commit.\n\nFINDINGS: none.\nPLAN_FIDELITY: matches — src/doctor.ts carries the five (now effectively seven, counting the two aff73dd fixups) corrections, tests/doctor.test.ts has one test per case using temporary git repos, no out-of-scope additions (no new checks, consistent with \"Hors périmètre\").\nREENTRY: none needed.\n\nCommit attribution verified: all three commits (b240eec, 155c32a, aff73dd) carry `Agent: implementer` / `Task: 0046` trailers, no Co-Authored-By present.\n",
+  "error": null
+}

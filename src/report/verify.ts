@@ -22,6 +22,8 @@ export const REPORT_STATUSES = [
   "adr-pending-approval",
 ] as const;
 
+import { parseTokensClaim, type TokensClaim } from "./tokens.ts";
+
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export type Report = {
@@ -41,12 +43,14 @@ export type Report = {
    * way it re-queries `prView` instead of trusting `PR:`.
    */
   ci: "pass" | "fail" | "pending" | "none" | undefined;
+  /** Optional (ticket 0062): tokens the run consumed, or `unknown`. Informational, never an error. */
+  tokens?: TokensClaim;
 };
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
 /** `ISSUE` is the pre-ADR-0015 name of `TICKET`, still read from older installed prompts. */
-const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT", "CI"] as const;
+const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT", "CI", "TOKENS"] as const;
 
 const CI_VALUES = ["pass", "fail", "pending", "none"] as const;
 
@@ -109,6 +113,7 @@ export function parseReport(text: string): { report: Report } | { error: Finding
       pr: claimed(fields.get("PR")),
       checkOutput: claimed(fields.get("CHECK_OUTPUT")),
       ci: ciClaim(fields.get("CI")),
+      tokens: parseTokensClaim(fields.get("TOKENS")),
     },
   };
 }
@@ -136,6 +141,12 @@ export type PrChecksLookup =
   | { kind: "fail" }
   | { kind: "pending" }
   | { kind: "none" }
+  /**
+   * Checks ran and none failed, but none of the `expected` test checks passed on the PR's
+   * head (a stacked PR whose base isn't the default branch never triggers the workflow) —
+   * so a green CI proves nothing about the tests (ticket 0059). `ran` lists what did run.
+   */
+  | { kind: "no-test-check"; expected: string[]; ran: string[] }
   | { kind: "unknown"; reason: string };
 
 /**
@@ -262,6 +273,11 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
         error(`PR '${report.pr}' has a failing check, but the ticket is readyToMerge`);
       } else if (checks.kind === "pending") {
         warn(`PR '${report.pr}' still has checks running while the ticket is readyToMerge`);
+      } else if (checks.kind === "no-test-check") {
+        warn(
+          `PR '${report.pr}' has no passing test check (expected ${checks.expected.join(", ")}; ran: ${checks.ran.join(", ") || "nothing"}) ` +
+            "while the ticket is readyToMerge — CI did not prove the tests ran (a stacked PR does not trigger the base-branch workflow)",
+        );
       } else if (checks.kind === "unknown") {
         warn(`could not check CI status for PR '${report.pr}': ${checks.reason} — unverified`);
       }

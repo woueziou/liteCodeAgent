@@ -1,0 +1,20 @@
+{
+  "provider": "pr-comment",
+  "agent": "reviewer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-27T17:16:52Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "VERDICT: approve\n\nCHECK_OUTPUT:\n- `bun run check` (tsc --noEmit): clean, no output/errors.\n- `bun test`: 257 pass, 0 fail, 1137 expect() calls, across 32 files (9.10s). Includes new tests/guard-branch.test.ts, tests/guard-branch-cli.test.ts, tests/tickets-transitions.test.ts, and new cases in tests/ticket-cli.test.ts / tests/install.test.ts.\n\nFINDINGS:\n- none blocking.\n- (non-blocking, informational only, no action needed) `packs/core/hooks/pre-commit` calls `bunx --yes litecodeagent guard-branch` for target projects that haven't installed/linked the litecodeagent CLI locally. This resolves fine because `bunx litecodeagent ...` is already the established pattern used everywhere else in this codebase for \"run this when `litecode` isn't on PATH\" (src/delegation.ts:60-61, src/init.ts, all the `bunx litecodeagent ...` usage docs in src/cli.ts's `usage()`), so there's real precedent, and the hook degrades gracefully (echoes a skip message rather than failing the commit) when `bunx` itself isn't present. The only residual risk is the first invocation doing a network fetch of the package on every fresh clone's first commit, which is a minor UX/latency note, not a correctness gap — fine to leave as-is.\n\nPLAN_FIDELITY: matches. Checked against the ticket's 4 acceptance criteria:\n1. pre-commit hook refusing commits on `project.defaultBranch` unless `allowDefaultBranchCommits` or an env override — present (src/guard-branch.ts pure `checkBranchGuard`, `litecode guard-branch` CLI command, rendered into target repos via `packs/core/hooks/pre-commit` + src/install.ts `HookPlanEntry`/drift detection, and wired into this repo's own `.githooks/pre-commit`).\n2. `litecode ticket move <id> <status>` validating the state machine (e.g. refuses `planned -> review`, requires `inProgress` first) and writing status — present (src/tickets/spec.ts `ALLOWED_TRANSITIONS`/`isTransitionAllowed`, cmdTicket's `move` subcommand in src/cli.ts).\n3. implementer/dispatcher/triage updated to call `ticket move` instead of hand-editing frontmatter — present, confirmed via diff of all three pack agent files.\n4. Tests covering refused transitions and the hook — present (tests/tickets-transitions.test.ts, tests/guard-branch.test.ts, tests/guard-branch-cli.test.ts, plus additions to tests/ticket-cli.test.ts and tests/install.test.ts).\n\nConventions: functional style respected (checkBranchGuard/isTransitionAllowed are pure functions, no hidden state); TDD evidenced by matching new test files per new module; changes are split across small, purpose-scoped files (guard-branch.ts, spec.ts additions, cli.ts additions, install.ts additions) rather than one large file.\n\nAttribution: commit 8aeb2809 carries `Agent: implementer` / `Task: 0033-feat-guard-imposer-par-le-code-les-regles-de-bra` trailers correctly, no `Co-Authored-By` or generated-with footer in the commit message or PR body (verified via `gh pr view 76 --json body`) — matches this repo's CLAUDE.md and the agent-attribution skill.\n\nREENTRY: none needed — no findings requiring a fixup or new ticket.\n",
+  "error": null
+}

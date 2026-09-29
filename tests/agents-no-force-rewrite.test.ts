@@ -24,7 +24,8 @@ async function implementerSource() {
   const core = await loadPack(PACKS, "core");
   const implementer = core.files.find((f) => f.rel === "agents/implementer.md");
   if (!implementer) throw new Error("agents/implementer.md not found in core pack");
-  return implementer.source;
+  // Ticket 0061: the detailed refusal moved into implementer-review-disputes; the rules are the union.
+  return [implementer, ...core.files.filter((f) => /^skills\/implementer-/.test(f.rel))].map((f) => f.source).join("\n");
 }
 
 test("reviewer never asks to rewrite, split, or squash already-pushed history over a missing test-first commit", async () => {
