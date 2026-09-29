@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0057-feat-agents-lancer-chaque-implementeur-dans-un-w
 title: "feat(agents): lancer chaque implémenteur dans un worktree isolé"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: high
 size: medium
 assignedAgent: human
@@ -77,4 +77,26 @@ adr_path: docs/decisions/0020-implementer-in-isolated-worktree-with-explicit-tic
 board_status: In Progress
 checks_passed: bun run check: pass; bun test: pass
 adr_posted: true
+```
+
+### 2026-09-29 — implementer: ADR 0020 approved as written
+
+The human approved ADR 0020 with no edits; committed on the PR branch (Status set to accepted).
+
+### 2026-09-29 — implementer: PR opened, reviews done
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/101 (CI green at 589aca0)
+reviewer: VERDICT approve-with-notes (ADR status fixup applied; other notes deferrable).
+bug-hunter: first pass HUNT complete with 1 blocking (empty/valueless --project silently wrote to cwd) - fixed in 36ee01c; re-hunt HUNT complete, no blocking; its two non-blocking notes fixed in 589aca0.
+Deferred (suggest triage tickets): fixed ports in tests/dashboard/serve.test.ts (likely the earlier flaky failure when two `bun test` run concurrently); appendTicketNote re-serializes frontmatter; bunx in a fresh isolated worktree may resolve an older published release lacking `ticket note`.
+Deviation to note: ticket said `--root`; ADR 0020 uses the existing `--project`.
+
+```progress-journal
+step: step 10: reviews done, moving to review/readyToMerge
+worktree: ../worktrees/0057
+branch: feat-implementer-worktree-isolation/0057
+base: origin/main
+commit: 589aca0
+checks: bun run check: pass; bun test: 464 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/101
 ```
