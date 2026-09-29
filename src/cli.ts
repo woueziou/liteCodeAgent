@@ -949,6 +949,7 @@ async function cmdVerifyReport(root: string, argv: string[]): Promise<number> {
             root,
             repo: config.project.repo,
             ticketsDir: config.project.tickets.dir,
+            testChecks: config.project.ci.testChecks,
           }),
           { repo: config.project.repo },
         );
@@ -987,7 +988,7 @@ async function cmdResume(root: string, argv: string[]): Promise<number> {
 
   const result = await resumeState(
     ticket.body,
-    realResumeProbes({ root, repo: config.project.repo, ticketsDir: config.project.tickets.dir }),
+    realResumeProbes({ root, repo: config.project.repo, ticketsDir: config.project.tickets.dir, testChecks: config.project.ci.testChecks }),
   );
 
   if (argv.includes("--json")) {

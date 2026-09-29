@@ -2,7 +2,8 @@
 
 import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { gh, GhError } from "../gh.ts";
+import { gh, GhError, RateLimitError } from "../gh.ts";
+import { classifyChecks, parseCheckRows, PR_NO_CHECKS } from "./checks.ts";
 import { listTickets } from "../tickets/store.ts";
 import type { ResumeProbes } from "../resume.ts";
 import type { ForcePushLookup, PrChecksLookup, PrLookup, Probes } from "./verify.ts";
@@ -40,13 +41,18 @@ async function primaryCheckoutRoot(root: string): Promise<string> {
  */
 const PR_NOT_FOUND = /no pull requests? found|could not resolve to a pullrequest/i;
 
-/** `gh pr checks` says this, rather than returning an empty JSON array, on a repo with no CI. */
-const PR_NO_CHECKS = /no checks reported/i;
-
-export type ProbeContext = { root: string; repo: string; ticketsDir: string };
+export type ProbeContext = {
+  root: string;
+  repo: string;
+  ticketsDir: string;
+  /** CI check names that must have passed for a green CI to count (default `["test"]`; ticket 0059). */
+  testChecks?: string[];
+  /** How long `prChecks` keeps polling for checks not yet registered, and how often. */
+  noChecksWait?: { retries: number; intervalMs: number };
+};
 
 export function realProbes(ctx: ProbeContext): Probes {
-  const { root, repo, ticketsDir } = ctx;
+  const { root, repo, ticketsDir, testChecks, noChecksWait } = ctx;
 
   return {
     async branchExists(branch) {
@@ -102,44 +108,44 @@ export function realProbes(ctx: ProbeContext): Probes {
     },
 
     /**
-     * The PR's CI state (ticket 0054), collapsed from `gh pr checks`'s per-check `bucket`
-     * field: any `fail`/`cancel` wins outright, then any still-running (`pending`), then a
-     * clean `pass`/`skipping` mix counts as passing. This bypasses the shared `gh()`
-     * wrapper deliberately: `gh pr checks` exits 8 (non-zero) while checks are still
-     * pending, but still prints the JSON `--json bucket` was asked for on stdout — `gh()`
-     * throws away stdout on any non-zero exit, which would misreport every pending run as
-     * `unknown`. A repo with no CI configured prints "no checks reported" on stderr with
-     * no JSON at all, which is `none`, not `unknown` — it isn't itself a problem.
+     * The PR's CI state (ticket 0054, tightened by 0059), collapsed by `classifyChecks`.
+     *
+     * Verified against gh 2.101.0: `gh pr checks --json name,bucket` prints the JSON array
+     * on stdout, and exits 0 when every check passed, 1 when one failed (JSON still
+     * printed), 8 while some are pending (JSON still printed), and 1 with "no checks
+     * reported on the '<branch>' branch" on stderr and no JSON when nothing is registered
+     * yet. So the call goes through the shared `gh()` wrapper (rate-limit retries and
+     * quota reporting included) and reads the JSON off the `GhError` it throws for those
+     * non-zero exits.
+     *
+     * Right after a push, checks may not be registered yet, or only a third-party check
+     * has: both are polled for a bounded time (`noChecksWait`) before concluding `none` /
+     * `no-test-check` (`retries` extra polls, `intervalMs` apart), since a stacked PR never
+     * triggers the base-branch workflow.
      */
     async prChecks(pr): Promise<PrChecksLookup> {
-      const args = ["pr", "checks", pr, "--json", "bucket"];
+      const args = ["pr", "checks", pr, "--json", "name,bucket"];
       if (!/^https?:\/\//.test(pr)) args.push("--repo", repo);
-      // The whole call — including `Bun.spawn` itself — is inside this try: `Bun.spawn`
-      // throws synchronously (e.g. ENOENT when `gh`/`LITECODE_GH_BIN` doesn't exist), and
-      // that must land in `unknown` like every other probe failure here, not escape as an
-      // uncaught exception (bug-hunter, ticket 0054's own review — `prView`'s equivalent
-      // call was already inside its try for the same reason).
-      try {
-        const proc = Bun.spawn([process.env.LITECODE_GH_BIN || "gh", ...args], {
-          env: process.env,
-          stdin: "ignore",
-          stdout: "pipe",
-          stderr: "pipe",
-        });
-        const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-        await proc.exited;
+      const expected = testChecks ?? ["test"];
+      const { retries, intervalMs } = noChecksWait ?? { retries: 6, intervalMs: 5_000 };
+      for (let attempt = 0; ; attempt++) {
+        let result: PrChecksLookup;
         try {
-          const rows = JSON.parse(stdout) as { bucket: string }[];
-          if (rows.length === 0) return { kind: "none" };
-          if (rows.some((r) => r.bucket === "fail" || r.bucket === "cancel")) return { kind: "fail" };
-          if (rows.some((r) => r.bucket === "pending")) return { kind: "pending" };
-          return { kind: "pass" };
-        } catch {
-          if (PR_NO_CHECKS.test(stderr)) return { kind: "none" };
-          return { kind: "unknown", reason: (stderr || `gh pr checks exited with no parseable output`).trim().split("\n")[0]! };
+          let stdout: string;
+          try {
+            stdout = await gh(args);
+          } catch (e) {
+            if (e instanceof RateLimitError || !(e instanceof GhError)) throw e;
+            // Non-zero exit that still printed the rows (fail = 1, pending = 8).
+            if (parseCheckRows(e.stdout) === null && !PR_NO_CHECKS.test(e.message)) throw e;
+            stdout = e.stdout;
+          }
+          result = classifyChecks(parseCheckRows(stdout) ?? [], expected);
+        } catch (e) {
+          return { kind: "unknown", reason: reasonOf(e) };
         }
-      } catch (e) {
-        return { kind: "unknown", reason: (e as Error).message.split("\n")[0]! };
+        if ((result.kind !== "none" && result.kind !== "no-test-check") || attempt >= retries) return result;
+        await Bun.sleep(intervalMs);
       }
     },
 

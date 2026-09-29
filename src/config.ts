@@ -71,6 +71,18 @@ const DashboardSchema = z.object({
   allowedHosts: z.array(z.string()).default([]),
 });
 
+/**
+ * Ticket 0059: which CI checks must have actually run (and passed) on a PR's head before a
+ * green CI counts as proof the tests ran. Matched against `gh pr checks`'s check `name`
+ * (for GitHub Actions, the job name), case-insensitively. A stacked PR (`--base` another
+ * PR branch) doesn't trigger a workflow that only targets the default branch, so its
+ * "all checks pass" may be just a third-party check. An empty list turns the requirement off.
+ * Optional with a default, like `tickets`, so an older config still parses.
+ */
+const CiSchema = z.object({
+  testChecks: z.array(z.string()).default(["test"]),
+});
+
 export const ProjectSchema = z.object({
   name: z.string(),
   /** owner/repo */
@@ -85,6 +97,8 @@ export const ProjectSchema = z.object({
    * env var, for a human's own one-off commit.
    */
   allowDefaultBranchCommits: z.boolean().default(false),
+  /** CI expectations for verifying a PR's checks (ticket 0059). */
+  ci: CiSchema.default({ testChecks: ["test"] }),
 
   /** The command that must pass before any agent calls work done. */
   checkCommand: z.string(),
