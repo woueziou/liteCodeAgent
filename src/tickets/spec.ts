@@ -379,6 +379,53 @@ export function hasUnresolvedClarification(body: string): boolean {
   return prose.includes(CLARIFICATION_MARKER);
 }
 
+/**
+ * The heading prefix of a ticket section holding an ADR draft that still awaits human
+ * approval (ticket 0067; the same section `implementer`'s mid-implementation gate writes,
+ * ticket 0047). A human approves by renaming it to `## ADR approuvé : NNNN`.
+ */
+export const PENDING_ADR_HEADING = "## ADR à valider";
+
+/**
+ * Whether `body` still has an `## ADR à valider` heading outside any fenced code block —
+ * `ticket move ... planned` refuses such a ticket, so `implementer` never starts on an ADR
+ * that nobody approved (ticket 0067). Matching is case-, accent- and Unicode-normalization
+ * insensitive. A section that already holds a `resume-manifest` fence is the one
+ * `implementer`'s mid-implementation gate wrote (ticket 0047, approved in conversation and
+ * never renamed), so it does not count as pending here.
+ */
+export function hasPendingAdr(body: string): boolean {
+  const text = body.normalize("NFC");
+  const fences = fenceRegions(text);
+  const inFence = (at: number) => fences.some(([a, b]) => at >= a && at < b);
+  const heading = /^##[ \t\u00a0]+ADR[ \t\u00a0]+[àa][ \t\u00a0]+valider\b/gim;
+  // `\b` never matches after the non-ASCII `é` (no `u` flag), so "approuvé" needs an
+  // explicit lookahead or an approved heading would never end a pending section.
+  const adrHeading = /^##[ \t\u00a0]+ADR[ \t\u00a0]+(?:[àa][ \t\u00a0]+valider\b|approuvé(?=[\s:]|$))/gim;
+  let m: RegExpExecArray | null;
+  while ((m = heading.exec(text))) {
+    if (inFence(m.index)) continue;
+    // The section runs to the next ADR heading outside a fence, or the end: a full ADR
+    // draft has its own `## Context` / `## Decisions` headings before its manifest.
+    const from = m.index + m[0].length;
+    let end = text.length;
+    adrHeading.lastIndex = from;
+    let n: RegExpExecArray | null;
+    while ((n = adrHeading.exec(text))) {
+      if (!inFence(n.index)) {
+        end = n.index;
+        break;
+      }
+    }
+    const hasManifest = fences.some(([a, b]) => {
+      if (a < from || b > end) return false;
+      return /^\s*(`{3,}|~{3,})\s*resume-manifest\b/.test(text.slice(a, b));
+    });
+    if (!hasManifest) return true;
+  }
+  return false;
+}
+
 /** `Fix the flaky board test!` -> `fix-the-flaky-board-test` */
 export function slugify(title: string): string {
   return (

@@ -15,6 +15,6 @@
     "byAgent": []
   },
   "status": "completed",
-  "output": "SIZE: unknown\nPANEL: degraded (classifier unreadable, 2 of 3 debate angles lost: contract, security)\nBLOCKING_TENSION: none\nPLAN:\nnone — panel degraded, see PANEL above; a human must explicitly approve proceeding on an incomplete panel before any ticket is created from this\nADR: none (panel degraded)\nOPEN_QUESTIONS: none (panel degraded)\nEPIC: none (panel degraded)\nRECOMMENDATION: A human must decide whether to proceed on an incomplete panel before this can be tracked.\n",
+  "output": "SIZE: unknown\nPANEL: degraded (classifier unreadable, 2 of 3 debate angles lost: contract, security)\nBLOCKING_TENSION: none\nPLAN:\nnone — panel degraded, see PANEL above; a human must explicitly approve proceeding on an incomplete panel before any ticket is created from this\nADR: none (panel degraded)\nADR_DRAFT: none\nOPEN_QUESTIONS: none (panel degraded)\nEPIC: none (panel degraded)\nRECOMMENDATION: A human must decide whether to proceed on an incomplete panel before this can be tracked.\n",
   "error": null
 }
