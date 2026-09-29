@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0054-feat-implementer-verifier-la-ci-de-la-pr-avant-r
 title: "feat(implementer): vérifier la CI de la PR avant readyToMerge"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: medium
 size: small
 assignedAgent: human
@@ -43,3 +43,20 @@ commit: b25a13d
 checks: bun run check: pass; bun test: 407 pass, 0 fail
 pr: https://github.com/woueziou/liteCodeAgent/pull/99
 ```
+
+### 2026-09-29 — implementer: ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/99
+CI on the PR (after the fixup commit): pass.
+
+VERDICT (reviewer): approve — no findings, plan fidelity matches, all four acceptance criteria satisfied. Full verdict posted on the PR.
+
+HUNT (bug-hunter, first pass): complete — no blocking findings; one confirmed non-blocking defect (a missing `gh` binary could crash `prChecks` with an uncaught ENOENT instead of returning `unknown`) and three plausible non-blocking gaps (a race right after a push collapsing "no CI" and "CI not registered yet" into `none`; a stacked PR based on `--base <pr-branch>` never running the `test` GitHub Actions job so `prChecks` could read `pass` without the suite ever running in CI; an unverified claim about `gh pr checks --json`'s exit-8 behaviour, plus no secondary-rate-limit retry since `prChecks` bypasses the shared `gh()` wrapper). Full report posted on the PR.
+
+Fixup: commit 6341c81 moved the `Bun.spawn` call inside `prChecks`'s try/catch so a missing `gh` binary now returns `{ kind: "unknown" }` like every other probe failure, with a new test (`tests/report-probes.test.ts`: "prChecks reports unknown, not an uncaught throw, when the gh binary itself doesn't exist"). `bun run check` and `bun test` (408 pass) re-run clean; the PR's own CI re-checked green after the push.
+
+HUNT (bug-hunter, re-hunt after the fixup): complete — finding #1 confirmed fixed (verified against a reverted copy of `probes.ts`, the new test fails there and passes at 6341c81); no new defects in the fixup; the other three findings left open as non-blocking, deferred to a new ticket via triage. Full report posted on the PR.
+
+The three remaining bug-hunter findings (the "no checks reported" race, stacked PRs skipping the `test` job, and the exit-8/rate-limit doc-comment note) are not fixed here — they were judged non-blocking and narrower than this ticket's scope, and are left for a follow-up ticket via `triage`; the stacked-PR gap (#3) is the one worth prioritizing there, since it's closest to this ticket's own motivating failure (PR #93/ticket 0050).
+
+Moving `In Progress` → `Ready to Merge`.
