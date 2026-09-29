@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { realProbes, realResumeProbes } from "../src/report/probes.ts";
@@ -7,10 +7,23 @@ import { writeTicket } from "../src/tickets/store.ts";
 import type { Ticket } from "../src/tickets/spec.ts";
 
 const dirs: string[] = [];
+const realGhBin = process.env.LITECODE_GH_BIN;
 
 afterEach(async () => {
   while (dirs.length) await rm(dirs.pop()!, { recursive: true, force: true });
+  if (realGhBin) process.env.LITECODE_GH_BIN = realGhBin;
+  else delete process.env.LITECODE_GH_BIN;
 });
+
+/** Stands in for the `gh` binary, same technique as `tests/gh-rate-limit.test.ts`. */
+async function stubGh(script: string): Promise<void> {
+  const dir = await mkdtemp(join(tmpdir(), "litecode-gh-stub-"));
+  dirs.push(dir);
+  const bin = join(dir, "gh");
+  await writeFile(bin, `#!/usr/bin/env bash\n${script}\n`);
+  await chmod(bin, 0o755);
+  process.env.LITECODE_GH_BIN = bin;
+}
 
 async function sh(cwd: string, ...args: string[]): Promise<void> {
   const proc = Bun.spawn(args, { cwd, stdout: "ignore", stderr: "ignore" });
@@ -122,6 +135,26 @@ test("worktreeExists resolves a relative worktree path against the primary check
   const relativePath = relative(root, join(worktreesDir, "0049"));
   expect(await fromInsideTheWorktree.worktreeExists(relativePath)).toBe(true);
   expect(await fromInsideTheWorktree.worktreeExists("../does-not-exist/0049")).toBe(false);
+});
+
+test("prChecks reports fail, pending (exit 8 with JSON still on stdout), pass, none and unknown", async () => {
+  const root = await repo();
+  const p = realProbes(ctx(root));
+
+  await stubGh(`echo '[{"bucket":"pass"},{"bucket":"fail"}]'; exit 0`);
+  expect(await p.prChecks("7")).toEqual({ kind: "fail" });
+
+  await stubGh(`echo '[{"bucket":"pass"},{"bucket":"pending"}]'; exit 8`);
+  expect(await p.prChecks("7")).toEqual({ kind: "pending" });
+
+  await stubGh(`echo '[{"bucket":"pass"},{"bucket":"skipping"}]'; exit 0`);
+  expect(await p.prChecks("7")).toEqual({ kind: "pass" });
+
+  await stubGh(`echo 'no checks reported on the '"'"'main'"'"' branch' >&2; exit 1`);
+  expect(await p.prChecks("7")).toEqual({ kind: "none" });
+
+  await stubGh(`echo 'gh: some other failure' >&2; exit 1`);
+  expect(await p.prChecks("7")).toEqual({ kind: "unknown", reason: "gh: some other failure" });
 });
 
 test("ticketStatus reads only the primary checkout, never a stale copy committed on a branch", async () => {

@@ -22,6 +22,7 @@ function probes(overrides: Partial<Probes> = {}): Probes {
   return {
     branchExists: async (b) => b === "fix/verify/issue-45",
     prView: async () => ({ kind: "found", headRefName: "fix/verify/issue-45", state: "OPEN" }),
+    prChecks: async () => ({ kind: "pass" }),
     dirtyFiles: async () => [],
     branchFiles: async () => ["src/a.ts"],
     ticketStatus: async () => "review",
@@ -171,6 +172,67 @@ test("branch files left dirty in the primary checkout are an error; unrelated di
     },
     { severity: "warn", message: "primary checkout has other uncommitted changes (may be the human's own): notes.txt" },
   ]);
+});
+
+test("a readyToMerge ticket with a failing PR check is an error", async () => {
+  const found = await errors(
+    parsed(GOOD),
+    probes({ ticketStatus: async () => "readyToMerge", prChecks: async () => ({ kind: "fail" }) }),
+  );
+  expect(found).toEqual(["PR 'https://github.com/o/r/pull/7' has a failing check, but the ticket is readyToMerge"]);
+});
+
+test("a readyToMerge ticket with checks still running is a warning, not an error", async () => {
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({ ticketStatus: async () => "readyToMerge", prChecks: async () => ({ kind: "pending" }) }),
+  );
+  expect(findings).toEqual([
+    { severity: "warn", message: "PR 'https://github.com/o/r/pull/7' still has checks running while the ticket is readyToMerge" },
+  ]);
+});
+
+test("a readyToMerge ticket with no CI configured is not an error", async () => {
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({ ticketStatus: async () => "readyToMerge", prChecks: async () => ({ kind: "none" }) }),
+  );
+  expect(findings).toEqual([]);
+});
+
+test("a readyToMerge ticket with a passing check is not an error", async () => {
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({ ticketStatus: async () => "readyToMerge", prChecks: async () => ({ kind: "pass" }) }),
+  );
+  expect(findings).toEqual([]);
+});
+
+test("gh being unreachable for CI checks is a warning, unverified — like other probes", async () => {
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({ ticketStatus: async () => "readyToMerge", prChecks: async () => ({ kind: "unknown", reason: "offline" }) }),
+  );
+  expect(findings).toEqual([
+    { severity: "warn", message: "could not check CI status for PR 'https://github.com/o/r/pull/7': offline — unverified" },
+  ]);
+});
+
+test("a ticket still in review is not checked against CI at all", async () => {
+  let called = false;
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({ ticketStatus: async () => "review", prChecks: async () => ((called = true), { kind: "fail" }) }),
+  );
+  expect(called).toBe(false);
+  expect(findings).toEqual([]);
+});
+
+test("CI: parses the fixed enum, case-insensitively, and anything else is no claim", () => {
+  const r = parsed(`${GOOD}\nCI: FAIL`);
+  expect(r.ci).toBe("fail");
+  expect(parsed("STATUS: in-progress-blocked\nTICKET: 0003\nCI: still running").ci).toBeUndefined();
+  expect(parsed("STATUS: in-progress-blocked\nTICKET: 0003").ci).toBeUndefined();
 });
 
 test("an ISSUE: #n from an older prompt is a GitHub issue: warned about, never looked up as a ticket", async () => {
