@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0064-perf-agents-sortie-d-outils-filtree-rapports-pla
 title: "perf(agents): sortie d'outils filtrée, rapports plafonnés, relecture unique pour les petits tickets"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: high
 size: medium
 assignedAgent: human
@@ -45,5 +45,20 @@ branch: perf-lean-agents/0064
 base: main
 commit: see branch tip
 checks: bun run check pass; bun test 576 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/112
+```
+
+### 2026-09-29 — implementer: same-PR fixup done, Ready to Merge
+
+Fixup 780ddc9 on PR #112: `{{> reference <name>}}` helper renders the real per-target path (Pi/runner served via the first installed target's root); ticket-commit rules inline again (reference file deleted, budget raised to 3150 with justification in the test); "small" bullet fixed; per-target test that each named path exists after install. CI test: pass. bug-hunter re-hunt: HUNT complete, no blocking finding. reviewer earlier: approve-with-notes. Reports on the PR.
+Deferred (new tickets, non-blocking): normalize outDir in reference paths; derive REFERENCE_ROOTS from install ROOTS; `src/` hard-coded in the single-pass rule.
+
+```progress-journal
+step: step 10: Ready to Merge
+worktree: ../worktrees/0064
+branch: perf-lean-agents/0064
+base: main
+commit: 780ddc9
+checks: bun run check pass; bun test 579 pass
 pr: https://github.com/woueziou/liteCodeAgent/pull/112
 ```
