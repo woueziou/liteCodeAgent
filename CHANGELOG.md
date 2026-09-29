@@ -1,3 +1,49 @@
+# [1.3.0](https://github.com/woueziou/liteCodeAgent/compare/v1.2.0...v1.3.0) (2026-09-29)
+
+
+### Bug Fixes
+
+* **agents:** a load failure caused by the fix's own new symbol counts as reproduced (0056 fixup) ([234f5ad](https://github.com/woueziou/liteCodeAgent/commit/234f5adef99fe905f3ce0f3b2385a43d792311c9))
+* **agents:** address review findings on 0056 (fixup, no history rewrite) ([cbab617](https://github.com/woueziou/liteCodeAgent/commit/cbab617b477e143a0e8db554795c44da413b5aba))
+* **agents:** test-first must never require rewriting pushed history ([2483411](https://github.com/woueziou/liteCodeAgent/commit/24834116afb0181165e4fdea860431a31abb4ee3)), closes [#95](https://github.com/woueziou/liteCodeAgent/issues/95) [#98](https://github.com/woueziou/liteCodeAgent/issues/98)
+* **agents:** validate delegateTier names, restore journal clause, fix stale reference ([e7abff0](https://github.com/woueziou/liteCodeAgent/commit/e7abff029811f21c0a484fee5b70f28af9b56de4))
+* **ci-check:** a green CI must prove the test check ran ([7565cad](https://github.com/woueziou/liteCodeAgent/commit/7565cad550540a04bd1ccec75a3a963e5ee8f047))
+* **ci-check:** unrelated gh error next to an empty array is unknown, not none ([a495f37](https://github.com/woueziou/liteCodeAgent/commit/a495f3726a2423ebb30ff5e1a9f0180afee170dd))
+* **cli:** refuse --project=<dir> and whitespace-only --project ([589aca0](https://github.com/woueziou/liteCodeAgent/commit/589aca01ce81ef7e5507933ff348093a84d1f946))
+* **cli:** refuse an empty --project; mark ADR 0020 accepted ([36ee01c](https://github.com/woueziou/liteCodeAgent/commit/36ee01c8b7435209be4f847e92d720b5dcca5c76))
+* dashboard/install/doctor small hardenings (0058) ([940ced1](https://github.com/woueziou/liteCodeAgent/commit/940ced1b0654dd01b2cd59f0995cbefb30bb8ee7))
+* **dashboard:** fix non-blocking bug-hunter findings on this PR ([7271ded](https://github.com/woueziou/liteCodeAgent/commit/7271ded55bde9871fa41fd2d029f30798bd287e2))
+* **doctor:** five bug-hunter findings from PR [#82](https://github.com/woueziou/liteCodeAgent/issues/82) ([155c32a](https://github.com/woueziou/liteCodeAgent/commit/155c32a32101d4002f09a2c1c3e7a051bb5e2a10))
+* **doctor:** fixup per bug-hunter re-hunt on PR [#98](https://github.com/woueziou/liteCodeAgent/issues/98) ([aff73dd](https://github.com/woueziou/liteCodeAgent/commit/aff73dd16ebbefe957409406d6420805710e041f))
+* **journal:** address review notes (old-git common dir, CRLF fence, non-throwing listing) ([0fdcdf6](https://github.com/woueziou/liteCodeAgent/commit/0fdcdf61b674128428bf5b8fea8a7f1fec1b7705))
+* **journal:** harden journal block, ADR heading and resume parsing (0053) ([9f9f2e8](https://github.com/woueziou/liteCodeAgent/commit/9f9f2e8839c920bfaa279977aa2ad1226a519014))
+* **report/probes:** catch ENOENT from a missing gh binary in prChecks ([6341c81](https://github.com/woueziou/liteCodeAgent/commit/6341c81746c98e288d13210284f5c66a62a546ba))
+* **report:** keep tokens from hiding ADR state; harden count parsing ([ea54e84](https://github.com/woueziou/liteCodeAgent/commit/ea54e840ba3d689312276991be00ca4e3972faa7))
+* **run:** do not journal a zero-token measurement ([c81a2d0](https://github.com/woueziou/liteCodeAgent/commit/c81a2d01e86f38fb3c01e08e4eab5bbfb8919853))
+* **setup:** thread defaultBranch/allowDefaultBranchCommits through the upgrade path, and check the hooksPath write ([0aa5e7d](https://github.com/woueziou/liteCodeAgent/commit/0aa5e7d663dce2e3ca1c7e721daabc24e998d14c)), closes [#96](https://github.com/woueziou/liteCodeAgent/issues/96)
+* **setup:** warn before the first commit gets refused on the default branch ([efe2d03](https://github.com/woueziou/liteCodeAgent/commit/efe2d0357e5506370958634574410ec5710e15cf))
+* **tests:** include TOKENS in the implementer replay contract (same fix as [#110](https://github.com/woueziou/liteCodeAgent/issues/110)) ([fed7fce](https://github.com/woueziou/liteCodeAgent/commit/fed7fce8a67ce3f24ec4a30d18092cb7eff008d1))
+* **tests:** replay contracts include TOKENS (implementer) and EPIC (orchestrator) ([5739f5d](https://github.com/woueziou/liteCodeAgent/commit/5739f5dd834bf3570702bd5d03c42e66925b708e))
+* **tickets,tests:** byte-preserving ticket note/move, port-0 dashboard tests, CLI resolution guidance ([3ea8f7b](https://github.com/woueziou/liteCodeAgent/commit/3ea8f7b94d390b38db33f8ed5f6aff9020f9c22a))
+* **tickets:** align setTicketStatus with the parser, keep trailing spaces on note append ([b5a28d7](https://github.com/woueziou/liteCodeAgent/commit/b5a28d7349680fb55669169e6d415cee33ed399a))
+* **tickets:** epic name matching and empty-name rejection from review notes ([379f25d](https://github.com/woueziou/liteCodeAgent/commit/379f25d84cec61811fd1f556b6e5a6de71a265c6))
+* **tickets:** keep heading match single-line and linear ([47bb9cc](https://github.com/woueziou/liteCodeAgent/commit/47bb9cc53d8cda3740e17a8f0b471abf3b18c3b7))
+* **tickets:** normalize section headings for apostrophe/NFD variants ([5479f47](https://github.com/woueziou/liteCodeAgent/commit/5479f474eb735bd523b8665953a7f672af1f1d79))
+
+
+### Features
+
+* **agents:** run implementer in an isolated worktree, add ticket note and rooted ticket writes ([4efb45e](https://github.com/woueziou/liteCodeAgent/commit/4efb45efec7aa3bfa4e65a4828771523cd9a7dee))
+* **dashboard:** allow extra Host headers via --allow-host ([db0f1ef](https://github.com/woueziou/liteCodeAgent/commit/db0f1ef9ad7bb8812d7ebc7105a69dc727066c46)), closes [#85](https://github.com/woueziou/liteCodeAgent/issues/85)
+* **implementer:** verify PR CI before readyToMerge ([b25a13d](https://github.com/woueziou/liteCodeAgent/commit/b25a13deb6e62a6d9c9d0312940821d281861454))
+* **report:** measure tokens consumed per ticket ([83d957d](https://github.com/woueziou/liteCodeAgent/commit/83d957d2ff3db97136b0caf64ade608096ebf0c0))
+* **tickets:** ticket new --epic, planner/tracker epic flow, doctor root warning ([d7b3d7e](https://github.com/woueziou/liteCodeAgent/commit/d7b3d7e968409b83aa26f6e7f6d100d3be5e5e1d))
+
+
+### Performance Improvements
+
+* **agents:** proportion the implementation flow to ticket size and slim implementer.md ([ea2a6d7](https://github.com/woueziou/liteCodeAgent/commit/ea2a6d7e0e4ddd429b399bb2760d3943c38fade2))
+
 # [1.2.0](https://github.com/woueziou/liteCodeAgent/compare/v1.1.1...v1.2.0) (2026-09-28)
 
 
