@@ -15,6 +15,6 @@
     "byAgent": []
   },
   "status": "completed",
-  "output": "SIZE: medium\nPANEL: complete\nBLOCKING_TENSION: none\nPLAN:\n1. Add the fixtures directory.\n2. Add a replay test that parses each fixture.\nADR: none (no architectural change)\nOPEN_QUESTIONS: none\nEPIC: none\nRECOMMENDATION: Track it as one chore ticket: the contracts are only asserted against prompt text today.\n",
+  "output": "SIZE: medium\nPANEL: complete\nBLOCKING_TENSION: none\nPLAN:\n1. Add the fixtures directory.\n2. Add a replay test that parses each fixture.\nADR: none (no architectural change)\nADR_DRAFT: none\nOPEN_QUESTIONS: none\nEPIC: none\nRECOMMENDATION: Track it as one chore ticket: the contracts are only asserted against prompt text today.\n",
   "error": null
 }

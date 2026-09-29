@@ -8,6 +8,8 @@ description: Reference for implementer (not a skill; read on demand when the cas
 Loaded by `implementer` when its step 5 applies (the ticket names an ADR, or you judge one warranted), or when you are resumed to continue past the gate. Step numbers refer to `implementer`'s numbered flow.
 
 {{#if project.adrDir}}
+**Already approved (ticket 0067).** When the ticket carries a `## ADR approuvé : <NNNN>` section (`planner` drafted the ADR, `tracker` wrote it into the ticket, a human approved it before the ticket was planned), there is no gate: write the ADR to the path named by the ticket's `ADR:` line (or `docs/decisions/<NNNN>-<kebab-title>.md`) from that section's text, with `generated_by`/`task` frontmatter, commit it in your PR with the rest of the work, and do not stop, post a `resume-manifest` or report `adr-pending-approval`. If the ticket instead carries a still-pending `## ADR à valider : <NNNN>` section (it should have been refused at planning), stop and escalate to `triage`. The gate below applies only to an ADR you discover is needed mid-implementation.
+
 An ADR records decisions a human should actually get to weigh in on, not a formality to auto-generate. When step 5 applies:
 
 1. Write the ADR file to its proposed path (or `{{ project.adrDir }}/<NNNN>-<kebab-title>.md`, next free number, if `planner` only flagged "ADR warranted" without a path) — but do **not** `git add`/commit it, and do not push or open a PR yet. Everything else from step 4 may already be committed locally; the ADR is the one thing held back. If the ticket carries `planner`'s `ADR_DECISIONS:` list, rule only on those decisions. If no list exists, state plainly in the draft which decision(s) you're recording and why.

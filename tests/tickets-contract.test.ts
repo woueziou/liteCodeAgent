@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { CLARIFICATION_MARKER, hasUnresolvedClarification, ticketSection } from "../src/tickets/spec.ts";
+import { CLARIFICATION_MARKER, hasPendingAdr, hasUnresolvedClarification, ticketSection } from "../src/tickets/spec.ts";
 
 test("ticketSection extracts a section's content up to the next heading", () => {
   const body = [
@@ -64,4 +64,12 @@ test("hasUnresolvedClarification ignores the marker inside an inline code span o
   expect(
     hasUnresolvedClarification(`## Plan\n\`\`\`\n${CLARIFICATION_MARKER} example from docs\n\`\`\`\n`),
   ).toBe(false);
+});
+
+test("hasPendingAdr detects an '## ADR à valider' heading, not one quoted in code or an approved one", () => {
+  expect(hasPendingAdr("## Plan\nx")).toBe(false);
+  expect(hasPendingAdr("## Plan\nx\n\n## ADR à valider : 0023\ndraft")).toBe(true);
+  expect(hasPendingAdr("## ADR approuvé : 0023\ndraft")).toBe(false);
+  expect(hasPendingAdr("```\n## ADR à valider : 0023\n```")).toBe(false);
+  expect(hasPendingAdr("## ADR à valider :0023")).toBe(true);
 });

@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.3.0",
-  "installedAt": "2026-09-29T16:15:46.146Z",
+  "installedAt": "2026-09-29T16:25:08.346Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -18,7 +18,7 @@
     ".claude/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "f2f46674329e4314"
+      "hash": "e76385900bd54535"
     },
     ".claude/agents/reviewer.md": {
       "pack": "core",
@@ -28,7 +28,7 @@
     ".claude/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "697ed4a9ed80aed3"
+      "hash": "4e2db72f9eabc529"
     },
     ".claude/agents/triage.md": {
       "pack": "core",
@@ -48,12 +48,12 @@
     ".claude/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "8f20094644aea8b5"
+      "hash": "d046939a87696690"
     },
     ".claude/agents/planner.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "f29d087849f5f39b"
+      "hash": "79590db42924e1a2"
     },
     ".claude/agents/panel-selector.md": {
       "pack": "core",
@@ -68,7 +68,7 @@
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "5f31f3b42f2119dd"
+      "hash": "64a1eb52bc8544b0"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
@@ -88,7 +88,7 @@
     ".claude/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "5257767406c4c255"
+      "hash": "1df748adc408739d"
     },
     ".claude/skills/critique-expert/SKILL.md": {
       "pack": "core",
@@ -133,7 +133,7 @@
     ".claude/reference/implementer-adr-gate.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "41f1b983b3a8ac0e"
+      "hash": "3864d71b84a6a0ca"
     },
     ".claude/reference/implementer-subagent-steps.md": {
       "pack": "core",

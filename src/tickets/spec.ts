@@ -379,6 +379,29 @@ export function hasUnresolvedClarification(body: string): boolean {
   return prose.includes(CLARIFICATION_MARKER);
 }
 
+/**
+ * The heading prefix of a ticket section holding an ADR draft that still awaits human
+ * approval (ticket 0067; the same section `implementer`'s mid-implementation gate writes,
+ * ticket 0047). A human approves by renaming it to `## ADR approuvé : NNNN`.
+ */
+export const PENDING_ADR_HEADING = "## ADR à valider";
+
+/**
+ * Whether `body` still has an `## ADR à valider` heading outside any fenced code block —
+ * `ticket move ... planned` refuses such a ticket, so `implementer` never starts on an ADR
+ * that nobody approved (ticket 0067).
+ */
+export function hasPendingAdr(body: string): boolean {
+  let prose = "";
+  let last = 0;
+  for (const [start, end] of fenceRegions(body)) {
+    prose += body.slice(last, start);
+    last = end;
+  }
+  prose += body.slice(last);
+  return /^##[ \t]+ADR à valider\b/m.test(prose);
+}
+
 /** `Fix the flaky board test!` -> `fix-the-flaky-board-test` */
 export function slugify(title: string): string {
   return (

@@ -30,6 +30,7 @@ Write the step descriptions in `PLAN:`, the open points in `ADR_DECISIONS:`, and
 4. Decide if an ADR is warranted: only for changes `synthesizer`'s REQUIREMENTS flagged as architecturally significant. Skip the ADR for small/additive changes even if they went through the full panel.
 5. If an ADR is warranted, propose its path as `{{ project.adrDir }}/<NNNN>-<kebab-title>.md` (check `{{ project.adrDir }}/` for the next free number) — do not create the file, only propose the path.
 6. If an ADR is warranted, enumerate the specific decisions it must record — one line each, phrased as a question or open point, not pre-answered. Pull these from `synthesizer`'s REQUIREMENTS and any unresolved-but-not-blocking tension it surfaced. `implementer` rules only on the decisions listed here — it does not expand scope to decisions you didn't flag, and it does not skip one you did.
+7. If an ADR is warranted, draft it now (ticket 0067), in full, in the `ADR_DRAFT:` block of your output: the ADR's frontmatter and body, ruling on the decisions from step 6 with your recommended option and the alternatives you rejected. You have no Write tool and never create the file: `tracker` copies the draft into the ticket under `## ADR à valider : <NNNN>`, and a human approves it *before* the ticket can be planned, so `implementer` never has to stop mid-run for it.
 {{/if}}
 
 {{#if project.conventions}}
@@ -51,6 +52,7 @@ PLAN:
 ...
 ADR: <path under {{#if project.adrDir}}{{ project.adrDir }}/{{/if}}{{^if project.adrDir}}n/a — this project does not use ADRs{{/if}}, or "none (no architectural implication)">
 ADR_DECISIONS: <one per line, only if ADR is not "none" — the exact decisions implementer must rule on and justify in the ADR, nothing broader>
+ADR_DRAFT: <the full drafted ADR text (ticket 0067), only if ADR is not "none"; otherwise "none">
 OPEN_QUESTIONS: <one per line, phrased as a question — an unresolved tension or an unverified assumption you had to make to plan this — or "none" when there genuinely isn't one>
 EPIC: <epic name without the NN- prefix (an existing one, or a proposed new one) when the plan splits into several related tickets, or "none">
 ```

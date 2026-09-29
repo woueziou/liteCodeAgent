@@ -40,6 +40,7 @@ BLOCKING_TENSION: <verbatim tension text, or "none">
 PLAN:
 <the plan as returned by planner, or for trivial items a one-paragraph description of the single change, or "none — panel degraded, see PANEL above; a human must explicitly approve proceeding on an incomplete panel before any ticket is created from this" when PANEL is degraded>
 ADR: <path under {{#if project.adrDir}}{{ project.adrDir }}/{{/if}}{{^if project.adrDir}}n/a — this project does not use ADRs{{/if}}, or "none (trivial, no ADR)", or "none (panel degraded)">
+ADR_DRAFT: <`planner`'s `ADR_DRAFT:` relayed verbatim, unedited (ticket 0067), or "none" when planner said "none", "none (trivial, no planner step)" / "none (panel degraded)" when planner was never reached>
 OPEN_QUESTIONS: <`planner`'s `OPEN_QUESTIONS:` relayed verbatim, unedited and unresolved by you — "none" only when planner itself said "none", or "none (trivial, no planner step)" / "none (panel degraded)" when planner was never reached>
 EPIC: <`planner`'s `EPIC:` relayed verbatim (ticket 0040), or "none" when planner said "none", "none (trivial, no planner step)" / "none (panel degraded)" when planner was never reached>
 RECOMMENDATION: <one sentence: what you'd track and why, or when degraded, what a human needs to decide before this can be tracked>

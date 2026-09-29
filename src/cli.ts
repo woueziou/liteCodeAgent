@@ -22,7 +22,9 @@ import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, setTi
 import {
   ALLOWED_TRANSITIONS,
   CLARIFICATION_MARKER,
+  PENDING_ADR_HEADING,
   CURRENT_SCHEMA_VERSION,
+  hasPendingAdr,
   hasUnresolvedClarification,
   isTransitionAllowed,
   migrateTicket,
@@ -837,6 +839,14 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(
         c.red(`Refusing ${ticket.status} -> planned for ${ticket.id}: body still carries an unresolved ${CLARIFICATION_MARKER} marker.`) +
           c.dim("\nResolve the open question and remove the marker before planning this ticket."),
+      );
+      return 1;
+    }
+    // Ticket 0067: same gate for an ADR draft nobody approved yet.
+    if (to === "planned" && hasPendingAdr(ticket.body)) {
+      console.log(
+        c.red(`Refusing ${ticket.status} -> planned for ${ticket.id}: an "${PENDING_ADR_HEADING}" section awaits approval.`) +
+          c.dim(`\nApprove the ADR, then rename that heading to "## ADR approuvé : NNNN" before planning this ticket.`),
       );
       return 1;
     }

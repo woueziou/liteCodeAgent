@@ -215,6 +215,24 @@ test("`ticket move` allows backlog -> planned once the [À CLARIFIER] marker is 
   expect(file).toMatch(/^status: planned$/m);
 });
 
+test("`ticket move` refuses ->planned while an '## ADR à valider' section awaits approval, and allows it once approved", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Needs an adr", "--label", "feature"]);
+  const path = join(root, "docs/tickets/0001-needs-an-adr.md");
+  const original = await Bun.file(path).text();
+  await Bun.write(path, `${original}\n## ADR à valider : 0023\nDraft, not committed.\n`);
+
+  const { output, exitCode } = await runCliWithExit(root, ["ticket", "move", "0001-needs-an-adr", "planned"]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/refusing/i);
+  expect(output).toContain("ADR à valider");
+  expect(await Bun.file(path).text()).toMatch(/^status: backlog$/m);
+
+  const approved = (await Bun.file(path).text()).replace("## ADR à valider : 0023", "## ADR approuvé : 0023");
+  await Bun.write(path, approved);
+  expect(await runCli(root, ["ticket", "move", "0001-needs-an-adr", "planned"])).toContain("moved");
+});
+
 test("`ticket move` rejects an unknown status and an unknown id", async () => {
   const root = await project();
   await runCli(root, ["ticket", "new", "--title", "Known ticket", "--label", "feature"]);

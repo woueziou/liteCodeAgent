@@ -89,3 +89,22 @@ test("triage remains the marker's removal path back to planned", async () => {
   expect(triage.source).toMatch(/\[À CLARIFIER\]/);
   expect(triage.source).toMatch(/ticket move <id> planned/);
 });
+
+/**
+ * Ticket 0067: the ADR is drafted by `planner` and approved by a human before the ticket
+ * is planned; `implementer` only stops for an ADR discovered mid-work.
+ */
+test("ADR is drafted up front, written by tracker, blocked from planning, and committed by implementer", async () => {
+  const files = await packFiles();
+  const get = (rel: string) => files.find((f) => f.rel === rel)!.source;
+  expect(fencedOutputBlock(get("agents/planner.md"))).toMatch(/^ADR_DRAFT:/m);
+  expect(fencedOutputBlock(get("agents/orchestrator.md"))).toMatch(/^ADR_DRAFT:/m);
+  expect(get("agents/tracker.md")).toMatch(/## ADR à valider : <NNNN>/);
+  expect(get("agents/dispatcher.md")).toMatch(/## ADR à valider : NNNN/);
+  expect(get("skills/idea-to-planned/SKILL.md")).toMatch(/pending ADR/);
+  expect(get("agents/implementer.md")).toMatch(/## ADR approuvé : NNNN/);
+  const gate = get("reference/implementer-adr-gate.md");
+  expect(gate).toMatch(/## ADR approuvé : <NNNN>/);
+  expect(gate).toMatch(/do not stop/);
+  expect(gate).toMatch(/discover is needed mid-implementation/);
+});
