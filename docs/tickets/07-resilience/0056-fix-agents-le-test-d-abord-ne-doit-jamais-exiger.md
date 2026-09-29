@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0056-fix-agents-le-test-d-abord-ne-doit-jamais-exiger
 title: "fix(agents): le test d'abord ne doit jamais exiger de réécrire l'historique"
 label: bug
-status: inProgress
+status: readyToMerge
 priority: high
 size: small
 assignedAgent: human
@@ -31,3 +31,18 @@ La règle test d'abord (ticket 0037, `project.testFirst`) et l'interdiction du p
 
 ## Hors périmètre
 Supprimer la règle test d'abord.
+
+### 2026-09-29 — implementer: PR opened, reviewed, ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/100 (CI green, mergeable). Commits: 8197170 (failing tests only, verified failing), 2483411 (fix), cbab617 and 234f5ad (same-PR fixups, no history rewrite).
+reviewer: approve (second pass, tip cbab617). bug-hunter: HUNT: complete; the one blocking finding (pre-fix-parent check couldn't run a test added with the fix) was fixed and cleared on re-hunt; remaining non-blocking notes fixed or accepted (GHE URL regex). Both full reports are posted on the PR.
+
+```progress-journal
+step: step 10: ready to merge
+worktree: ../worktrees/0056
+branch: fix-testfirst-no-force-push/0056
+base: main
+commit: 234f5ad
+checks: bun run check: pass; bun test: 452 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/100
+```
