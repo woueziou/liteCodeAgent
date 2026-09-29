@@ -3,11 +3,12 @@ schemaVersion: 2
 id: 0039-chore-tests-rejouer-des-sessions-enregistrees-po
 title: "chore(tests): rejouer des sessions enregistrées pour tester les contrats des agents"
 label: chore
-status: backlog
+status: planned
 priority: low
 size: medium
 assignedAgent: human
 dueDate: 
+importedFrom: 
 ---
 
 Source : audit du 2026-09-27, point 7.
