@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.2.0",
-  "installedAt": "2026-09-29T11:08:33.791Z",
+  "installedAt": "2026-09-29T11:38:10.630Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -68,7 +68,7 @@
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a4e268fc06a071b3"
+      "hash": "a8556ec67b8cfe67"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
@@ -78,7 +78,7 @@
     ".kilo/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "ce893eea4ad8d491"
+      "hash": "473327753be5aba3"
     },
     ".kilo/skills/skills/security-expert/SKILL.md": {
       "pack": "core",

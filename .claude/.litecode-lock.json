@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.2.0",
-  "installedAt": "2026-09-29T11:08:33.791Z",
+  "installedAt": "2026-09-29T11:38:10.630Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -68,7 +68,7 @@
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a53413ff4974e284"
+      "hash": "356a7540c94b47a7"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
@@ -78,7 +78,7 @@
     ".claude/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a05c671c5609d37e"
+      "hash": "f7b2ad07902b242d"
     },
     ".claude/skills/security-expert/SKILL.md": {
       "pack": "core",
