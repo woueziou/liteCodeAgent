@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0057-feat-agents-lancer-chaque-implementeur-dans-un-w
 title: "feat(agents): lancer chaque implémenteur dans un worktree isolé"
 label: feature
-status: planned
+status: inProgress
 priority: high
 size: medium
 assignedAgent: human
