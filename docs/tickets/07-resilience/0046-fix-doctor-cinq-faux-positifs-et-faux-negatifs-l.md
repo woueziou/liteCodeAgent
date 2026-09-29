@@ -3,11 +3,12 @@ schemaVersion: 2
 id: 0046-fix-doctor-cinq-faux-positifs-et-faux-negatifs-l
 title: "fix(doctor): cinq faux positifs et faux négatifs laissés par bug-hunter sur la PR #82"
 label: bug
-status: backlog
+status: planned
 priority: low
 size: small
 assignedAgent: human
 dueDate: 
+importedFrom: 
 ---
 
 ## Contexte

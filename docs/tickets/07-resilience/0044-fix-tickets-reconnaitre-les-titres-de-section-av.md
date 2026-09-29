@@ -3,11 +3,12 @@ schemaVersion: 2
 id: 0044-fix-tickets-reconnaitre-les-titres-de-section-av
 title: "fix(tickets): reconnaître les titres de section avec apostrophe typographique ou accents décomposés"
 label: bug
-status: backlog
+status: planned
 priority: low
 size: small
 assignedAgent: human
 dueDate: 
+importedFrom: 
 ---
 
 ## Contexte

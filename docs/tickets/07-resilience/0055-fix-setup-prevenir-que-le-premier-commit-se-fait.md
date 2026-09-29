@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0055-fix-setup-prevenir-que-le-premier-commit-se-fait
 title: "fix(setup): prévenir que le premier commit se fait sur une branche une fois le garde actif"
 label: bug
-status: backlog
+status: planned
 priority: medium
 size: small
 assignedAgent: human
