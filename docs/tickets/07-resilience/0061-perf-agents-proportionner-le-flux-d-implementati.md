@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0061-perf-agents-proportionner-le-flux-d-implementati
 title: "perf(agents): proportionner le flux d'implémentation à la taille du ticket et alléger implementer.md"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: high
 size: medium
 assignedAgent: human
@@ -70,4 +70,23 @@ adr_path: docs/decisions/0021-size-proportional-implementation-flow.md
 board_status: In Progress
 checks_passed: bun run check: pass; bun test: 491 pass
 adr_posted: true
+```
+
+### 2026-09-29 — implementer: ADR 0021 approved, PR opened, reviews in
+
+ADR 0021 was approved by the human as written (relayed by the coordinator); it is now committed on the branch with Status: accepted, so the "Draft awaiting approval — not committed" line under `## ADR à valider : 0021` above is stale.
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/109 (CI: test pass, no conflicts). Merged origin/main (0062) into the branch, no rebase or force-push; installed agents re-rendered.
+reviewer: VERDICT approve-with-notes. bug-hunter: HUNT complete, no blocking finding. Both reports are posted verbatim on the PR, with a comment on which non-blocking findings were fixed.
+Deferred: bug-hunter finding 1 (tiers holding full model ids instead of aliases) and widening the moved-rule test; worth a follow-up ticket.
+TOKENS: not visible to me.
+
+```progress-journal
+step: step 10: ready to merge
+worktree: ../worktrees/0061
+branch: perf-proportional-flow/0061
+base: main
+commit: see PR head
+checks: bun run check: pass; bun test: 505 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/109
 ```
