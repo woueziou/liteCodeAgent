@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0059-fix-ci-check-une-ci-verte-doit-prouver-que-les-t
 title: "fix(ci-check): une CI verte doit prouver que les tests ont tourné"
 label: bug
-status: planned
+status: done
 priority: medium
 size: small
 assignedAgent: human
@@ -29,3 +29,27 @@ Findings non bloquants de bug-hunter sur la PR #99 (ticket 0054, vérification d
 
 ## Hors périmètre
 Modifier les workflows de CI du projet.
+
+### 2026-09-29 — implementer: PR opened, CI green, review passes starting
+
+```progress-journal
+step: step 8: invoking reviewer and bug-hunter
+worktree: /Users/woueziou/works/personal_projects/liteCodeAgent/.claude/worktrees/agent-a449f5202cdd90c93
+branch: fix-ci-check-tests-ran/0059
+base: main
+commit: 7565cad
+checks: bun run check: pass; bun test: pass; PR CI: pass (test, GitGuardian)
+pr: https://github.com/woueziou/liteCodeAgent/pull/107
+```
+
+### 2026-09-29 — implementer: ready to merge
+
+PR https://github.com/woueziou/liteCodeAgent/pull/107. reviewer: approve-with-notes (non-blocking). bug-hunter: HUNT complete, 4 non-blocking findings; #4 (gh error next to empty array read as none) fixed in-PR, #2 documented; #1 (none silent) and #3 (30s wait every call) deferred, candidates for new tickets. CI green (test, GitGuardian).
+
+```progress-journal
+step: step 10: readyToMerge
+branch: fix-ci-check-tests-ran/0059
+base: main
+check: bun run check pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/107
+```

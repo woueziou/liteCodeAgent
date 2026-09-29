@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0053-fix-journal-durcir-la-lecture-des-blocs-de-journ
 title: "fix(journal): durcir la lecture des blocs de journal et des titres ADR à valider"
 label: bug
-status: planned
+status: readyToMerge
 priority: low
 size: small
 assignedAgent: human
@@ -31,3 +31,20 @@ Findings non bloquants laissés par bug-hunter sur la PR #88 (ticket 0049, lectu
 
 ## Hors périmètre
 Layout `--separate-git-dir` ; changement de format du journal (ADR 0018).
+
+### 2026-09-29 — implementer: PR opened, reviewed
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/103 (CI green, mergeable).
+reviewer: VERDICT approve-with-notes (no blocking findings). bug-hunter: HUNT complete, no blocking findings. Both reports posted on the PR.
+Fixed same-PR: old-git common dir in primaryCheckoutRoot, draftTextFor CRLF/trailing-space fence, listPendingAdrs no longer throws on an unclosed block.
+Deferred (non-blocking, worth new tickets via triage): an unclosed journal block silently closed by an ordinary code fence; bare-repo primary-root mismatch between resume.ts and probes.ts; mixed space+tab indented fence is silently ignored. Unrelated: 3 timing-out tests in tests/report-probes.test.ts also fail on main.
+
+```progress-journal
+step: step 10: reviewed, ready to merge
+worktree: .claude/worktrees/agent-abffb0cc06de0087a
+branch: fix-journal-parsing/0053
+base: main
+commit: pushed tip of branch
+checks: bun run check: pass; CI pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/103
+```

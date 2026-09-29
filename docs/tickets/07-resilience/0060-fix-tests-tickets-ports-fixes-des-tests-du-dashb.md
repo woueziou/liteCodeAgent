@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0060-fix-tests-tickets-ports-fixes-des-tests-du-dashb
 title: "fix(tests,tickets): ports fixes des tests du dashboard, réécriture du frontmatter, bunx dans un worktree isolé"
 label: bug
-status: planned
+status: done
 priority: high
 size: small
 assignedAgent: human
@@ -31,3 +31,18 @@ Trois points laissés par bug-hunter sur la PR #101 (ticket 0057, ADR 0020).
 
 ## Hors périmètre
 Changer le format des tickets.
+
+### 2026-09-29 — implementer: PR #102 ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/102 (CI green).
+reviewer: approve-with-notes (no blocking). bug-hunter: HUNT: complete, no blocking finding. Non-blocking fixups applied in the PR (parser-parity for setTicketStatus, note append keeps trailing spaces). Deferred: ticket without a `status:` line makes `ticket move` fail visibly; pre-existing report-probes/doctor gh-stub timeouts on main (flaky full suite); the concurrent-suite test adds load. bunx check: from /tmp, bunx resolved published 1.1.1 lacking `ticket note`/`ticket move --project`.
+
+```progress-journal
+step: step 10: ready to merge
+worktree: .claude/worktrees/agent-a62eca1ff6bb43fde
+branch: fix-test-ports-frontmatter/0060
+base: main
+commit: pushed tip
+checks: bun run check: pass; PR CI: pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/102
+```
