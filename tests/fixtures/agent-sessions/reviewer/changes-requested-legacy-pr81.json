@@ -1,0 +1,20 @@
+{
+  "provider": "pr-comment",
+  "agent": "reviewer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-28T09:03:19Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "VERDICT: changes-requested\n\nCHECK_OUTPUT: `bun run check` (tsc --noEmit) — clean, no output/errors. `bun test` — 292 pass, 0 fail, 1221 expect() calls across 34 files (includes the 5 new contract tests in tests/agents-acceptance-criteria.test.ts, all passing).\n\nFINDINGS:\n- (blocking) docs/tickets/07-resilience/0036-feat-reviewer-verifier-chaque-critere-d-acceptat.md — this PR's branch (merge-base 06d15ee) predates main's commit 4da4c6e (\"chore(tickets): 0036 inProgress\"), which set this ticket's `status` to `inProgress`. The PR diff carries `status: planned` (a stale value from before that chore commit), so merging as-is will silently revert the ticket's tracked status field back to `planned`, undoing 4da4c6e. Fix: rebase/merge main into the branch so the ticket frontmatter picks up `status: inProgress` (or whatever status is correct at merge time), then re-push.\n- none other found — the reviewer.md prompt changes are consistent and identical in substance across packs/core/agents/reviewer.md and the three rendered installs (.claude, .kilo, .pi), and lockfile hashes were regenerated correctly for all three.\n\nPLAN_FIDELITY: matches. All four acceptance criteria from the ticket are addressed:\n1. \"one line per criterion: satisfait/partiel/manquant with proof\" → new item 2 in packs/core/agents/reviewer.md + `ACCEPTANCE:` output field, exact satisfied/partial/missing/proof wording, verified by tests/agents-acceptance-criteria.test.ts.\n2. \"any unproven criterion caps VERDICT at changes-requested\" → explicit wording present, tested.\n3. \"not-requested additions are flagged\" → explicit \"not-requested\" bullet added, tested.\n4. \"contract test on the prompt (tests/agents-*)\" → tests/agents-acceptance-criteria.test.ts added, 5 passing assertions against packs/core source (the single source of truth the installs are rendered from).\n\nNo scope creep beyond the ticket — the change is scoped to reviewer.md plus its rendered installs/lockfiles plus the new test file. Numbering of subsequent checklist items (3-6) was correctly bumped throughout all three rendered copies.\n\nAttribution: commit 4b3faac carries `Agent: implementer` / `Task: 0036` trailers per the agent-attribution skill — correct.\n\nREENTRY: same-PR fixup — rebase the branch onto current main (or merge main in) so the ticket frontmatter's `status` field reflects main's current value rather than reverting it to `planned`, then re-run checks and re-request review. No new ticket needed; this is a stale-branch hygiene issue, not a design/code defect. No Priority escalation needed (not correctness-in-the-diff, but it will silently corrupt tracked ticket state on merge, hence blocking rather than non-blocking).\n\n---\n\n### implementer note on this finding\n\nVerified and resolved: this finding is a false positive. `git diff origin/main...HEAD --stat` on the PR branch shows **no ticket file in the diff at all** — the branch never touches `docs/tickets/07-resilience/0036-*.md`. Per this project's convention (ADR 0015 / implementer instructions), ticket files are committed only directly on `main` in the primary checkout, never through a feature-branch PR, so merging PR #81 cannot revert or otherwise touch the ticket's tracked `status` field. No fixup needed for this specific finding; treated as resolved-not-reproduced rather than a code/prompt defect.\n",
+  "error": null
+}
