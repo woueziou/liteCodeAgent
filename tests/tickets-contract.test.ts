@@ -90,3 +90,17 @@ test("hasPendingAdr exempts a full mid-implementation draft with its own '## ' h
   expect(hasPendingAdr("## ADR à valider : 0023\n````\n```resume-manifest\nx\n```\n````\n")).toBe(true);
   expect(hasPendingAdr("## ADR\u00a0à valider : 0023\nx")).toBe(true);
 });
+
+test("hasPendingAdr: an '## ADR approuvé' heading ends a pending section (no \\b after the non-ASCII é)", () => {
+  const body = [
+    "## ADR à valider : 0099",
+    "Draft, not approved yet.",
+    "",
+    "## ADR approuvé : 0098",
+    "```resume-manifest",
+    "worktree: ../worktrees/0098",
+    "```",
+    "",
+  ].join("\n");
+  expect(hasPendingAdr(body)).toBe(true);
+});
