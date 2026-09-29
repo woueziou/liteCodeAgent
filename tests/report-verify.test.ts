@@ -272,3 +272,12 @@ test("any ISSUE value is a legacy GitHub number, `#` or not; TICKET wins when bo
   const both = parsed("STATUS: in-progress-blocked\nTICKET: 0030\nISSUE: #45");
   expect([both.ticket, both.legacyIssue]).toEqual(["0030", undefined]);
 });
+
+test("force-push is not probed for a PR that did not resolve", async () => {
+  let called = false;
+  await verifyReport(
+    parsed(GOOD),
+    probes({ prView: async () => ({ kind: "missing" }), forcePushed: async () => ((called = true), { kind: "no" }) }),
+  );
+  expect(called).toBe(false);
+});

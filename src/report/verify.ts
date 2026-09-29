@@ -222,16 +222,17 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
         error(`PR '${report.pr}' is for branch '${pr.headRefName}', not the reported BRANCH '${report.branch}'`);
       }
       if (pr.state === "CLOSED") error(`PR '${report.pr}' is closed without being merged`);
-    }
 
-    // Ticket 0056: a force-pushed head ref means already-public history was rewritten —
-    // never itself an error (the human may have done it, or approved an exception), but
-    // always worth surfacing since `implementer`/`reviewer` are never supposed to cause it.
-    const forcePush = await probes.forcePushed(report.pr);
-    if (forcePush.kind === "yes") {
-      warn(`PR '${report.pr}' head ref was force-pushed ${forcePush.count} time(s) — already-pushed history was rewritten`);
-    } else if (forcePush.kind === "unknown") {
-      warn(`could not check whether PR '${report.pr}' was force-pushed: ${forcePush.reason}`);
+      // Ticket 0056: a force-pushed head ref means already-public history was rewritten —
+      // never itself an error (the human may have done it, or approved an exception), but
+      // always worth surfacing since `implementer`/`reviewer` are never supposed to cause it.
+      // Only asked of a PR that resolved: a missing/unreachable one already has its finding.
+      const forcePush = await probes.forcePushed(report.pr);
+      if (forcePush.kind === "yes") {
+        warn(`PR '${report.pr}' head ref was force-pushed ${forcePush.count} time(s) — already-pushed history was rewritten`);
+      } else if (forcePush.kind === "unknown") {
+        warn(`could not check whether PR '${report.pr}' was force-pushed: ${forcePush.reason}`);
+      }
     }
   }
 

@@ -159,33 +159,33 @@ export function realProbes(ctx: ProbeContext): Probes {
      * events, since the events endpoint only takes a bare number, never a URL.
      */
     async forcePushed(pr): Promise<ForcePushLookup> {
-      const viewArgs = ["pr", "view", pr, "--json", "number,headRepository,headRepositoryOwner"];
+      const viewArgs = ["pr", "view", pr, "--json", "number,url"];
       if (!/^https?:\/\//.test(pr)) viewArgs.push("--repo", repo);
       let number: number;
       let ownerRepo: string;
       try {
-        const view = JSON.parse(await gh(viewArgs)) as {
-          number: number;
-          headRepository?: { name: string };
-          headRepositoryOwner?: { login: string };
-        };
+        const view = JSON.parse(await gh(viewArgs)) as { number: number; url: string };
         number = view.number;
-        ownerRepo =
-          view.headRepositoryOwner?.login && view.headRepository?.name
-            ? `${view.headRepositoryOwner.login}/${view.headRepository.name}`
-            : repo;
+        // The PR's number and events live on the BASE repo (the one in its URL), never on
+        // the head repo a fork PR was pushed from.
+        ownerRepo = /github\.com\/([^/\s]+\/[^/\s]+)\/pull\/\d+/i.exec(view.url)?.[1] ?? repo;
       } catch (e) {
-        return { kind: "unknown", reason: (e as Error).message.split("\n")[0]! };
+        return { kind: "unknown", reason: reasonOf(e) };
       }
       try {
         const out = await gh(["api", `repos/${ownerRepo}/issues/${number}/events`, "--paginate", "--jq", ".[].event"]);
         const count = out.split("\n").filter((line) => line.trim() === "head_ref_force_pushed").length;
         return count > 0 ? { kind: "yes", count } : { kind: "no" };
       } catch (e) {
-        return { kind: "unknown", reason: (e as Error).message.split("\n")[0]! };
+        return { kind: "unknown", reason: reasonOf(e) };
       }
     },
   };
+}
+
+/** A `GhError` message is "gh … failed (exit N):\n<stderr>": the stderr line is the actual reason. */
+function reasonOf(e: unknown): string {
+  return (e as Error).message.replace(/\s*\n\s*/g, " ").trim();
 }
 
 /** Adds `resumeState`'s two extra probes (worktree presence, commit reachability) to `realProbes`. */
