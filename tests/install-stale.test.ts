@@ -72,6 +72,8 @@ test("the sync workflow proposes a bot PR on main pushes and never pushes to mai
   expect(wf).toContain("pull-requests: write");
   expect(wf).toContain("chore/sync-installed");
   expect(wf).toContain("gh pr create");
+  expect(wf).toContain("core.hooksPath=/dev/null commit");
+  expect(wf).toContain("gh pr close");
   expect(wf).not.toContain("HEAD:main");
   expect(wf).not.toContain("pull_request:");
 });
@@ -80,4 +82,13 @@ test("implementer.md tells the agent to leave installed copies to CI", async () 
   const md = await Bun.file(join(PACKS, "core", "agents", "implementer.md")).text();
   expect(md).toContain("commit only `packs/`");
   expect(md).toContain("or resolve a conflict on them by hand");
+});
+
+test("a file a pack no longer produces counts as out of date", async () => {
+  const { config, root, packs } = await setup();
+  await applyPlan(root, await buildPlan(root, packs, config), "9.9.9", { force: false });
+  await Bun.$`rm -rf ${join(packs, "core", "skills", "critique-expert")}`;
+  const plan = await buildPlan(root, packs, config);
+  expect(plan.orphans.length).toBeGreaterThan(0);
+  expect(staleEntries(plan)).toEqual(expect.arrayContaining(plan.orphans));
 });

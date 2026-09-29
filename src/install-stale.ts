@@ -10,6 +10,7 @@ export type StaleFinding = { severity: "warn"; message: string };
  */
 export function staleEntries(plan: InstallPlan): string[] {
   const rels = plan.entries.filter((e) => e.status === "create" || e.status === "update").map((e) => e.rel);
+  rels.push(...plan.orphans);
   if (plan.hook && (plan.hook.status === "create" || plan.hook.status === "update")) rels.push(plan.hook.rel);
   return rels;
 }

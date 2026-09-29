@@ -25,4 +25,8 @@ This repository dogfoods itself: `packs/` is the source, and `install --apply --
 - Between a merge and the merge of the regeneration PR (as long as a human takes), main's installed files lag `packs/`; `doctor` shows the gap.
 - The workflow needs `contents: write` (to push the bot branch) and `pull-requests: write` (to open or find the PR), and the repository setting allowing Actions to create pull requests. Without that setting the job fails visibly.
 - The regeneration PR and its commit are authored by `github-actions[bot]` until a human merges it. Its checks do not start automatically (a `GITHUB_TOKEN` push triggers no workflow): the merger runs or reviews them by hand.
+- The bot commit bypasses the repository's owner-only pre-commit hook (`git -c core.hooksPath=/dev/null commit`), which `bun install` activates in CI; otherwise the job could never commit. Merge the regeneration PR with squash so `main` keeps owner-only attribution.
+- If a later run finds nothing to regenerate, it closes a still-open regeneration PR as obsolete.
+- `--check` and `doctor` also count orphans (files a pack no longer produces) as out of date.
+- Tests read the packs' sources, not the installed copies, so a PR that changes only `packs/` is judged on what it changed.
 - The lockfile format is unchanged.

@@ -42,7 +42,8 @@ for (const e of manifest) {
   outputs.set(e.file, report.output);
 }
 const of = (agent: Entry["agent"]) => manifest.filter((e) => e.agent === agent);
-const prompt = (agent: string) => Bun.file(join(ROOT, ".claude", "agents", `${agent}.md`)).text();
+// Read the pack source, not the installed copy: PRs change packs/ only (ADR 0022).
+const prompt = (agent: string) => Bun.file(join(ROOT, "packs", "core", "agents", `${agent}.md`)).text();
 
 describe("fixture set", () => {
   test("manifest and files on disk agree", () => {
