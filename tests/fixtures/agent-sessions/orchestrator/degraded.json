@@ -1,0 +1,20 @@
+{
+  "provider": "synthetic",
+  "agent": "orchestrator",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T00:00:00.000Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "SIZE: unknown\nPANEL: degraded (classifier unreadable, 2 of 3 debate angles lost: contract, security)\nBLOCKING_TENSION: none\nPLAN:\nnone — panel degraded, see PANEL above; a human must explicitly approve proceeding on an incomplete panel before any ticket is created from this\nADR: none (panel degraded)\nOPEN_QUESTIONS: none (panel degraded)\nRECOMMENDATION: A human must decide whether to proceed on an incomplete panel before this can be tracked.\n",
+  "error": null
+}

@@ -1,0 +1,20 @@
+{
+  "provider": "synthetic",
+  "agent": "implementer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T00:00:00.000Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "STATUS: pr-opened-for-review\nTICKET: 0056-fix-agents-reviewer-must-not-request-force-push\nBRANCH: fix-no-force-rewrite/0056\nPR: https://github.com/woueziou/liteCodeAgent/pull/100\nBLOCKER: none\nCI: pass\nCHECK_OUTPUT: bun run check: pass\n",
+  "error": null
+}

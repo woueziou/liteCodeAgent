@@ -1,0 +1,20 @@
+{
+  "provider": "synthetic",
+  "agent": "implementer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T00:00:00.000Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "**STATUS:** implemented-pending-github\n**TICKET:** 0057-feat-isolation\n**BRANCH:** feat-isolation/0057\n**PR:** none (pending GitHub, resume on BRANCH later)\n**BLOCKER:** none\n**CI:** none\n**CHECK_OUTPUT:** bun run check: pass\n",
+  "error": null
+}

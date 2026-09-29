@@ -1,0 +1,20 @@
+{
+  "provider": "synthetic",
+  "agent": "implementer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T00:00:00.000Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "STATUS: in-progress-blocked\nTICKET: 0039-chore-tests-rejouer-des-sessions-enregistrees-po\nBRANCH: n/a\nPR: none (blocked before implementation)\nBLOCKER: escalated to triage: the ticket names no acceptance criteria\nCI: none\nCHECK_OUTPUT: n/a\n",
+  "error": null
+}
