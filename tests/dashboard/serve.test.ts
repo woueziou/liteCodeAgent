@@ -270,6 +270,18 @@ test("buildAllowedHosts: off the default port, the bare hostname (no port) is NO
   expect(allowed.has("my.lan.example")).toBe(false);
 });
 
+test("buildAllowedHosts: an unbracketed IPv6 --allow-host entry (no port) is not mis-split at its last colon (bug-hunter finding)", () => {
+  const allowed = buildAllowedHosts(4173, "127.0.0.1", ["fe80::1"]);
+  expect(allowed.has("[fe80::1]:4173")).toBe(true);
+  expect(allowed.has("[fe80:]:1")).toBe(false);
+});
+
+test("buildAllowedHosts: an unbracketed IPv6 --allow-host entry with what looks like a trailing port keeps it as part of the address", () => {
+  const allowed = buildAllowedHosts(4173, "127.0.0.1", ["2001:db8::8080"]);
+  expect(allowed.has("[2001:db8::8080]:4173")).toBe(true);
+  expect(allowed.has("[2001:db8:]:8080")).toBe(false);
+});
+
 test("startDashboardServer: a Host matching --allow-host is served; anything else still 403s (DNS rebinding stays closed)", async () => {
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
@@ -302,6 +314,23 @@ test("startDashboardServer: binding a wildcard host with no --allow-host warns o
     servers.push(server);
     expect(warnings.length).toBeGreaterThan(0);
     expect(String(warnings[0]![0])).toContain("--allow-host");
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test("startDashboardServer: an all-zeros IPv6 --host spelling other than '::' still warns (bug-hunter finding)", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const port = freshPort();
+    const server = await startDashboardServer(root, "docs/tickets", { port, host: "0:0:0:0:0:0:0:0" });
+    servers.push(server);
+    expect(warnings.length).toBeGreaterThan(0);
   } finally {
     console.warn = originalWarn;
   }

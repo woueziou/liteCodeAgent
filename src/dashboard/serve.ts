@@ -91,6 +91,14 @@ function parseAllowedHostEntry(entry: string): { host: string; port?: number } {
   if (bracketedWithPort) return { host: bracketedWithPort[1]!, port: Number(bracketedWithPort[2]) };
   if (/^\[[0-9a-fA-F:]+\]$/.test(entry)) return { host: entry };
 
+  // An unbracketed IPv6 literal (more than one colon, e.g. `fe80::1` or `2001:db8::8080`) has
+  // no unambiguous port suffix — the last ":8080" could be the port or the last hex group —
+  // so it's treated as the whole host with no port, rather than mis-split at the last colon
+  // (bug-hunter finding on this PR: `--allow-host fe80::1` used to parse as host `fe80:`
+  // port `1`, silently never matching any real request).
+  const colonCount = (entry.match(/:/g) ?? []).length;
+  if (colonCount > 1) return { host: entry };
+
   const lastColon = entry.lastIndexOf(":");
   if (lastColon !== -1 && /^\d+$/.test(entry.slice(lastColon + 1))) {
     return { host: entry.slice(0, lastColon), port: Number(entry.slice(lastColon + 1)) };
@@ -129,10 +137,21 @@ export function buildAllowedHosts(port: number, boundHost: string, additionalHos
   return hosts;
 }
 
-/** `--host` values that bind every interface: no `Host` header can name these literally, so
- * without an explicit `--allow-host` only requests from the local machine itself will ever
- * match the allow-list (ticket 0052). */
-const WILDCARD_BIND_HOSTS = new Set(["0.0.0.0", "::", "[::]"]);
+/**
+ * Whether `host` (as passed to `--host`/`Bun.serve`) binds every interface, so no `Host`
+ * header can name it literally — without an explicit `--allow-host`, only requests from the
+ * local machine itself will ever match the allow-list (ticket 0052). Normalizes brackets and
+ * case first and recognizes the all-zeros IPv6 spellings too (`::`, `0:0:0:0:0:0:0:0`, `::0`,
+ * `0.0.0.0`), not just the two literal strings the original check compared against
+ * (bug-hunter finding on this PR: `--host ::0` bound every interface but printed no warning).
+ */
+function isWildcardBindHost(host: string): boolean {
+  const stripped = host.replace(/^\[/, "").replace(/\]$/, "").toLowerCase();
+  if (stripped === "0.0.0.0") return true;
+  if (!stripped.includes(":")) return false;
+  const groups = stripped.split(":");
+  return groups.every((g) => g === "" || /^0+$/.test(g));
+}
 
 /**
  * Rejects a request whose method isn't read-only, or whose `Host` header doesn't name this
@@ -195,7 +214,7 @@ export async function startDashboardServer(root: string, dir: string, options: S
   const host = options.host ?? DEFAULT_HOST;
   const allowHosts = options.allowHosts ?? [];
 
-  if (WILDCARD_BIND_HOSTS.has(host) && allowHosts.length === 0) {
+  if (isWildcardBindHost(host) && allowHosts.length === 0) {
     console.warn(
       `dashboard: listening on ${host} but no --allow-host was given — only requests whose Host header names ` +
         "127.0.0.1, localhost or [::1] will be served (DNS-rebinding protection, ADR 0017). " +

@@ -82,9 +82,13 @@ The allow-list now also accepts:
   entry containing `*` is a startup error, not silently ignored — so the DNS-rebinding
   protection point 4 exists for stays intact: only hosts the owner explicitly opted in are
   served, never an implicit "every IP".
-- A bare hostname (no port) is accepted, for any allowed host including the fixed ones, only
-  when the server is actually bound to port 80 — the default HTTP port a browser's `Host`
-  header omits. Off port 80, a bare hostname with no port is never matched.
+- A bare hostname (no port) is accepted, for any allowed host including the fixed ones,
+  wherever the *port that entry resolves to* is 80 — the default HTTP port a browser's
+  `Host` header omits. That resolved port is either the port the entry itself names
+  explicitly (`--allow-host proxy.example:80` also accepts a bare `proxy.example`, e.g.
+  behind a reverse proxy that terminates on :80 regardless of what port this process is
+  bound to), or, when the entry gives no port of its own, the port this server is actually
+  bound to. Anywhere else, a bare hostname with no port is never matched.
 - Binding to `0.0.0.0`/`::` with no `--allow-host` at all still works exactly as before (only
   the fixed local addresses are served), but now prints a startup warning explaining that
   only local requests will pass and how to allow another host.

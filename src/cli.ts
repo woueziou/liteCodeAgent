@@ -827,10 +827,16 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
       return 1;
     }
 
-    const allowHosts = [...(config.project.dashboard?.allowedHosts ?? []), ...repeatedArg(argv, "--allow-host")];
+    const configAllowHosts = config.project.dashboard?.allowedHosts ?? [];
+    const cliAllowHosts = repeatedArg(argv, "--allow-host");
+    const allowHosts = [...configAllowHosts, ...cliAllowHosts];
     const wildcard = allowHosts.find((h) => h.includes("*"));
     if (wildcard) {
-      console.log(c.red(`dashboard: --allow-host '${wildcard}' is a wildcard, which is never accepted (DNS-rebinding protection)`));
+      // Named its actual source (config vs --allow-host): a wildcard from litecode.config.json's
+      // project.dashboard.allowedHosts would otherwise point the operator at a CLI flag they
+      // never passed (bug-hunter finding on this PR).
+      const source = cliAllowHosts.includes(wildcard) ? "--allow-host" : "project.dashboard.allowedHosts";
+      console.log(c.red(`dashboard: '${wildcard}' (from ${source}) is a wildcard, which is never accepted (DNS-rebinding protection)`));
       return 1;
     }
 
