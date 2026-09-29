@@ -9,6 +9,8 @@
  * them into one `JournalEntry`, so callers never need to know which one a given ticket used.
  */
 
+import { parseTokenCount } from "./tokens.ts";
+
 export type JournalEntry = {
   /** Free-form step label, e.g. "step 4: implement" or "adr-pending-approval". */
   step: string;
@@ -18,6 +20,8 @@ export type JournalEntry = {
   commit?: string;
   checks?: string;
   pr?: string;
+  /** Tokens this run consumed (ticket 0062); summed across entries for the ticket total. */
+  tokens?: number;
   /** Present only on resume-manifest-shaped entries (the ADR draft approval gate). */
   adrPath?: string;
   boardStatus?: string;
@@ -71,6 +75,10 @@ function validCommit(raw: string | undefined): string | undefined {
   return raw.trim().toLowerCase() === "none" ? "none" : raw.trim();
 }
 
+function validTokens(raw: string | undefined): number | undefined {
+  return raw === undefined ? undefined : parseTokenCount(raw);
+}
+
 function validPr(raw: string | undefined): string | undefined {
   return raw !== undefined && isValidPrValue(raw) ? raw : undefined;
 }
@@ -85,6 +93,7 @@ function fromResumeManifest(fields: Map<string, string>): JournalEntry {
     boardStatus: fields.get("board_status"),
     checks: fields.get("checks_passed"),
     adrPosted: fields.get("adr_posted") === "true",
+    tokens: validTokens(fields.get("tokens")),
   };
 }
 
@@ -97,6 +106,7 @@ function fromProgressJournal(fields: Map<string, string>): JournalEntry {
     commit: validCommit(fields.get("commit")),
     checks: fields.get("checks"),
     pr: validPr(fields.get("pr")),
+    tokens: validTokens(fields.get("tokens")),
   };
 }
 
@@ -162,6 +172,7 @@ export function formatJournalBlock(entry: {
   commit?: string;
   checks?: string;
   pr?: string;
+  tokens?: number;
 }): string {
   const lines = [
     `step: ${entry.step}`,
@@ -171,6 +182,7 @@ export function formatJournalBlock(entry: {
     entry.commit ? `commit: ${entry.commit}` : undefined,
     entry.checks ? `checks: ${entry.checks}` : undefined,
     entry.pr ? `pr: ${entry.pr}` : undefined,
+    entry.tokens !== undefined ? `tokens: ${entry.tokens}` : undefined,
   ].filter((l): l is string => l !== undefined);
   return "```progress-journal\n" + lines.join("\n") + "\n```";
 }

@@ -62,7 +62,7 @@ function activeFilterSummary(filter: QueueFilter, shown: number, total: number):
 
 export function renderQueue(data: DashboardData, filter: QueueFilter = {}): string {
   const shown = filterTickets(data.tickets, filter);
-  const rows = shown.map(renderTicketDetail).join("") || '<p class="note">Aucun ticket ne correspond au filtre.</p>';
+  const rows = shown.map((t) => renderTicketDetail(t, data.tokensByTicket[t.id])).join("") || '<p class="note">Aucun ticket ne correspond au filtre.</p>';
 
   return `
     <section id="file-dattente" class="screen screen-queue">

@@ -17,6 +17,9 @@ import { listAdrsDetailed, type AdrSummary, type AdrLoadError } from "../decisio
 import { listPendingAdrs, type PendingAdr } from "../decisions/pending.ts";
 import { STATUS_ROLES, PRIORITIES, SIZES, type StatusRole, type Priority, type Size, type Ticket } from "../tickets/spec.ts";
 
+import { parseJournalEntries } from "../report/journal.ts";
+import { ticketTokens } from "../report/tokens.ts";
+
 export type StatusCount = { role: StatusRole; label: string; count: number };
 export type PriorityCount = { priority: Priority; count: number };
 export type SizeCount = { size: Size; count: number };
@@ -26,6 +29,8 @@ export type EpicSummary = {
   total: number;
   byStatus: Record<StatusRole, number>;
   blocked: number;
+  /** Sum of the tokens recorded by its tickets' journals (ticket 0062); 0 when none is known. */
+  tokens: number;
 };
 
 export type DashboardData = {
@@ -36,6 +41,8 @@ export type DashboardData = {
   bySize: SizeCount[];
   byLabel: LabelCount[];
   epics: EpicSummary[];
+  /** Tokens per ticket id, for the tickets whose journal recorded any (ticket 0062). */
+  tokensByTicket: Record<string, number>;
   /** Tickets whose status is `blocked` — surfaced separately, never just a count buried in a table. */
   blockedTickets: Ticket[];
   /** Every parsed ticket, for the full per-ticket listing. */
@@ -72,6 +79,16 @@ export function epicOf(ticket: Ticket, dir: string): string {
   return segments[0] ?? "(sans epic)";
 }
 
+/** `[epic, tokens]` pairs for the epics with any recorded tokens, sorted by epic name. */
+export function tokensPerEpic(tickets: Ticket[], dir: string): [string, number][] {
+  const totals = new Map<string, number>();
+  for (const t of tickets) {
+    const n = ticketTokens(t.body, parseJournalEntries);
+    if (n !== undefined) totals.set(epicOf(t, dir), (totals.get(epicOf(t, dir)) ?? 0) + n);
+  }
+  return [...totals.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
 function zeroByStatus(): Record<StatusRole, number> {
   const out = {} as Record<StatusRole, number>;
   for (const s of STATUS_ROLES) out[s.role] = 0;
@@ -97,10 +114,17 @@ export async function buildDashboard(root: string, dir: string, now: Date = new 
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count);
 
+  const tokensByTicket: Record<string, number> = {};
+  for (const t of tickets) {
+    const n = ticketTokens(t.body, parseJournalEntries);
+    if (n !== undefined) tokensByTicket[t.id] = n;
+  }
+
   const epicMap = new Map<string, EpicSummary>();
   for (const t of tickets) {
     const epic = epicOf(t, dir);
-    const entry = epicMap.get(epic) ?? { epic, total: 0, byStatus: zeroByStatus(), blocked: 0 };
+    const entry = epicMap.get(epic) ?? { epic, total: 0, byStatus: zeroByStatus(), blocked: 0, tokens: 0 };
+    entry.tokens += tokensByTicket[t.id] ?? 0;
     entry.total += 1;
     entry.byStatus[t.status] += 1;
     if (t.status === "blocked") entry.blocked += 1;
@@ -118,6 +142,7 @@ export async function buildDashboard(root: string, dir: string, now: Date = new 
     bySize,
     byLabel,
     epics,
+    tokensByTicket,
     blockedTickets,
     tickets,
     loadErrors: errors,

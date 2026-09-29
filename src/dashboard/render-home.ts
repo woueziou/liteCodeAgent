@@ -5,6 +5,14 @@
 
 import type { DashboardData } from "./build.ts";
 import { escapeHtml } from "./html.ts";
+import { formatTokens, sumKnown } from "../report/tokens.ts";
+
+function epicTokens(data: DashboardData): string {
+  const rows = data.epics.filter((e) => e.tokens > 0);
+  if (rows.length === 0) return "";
+  const items = rows.map((e) => `<li>${escapeHtml(e.epic)} : ${formatTokens(e.tokens)}</li>`).join("");
+  return `<p class="note">Tokens par épic :</p><ul class="epic-tokens">${items}</ul>`;
+}
 
 function tile(label: string, value: number, alert = false): string {
   return `<div class="tile${alert ? " tile-alert" : ""}"><div class="tile-value">${value}</div><div class="tile-label">${escapeHtml(label)}</div></div>`;
@@ -24,12 +32,15 @@ export function renderHome(data: DashboardData): string {
     tile("Terminés", done),
     tile("ADRs", data.adrs.length),
   ].join("");
+  const totalTokens = sumKnown(Object.values(data.tokensByTicket));
+  const tokensLine = totalTokens > 0 ? `<p class="note">Tokens consommés (tickets mesurés) : ${formatTokens(totalTokens)}</p>${epicTokens(data)}` : "";
 
   return `
     <section id="accueil" class="screen">
       <h2 class="screen-title">Accueil</h2>
       <div class="tiles">${tiles}</div>
       <p class="note">"Ready to Merge" (${readyToMerge}) ≠ "Done" (${done}) : le premier veut dire qu'il reste un clic humain, le second que c'est vraiment terminé.</p>
+      ${tokensLine}
       <p class="cmd-hint">Recherche et filtres : voir <a href="#file-dattente">File d'attente</a>.</p>
     </section>`;
 }

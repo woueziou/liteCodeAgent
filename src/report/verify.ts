@@ -22,6 +22,8 @@ export const REPORT_STATUSES = [
   "adr-pending-approval",
 ] as const;
 
+import { parseTokensClaim, type TokensClaim } from "./tokens.ts";
+
 export type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 export type Report = {
@@ -41,12 +43,14 @@ export type Report = {
    * way it re-queries `prView` instead of trusting `PR:`.
    */
   ci: "pass" | "fail" | "pending" | "none" | undefined;
+  /** Optional (ticket 0062): tokens the run consumed, or `unknown`. Informational, never an error. */
+  tokens?: TokensClaim;
 };
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
 /** `ISSUE` is the pre-ADR-0015 name of `TICKET`, still read from older installed prompts. */
-const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT", "CI"] as const;
+const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT", "CI", "TOKENS"] as const;
 
 const CI_VALUES = ["pass", "fail", "pending", "none"] as const;
 
@@ -109,6 +113,7 @@ export function parseReport(text: string): { report: Report } | { error: Finding
       pr: claimed(fields.get("PR")),
       checkOutput: claimed(fields.get("CHECK_OUTPUT")),
       ci: ciClaim(fields.get("CI")),
+      tokens: parseTokensClaim(fields.get("TOKENS")),
     },
   };
 }
