@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0066-perf-install-ne-plus-regenerer-les-agents-instal
 title: "perf(install): ne plus régénérer les agents installés dans chaque PR"
 label: feature
-status: inProgress
+status: review
 priority: medium
 size: medium
 assignedAgent: human
@@ -71,4 +71,32 @@ adr_path: docs/decisions/0022-regenerate-installed-agents-on-main-not-in-prs.md
 board_status: In Progress
 checks_passed: bun run check: pass; bun test: pass
 adr_posted: true
+```
+
+### 2026-09-29 — implementer: ADR 0022 approved with one change, PR opened
+
+The human approved ADR 0022 with one change: the sync workflow opens or updates a PR from the bot branch `chore/sync-installed` instead of pushing to main. ADR updated (Status: accepted), committed on its own (4d99863), workflow and tests updated. PR: https://github.com/woueziou/liteCodeAgent/pull/115
+
+```progress-journal
+step: step 7: PR opened
+worktree: ../worktrees/0066
+branch: install-drift-check/0066
+base: main
+commit: see PR head
+checks: bun run check: pass; bun test: pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/115
+```
+
+### 2026-09-29 — implementer: review outcome, moved to Review
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/115 (CI: test pass on the head commit). reviewer: changes-requested (blocking hook issue, fixed). bug-hunter: complete; first pass and re-hunt findings are posted verbatim in substance on the PR. The re-hunt's new blocking finding (orphans counted but never deleted by `install --apply`) was resolved by reverting the orphan counting; it was not re-hunted (one re-hunt per run), so this goes to Review for a human. Follow-up ticket needed: delete orphans safely on apply, and handle a deselected harness's lockfile (both make `--check`/doctor accurate about orphans).
+
+```progress-journal
+step: step 10: Review
+worktree: ../worktrees/0066
+branch: install-drift-check/0066
+base: main
+commit: pushed head of PR 115
+checks: bun run check: pass; bun test: 593 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/115
 ```
