@@ -219,5 +219,5 @@ PR: <url, or "none (blocked before implementation)", or "none (pending GitHub, r
 BLOCKER: <what you escalated to triage, or "none">
 CI: <pass | fail | pending | none — the PR's own CI checks from step 7, as of your last push; "none" if there is no PR yet or the repo has no CI configured>
 CHECK_OUTPUT: <{{ project.checkCommand }} result if you got that far, or "n/a">
-TOKENS: <optional: tokens you and your sub-agents consumed, as the tool reports them, or "unknown"; also add `tokens: <n>` to your final progress-journal note>
+TOKENS: <optional: tokens you and your sub-agents consumed, as the tool reports them, or "unknown"; also add `tokens: <n>` to your final progress-journal note, or to the resume-manifest when you stop at the ADR gate>
 ```

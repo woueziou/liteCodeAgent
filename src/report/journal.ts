@@ -93,6 +93,7 @@ function fromResumeManifest(fields: Map<string, string>): JournalEntry {
     boardStatus: fields.get("board_status"),
     checks: fields.get("checks_passed"),
     adrPosted: fields.get("adr_posted") === "true",
+    tokens: validTokens(fields.get("tokens")),
   };
 }
 

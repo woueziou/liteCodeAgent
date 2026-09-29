@@ -13,11 +13,13 @@ const block = (step: string, extra = "") => `\n\`\`\`progress-journal\nstep: ${s
 test("parseTokenCount accepts counts and rejects junk", () => {
   expect(parseTokenCount("12345")).toBe(12345);
   expect(parseTokenCount("12,345 (with sub-agents)")).toBe(12345);
-  expect(parseTokenCount("12 345")).toBe(12345);
+  expect(parseTokenCount("12_345")).toBe(12345);
   expect(parseTokenCount("**900**")).toBe(900);
   expect(parseTokenCount("about 12")).toBeUndefined();
   expect(parseTokenCount("12.5k")).toBeUndefined();
   expect(parseTokenCount("1.5")).toBeUndefined();
+  expect(parseTokenCount("45k tokens")).toBeUndefined();
+  expect(parseTokenCount("800 300 from subagents")).toBeUndefined();
   expect(parseTokenCount("")).toBeUndefined();
 });
 
@@ -73,19 +75,28 @@ test("formatJournalBlock round-trips tokens", () => {
   expect(parseJournalEntries(formatJournalBlock({ step: "s", tokens: 77 }))[0]!.tokens).toBe(77);
 });
 
-test("the runner's journal note is a parseable entry that adds to the total", () => {
+test("the runner's note adds to the total without becoming the latest journal entry", () => {
   const note = runnerJournalNote("implementer", { input: 100, output: 50 }, "2026-09-29");
-  expect(ticketTokens(block("run", "tokens: 10\n") + "\n" + note, parseJournalEntries)).toBe(160);
+  const body = block("run", "tokens: 10\nworktree: w\n") + "\n" + note;
+  expect(ticketTokens(body, parseJournalEntries)).toBe(160);
+  expect(parseJournalEntries(body)).toHaveLength(1);
+  expect(ticketTokens(note, parseJournalEntries)).toBe(150);
+});
+
+test("a resume-manifest's tokens count", () => {
+  const md = "```resume-manifest\nworktree: w\nbranch: b\ncommit: none\nadr_path: a\nadr_posted: true\ntokens: 4000\n```";
+  expect(ticketTokens(md, parseJournalEntries)).toBe(4000);
 });
 
 test("formatTokens", () => {
-  expect([formatTokens(999), formatTokens(1000), formatTokens(12345), formatTokens(1_200_000)]).toEqual(["999", "1.0k", "12.3k", "1.20M"]);
+  expect([formatTokens(999), formatTokens(1000), formatTokens(12345), formatTokens(999_999), formatTokens(1_200_000)]).toEqual(["999", "1.0k", "12.3k", "1.00M", "1.20M"]);
 });
 
 test("withTokensLine appends the runner's usage only to a report lacking TOKENS", () => {
   const u = { input: 100, output: 50 };
   expect(withTokensLine("STATUS: x\nTICKET: 1\n", u)).toBe("STATUS: x\nTICKET: 1\nTOKENS: 150\n");
-  expect(withTokensLine("STATUS: x\nTOKENS: unknown\n", u)).toBe("STATUS: x\nTOKENS: unknown\n");
+  expect(withTokensLine("STATUS: x\nTOKENS: unknown\n", u)).toBe("STATUS: x\nTOKENS: 150\n");
+  expect(withTokensLine("STATUS: x\n", { input: 0, output: 0 })).toBe("STATUS: x\n");
   expect(withTokensLine("just prose", u)).toBe("just prose");
 });
 
