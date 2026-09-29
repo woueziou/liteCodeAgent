@@ -28,3 +28,18 @@ Sur la PR #93 (ticket 0050), l'implémenteur a passé le ticket en `readyToMerge
 
 ## Hors périmètre
 Configurer ou modifier les workflows de CI du projet.
+
+### 2026-09-29 — implementer: PR opened, CI green
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/99
+CI on the PR: pass (`gh pr checks 99 --watch` → `test` pass, `GitGuardian Security Checks` pass).
+
+```progress-journal
+step: step 8: reviewer + bug-hunter invoked
+worktree: ../worktrees/0054
+branch: feat-implementer-ci-check/0054
+base: main
+commit: b25a13d
+checks: bun run check: pass; bun test: 407 pass, 0 fail
+pr: https://github.com/woueziou/liteCodeAgent/pull/99
+```
