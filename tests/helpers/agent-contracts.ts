@@ -39,7 +39,13 @@ export function outputKeys(promptSource: string): string[] {
 /** The leading enum word of a value: `partial. I executed nothing` is `partial`. */
 export function enumWord(value: string | undefined, allowed: readonly string[]): string | undefined {
   const v = (value ?? "").replace(/^(\*\*|["'`])+/, "").trim().toLowerCase();
-  return allowed.find((a) => v === a || v.startsWith(`${a} `) || v.startsWith(`${a}.`) || v.startsWith(`${a}:`) || v.startsWith(`${a},`));
+  return allowed.find((a) => new RegExp(`^${a}(?![a-z-])`).test(v));
+}
+
+/** The alternatives of a `KEY: <a|b|c ...>` line in a prompt's Output block. */
+export function outputEnum(promptSource: string, key: string): string[] {
+  const line = new RegExp(`^${key}: <(.*)>\\s*$`, "m").exec(promptSource)?.[1] ?? "";
+  return line.split("|").map((alt) => /^\s*([a-z-]+)/.exec(alt)?.[1] ?? "").filter(Boolean);
 }
 
 export const VERDICTS = ["approve-with-notes", "approve", "changes-requested"] as const;

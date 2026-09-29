@@ -6,6 +6,11 @@ import {
   BUG_HUNTER_KEYS,
   ORCHESTRATOR_KEYS,
   REVIEWER_KEYS,
+  HUNTS,
+  PANELS,
+  SIZES,
+  VERDICTS,
+  outputEnum,
   outputKeys,
   parseBugHunter,
   parseOrchestrator,
@@ -76,9 +81,23 @@ describe("prompt Output blocks vs the contract readers", () => {
   });
 });
 
+describe("prompt enum values vs the contract readers", () => {
+  test.each([
+    ["reviewer", "VERDICT", VERDICTS],
+    ["bug-hunter", "HUNT", HUNTS],
+    ["orchestrator", "PANEL", PANELS],
+    ["orchestrator", "SIZE", SIZES],
+  ] as const)("%s %s", async (agent, key, known) => {
+    const alts = outputEnum(await prompt(agent), key);
+    expect(alts.length).toBeGreaterThan(1);
+    for (const a of alts) expect(known as readonly string[]).toContain(a);
+  });
+});
+
 describe("reviewer replay", () => {
   test.each(of("reviewer"))("$file", async (e) => {
     const { fields, verdict } = parseReviewer(outputs.get(e.file)!);
+    expect(verdict).toBeDefined();
     expect(verdict).toBe(e.expect.verdict as string);
     const required = e.legacy ? ["VERDICT", "CHECK_OUTPUT", "FINDINGS", "PLAN_FIDELITY", "REENTRY"] : outputKeys(await prompt("reviewer"));
     for (const key of required) expect(fields.get(key), `${key} present and non-empty`).toBeTruthy();
@@ -90,6 +109,7 @@ describe("reviewer replay", () => {
 describe("bug-hunter replay", () => {
   test.each(of("bug-hunter"))("$file", (e) => {
     const { fields, hunt } = parseBugHunter(outputs.get(e.file)!);
+    expect(hunt).toBeDefined();
     expect(hunt).toBe(e.expect.hunt as string);
     for (const key of BUG_HUNTER_KEYS) expect(fields.get(key), `${key} present and non-empty`).toBeTruthy();
     // A partial hunt must say what it did not cover.
@@ -117,6 +137,8 @@ describe("implementer report replay (real parseReport)", () => {
 describe("orchestrator report replay", () => {
   test.each(of("orchestrator"))("$file", (e) => {
     const { fields, panel, size } = parseOrchestrator(outputs.get(e.file)!);
+    expect(panel).toBeDefined();
+    expect(size).toBeDefined();
     expect(panel).toBe(e.expect.panel as string);
     expect(size).toBe(e.expect.size as string);
     for (const key of ORCHESTRATOR_KEYS) expect(fields.get(key), `${key} present and non-empty`).toBeTruthy();
