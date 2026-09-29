@@ -33,6 +33,22 @@ test("ticketSection matches case-insensitively and is not fooled by leading/trai
   expect(ticketSection(body, "Critères d'acceptation")).toBe("Done when X.");
 });
 
+test("ticketSection matches a heading written with a typographic apostrophe (U+2019)", () => {
+  const body = "## Critères d’acceptation\nDone when X.";
+  expect(ticketSection(body, "Critères d'acceptation")).toBe("Done when X.");
+});
+
+test("ticketSection matches a heading written in NFD (decomposed accents)", () => {
+  const nfdHeading = "Critères d'acceptation".normalize("NFD");
+  const body = `## ${nfdHeading}\nDone when X.`;
+  expect(ticketSection(body, "Critères d'acceptation")).toBe("Done when X.");
+});
+
+test("ticketSection matches a heading with trailing whitespace", () => {
+  const body = "## Critères d'acceptation   \nDone when X.";
+  expect(ticketSection(body, "Critères d'acceptation")).toBe("Done when X.");
+});
+
 test("hasUnresolvedClarification detects the marker anywhere in prose", () => {
   expect(hasUnresolvedClarification("## Plan\nDo the thing.")).toBe(false);
   expect(hasUnresolvedClarification(`## Contexte\n${CLARIFICATION_MARKER} which approach?`)).toBe(true);
