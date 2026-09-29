@@ -105,10 +105,12 @@ function usage(): void {
                                      regenerate the committed standalone HTML dashboard snapshot from the local
                                      ticket buffer and docs/decisions/ — goes stale as soon as either changes
                                      ${c.dim("--out defaults to docs/dashboard.html")}
-  ${c.bold("bunx litecodeagent dashboard")} --serve [--port <n>] [--host <h>]
+  ${c.bold("bunx litecodeagent dashboard")} --serve [--port <n>] [--host <h>] [--allow-host <name[:port]>]...
                                      start a local, read-only server that re-reads the ticket buffer and
                                      docs/decisions/ on every request — always live, never writes to the repo
                                      ${c.dim("--port defaults to 4173, --host defaults to 127.0.0.1")}
+                                     ${c.dim("--allow-host repeatable, allows extra Host header values (no wildcard); required to")}
+                                     ${c.dim("  reach the server from another machine when --host 0.0.0.0 or :: is used")}
                                      ${c.dim("--build and --serve are mutually exclusive; one of the two is required")}
   ${c.bold("bunx litecodeagent doctor")}                    detect orphaned work: stranded worktrees/branches, PR-less
                                      branches, stale review/readyToMerge tickets, lockfile drift
@@ -152,6 +154,15 @@ async function cmdSetup(root: string, argv: string[]): Promise<number> {
 function arg(argv: string[], name: string): string | undefined {
   const i = argv.indexOf(name);
   return i === -1 ? undefined : argv[i + 1];
+}
+
+/** Like `arg`, but collects every occurrence — for a repeatable flag such as `--allow-host`. */
+function repeatedArg(argv: string[], name: string): string[] {
+  const values: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === name && argv[i + 1] !== undefined) values.push(argv[i + 1]!);
+  }
+  return values;
 }
 
 function parseTargets(value: string | undefined): InstallTarget[] | undefined {
@@ -815,8 +826,22 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
       console.log(c.red(`dashboard: invalid --port '${portArg}'`));
       return 1;
     }
+
+    const configAllowHosts = config.project.dashboard?.allowedHosts ?? [];
+    const cliAllowHosts = repeatedArg(argv, "--allow-host");
+    const allowHosts = [...configAllowHosts, ...cliAllowHosts];
+    const wildcard = allowHosts.find((h) => h.includes("*"));
+    if (wildcard) {
+      // Named its actual source (config vs --allow-host): a wildcard from litecode.config.json's
+      // project.dashboard.allowedHosts would otherwise point the operator at a CLI flag they
+      // never passed (bug-hunter finding on this PR).
+      const source = cliAllowHosts.includes(wildcard) ? "--allow-host" : "project.dashboard.allowedHosts";
+      console.log(c.red(`dashboard: '${wildcard}' (from ${source}) is a wildcard, which is never accepted (DNS-rebinding protection)`));
+      return 1;
+    }
+
     try {
-      await startDashboardServer(root, dir, { port, host: hostArg ?? DEFAULT_HOST });
+      await startDashboardServer(root, dir, { port, host: hostArg ?? DEFAULT_HOST, allowHosts });
     } catch (e) {
       console.log(c.red(`dashboard: ${(e as Error).message}`));
       return 1;

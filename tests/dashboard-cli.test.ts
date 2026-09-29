@@ -60,3 +60,10 @@ test("dashboard --serve --port 70000 is rejected, not silently clamped (bug-hunt
   expect(exitCode).toBe(1);
   expect(output).toContain("70000");
 });
+
+test("dashboard --serve --allow-host '*' is rejected, not accepted as a wildcard (ticket 0052)", async () => {
+  const root = await project();
+  const { output, exitCode } = await runCliWithExit(root, ["dashboard", "--serve", "--allow-host", "*"]);
+  expect(exitCode).toBe(1);
+  expect(output).toContain("wildcard");
+});
