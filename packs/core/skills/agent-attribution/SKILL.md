@@ -1,7 +1,6 @@
 ---
 name: agent-attribution
 description: Traceability rule for agents that edit files, commit or touch GitHub: leave an attributable trace.
-install: referenced
 ---
 
 # Agent attribution

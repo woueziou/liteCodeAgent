@@ -59,31 +59,51 @@ const raw = async () => structuredClone(await Bun.file(EXAMPLE).json());
 const skillEntries = (plan: Awaited<ReturnType<typeof buildPlan>>, name: string) =>
   plan.entries.filter((e) => e.rel.endsWith(`skills/${name}/SKILL.md`));
 
-test("an expertise skill nobody references is not installed; the human-invoked ones always are", async () => {
+/** A throwaway pack: one agent, one filtered skill, one always-on skill. */
+async function fakePacks(agentSkills: string): Promise<string> {
+  const root = await tempDir();
+  await Bun.write(join(root, "demo/pack.json"), JSON.stringify({ name: "demo", version: "1.0.0", description: "d", requires: [] }));
+  await Bun.write(join(root, "demo/agents/worker.md"), `---\nname: worker\ndescription: Does work.\ntools: Read\nskills: ${agentSkills}\n---\nBody.\n`);
+  await Bun.write(join(root, "demo/skills/niche/SKILL.md"), "---\nname: niche\ndescription: Niche.\ninstall: referenced\n---\nNiche body.\n");
+  await Bun.write(join(root, "demo/skills/always/SKILL.md"), "---\nname: always\ndescription: Always.\n---\nAlways body.\n");
+  return root;
+}
+
+async function demoPlan(packs: string, agentSkills: Record<string, string[]> = {}) {
   const config = await raw();
-  config.project.agentSkills = Object.fromEntries(Object.keys(config.project.agentSkills).map((k) => [k, []]));
+  config.packs = ["demo"];
+  config.project.agentSkills = agentSkills;
   for (const angle of config.project.angles) angle.skills = [];
   config.project.domains = [];
-  const root = await tempDir();
-  const plan = await buildPlan(root, PACKS, ConfigSchema.parse(config));
-  // security-expert and critique-expert stay only through bug-hunter's own `skills:` line.
-  expect(skillEntries(plan, "agent-attribution")).toEqual([]);
-  expect(skillEntries(plan, "security-expert").length).toBeGreaterThan(0);
-  expect(skillEntries(plan, "idea-to-planned").length).toBeGreaterThan(0);
-  expect(skillEntries(plan, "chained-implementation").length).toBeGreaterThan(0);
+  return buildPlan(await tempDir(), packs, ConfigSchema.parse(config));
+}
+
+test("an install-on-reference skill nobody references is not installed; other skills always are", async () => {
+  const plan = await demoPlan(await fakePacks(""));
+  expect(skillEntries(plan, "niche")).toEqual([]);
+  expect(skillEntries(plan, "always").length).toBeGreaterThan(0);
 });
 
-test("a skill the config asks for is installed, and the install marker never reaches the output", async () => {
+test("a skill an installed agent lists is installed, and the install marker never reaches the output", async () => {
+  const plan = await demoPlan(await fakePacks("niche"));
+  expect(skillEntries(plan, "niche").length).toBeGreaterThan(0);
+  for (const e of plan.entries.filter((x) => x.rel.includes("/skills/"))) expect(e.content).not.toMatch(/^install:/m);
+});
+
+test("a skill the config asks for is installed", async () => {
+  const plan = await demoPlan(await fakePacks(""), { worker: ["niche"] });
+  expect(skillEntries(plan, "niche").length).toBeGreaterThan(0);
+});
+
+test("the core pack still installs its always-referenced expertise skills", async () => {
   const config = await raw();
   config.project.agentSkills = Object.fromEntries(Object.keys(config.project.agentSkills).map((k) => [k, []]));
   for (const angle of config.project.angles) angle.skills = [];
   config.project.domains = [];
-  config.project.agentSkills.tracker = ["agent-attribution"];
-  const root = await tempDir();
-  const plan = await buildPlan(root, PACKS, ConfigSchema.parse(config));
-  const entries = skillEntries(plan, "agent-attribution");
-  expect(entries.length).toBeGreaterThan(0);
-  for (const e of plan.entries.filter((x) => x.rel.includes("/skills/"))) expect(e.content).not.toMatch(/^install:/m);
+  const plan = await buildPlan(await tempDir(), PACKS, ConfigSchema.parse(config));
+  for (const name of ["agent-attribution", "critique-expert", "security-expert", "idea-to-planned", "chained-implementation"]) {
+    expect(skillEntries(plan, name).length).toBeGreaterThan(0);
+  }
 });
 
 test("reference paths tolerate a trailing slash in outDir", () => {
