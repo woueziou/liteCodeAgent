@@ -26,13 +26,19 @@ export type JournalEntry = {
   adrPath?: string;
   boardStatus?: string;
   adrPosted?: boolean;
+  /** `commit`/`pr` values that were present but malformed, and therefore dropped (never `undefined`-silent). */
+  invalid?: { field: "commit" | "pr"; value: string }[];
 };
 
 // Up to 3 leading spaces, like CommonMark (and `fenceRegions` in src/tickets/spec.ts):
 // implementer.md's own templates nest both fences inside a numbered-list item, indented 2-3
 // spaces, so an agent that copies them verbatim writes an indented fence, not a column-0 one.
 const OPEN_FENCE = /^ {0,3}```(progress-journal|resume-manifest)\s*$/;
-const CLOSE_FENCE = /^ {0,3}```\s*$/;
+// A closing fence may be indented any amount: an opener at 0-3 spaces closed by a more
+// indented fence is one coherent block, not an "unclosed" one.
+const CLOSE_FENCE = /^\s*```\s*$/;
+// 4+ spaces or a tab: an indented code block in CommonMark, so it is never read as a journal block.
+const INDENTED_OPEN_FENCE = /^(?: {4,}|\t)[ \t]*```(progress-journal|resume-manifest)\s*$/;
 
 /** Sha-like commit value, or the literal "none" the templates use before anything is committed. */
 const COMMIT_RE = /^(none|[0-9a-f]{4,40})$/i;
@@ -83,8 +89,20 @@ function validPr(raw: string | undefined): string | undefined {
   return raw !== undefined && isValidPrValue(raw) ? raw : undefined;
 }
 
+function invalidOf(fields: Map<string, string>, names: ("commit" | "pr")[]): JournalEntry["invalid"] {
+  const bad: NonNullable<JournalEntry["invalid"]> = [];
+  for (const field of names) {
+    const raw = fields.get(field);
+    if (raw === undefined) continue;
+    const ok = field === "commit" ? isValidCommitValue(raw) : isValidPrValue(raw);
+    if (!ok) bad.push({ field, value: raw });
+  }
+  return bad.length > 0 ? bad : undefined;
+}
+
 function fromResumeManifest(fields: Map<string, string>): JournalEntry {
   return {
+    invalid: invalidOf(fields, ["commit"]),
     step: "adr-pending-approval",
     worktree: fields.get("worktree"),
     branch: fields.get("branch"),
@@ -99,6 +117,7 @@ function fromResumeManifest(fields: Map<string, string>): JournalEntry {
 
 function fromProgressJournal(fields: Map<string, string>): JournalEntry {
   return {
+    invalid: invalidOf(fields, ["commit", "pr"]),
     step: fields.get("step") ?? "unknown",
     worktree: fields.get("worktree"),
     branch: fields.get("branch"),
@@ -110,46 +129,74 @@ function fromProgressJournal(fields: Map<string, string>): JournalEntry {
   };
 }
 
+export type ParsedJournal = {
+  entries: JournalEntry[];
+  /** Non-fatal problems: an older unclosed block that was skipped, an indented block that was ignored. */
+  warnings: string[];
+  /** Set when the *last* block in the body never closed — its state can't be trusted. */
+  unclosedTrailing?: string;
+};
+
 /**
- * Every journal-shaped block found in a ticket body, in document order. Scans line-by-line
- * (like `fenceRegions` in `src/tickets/spec.ts`) rather than a single greedy regex, so CRLF
- * line endings parse the same as LF, and a fence a run forgot to close can't silently
- * swallow the next block as its own closing fence.
+ * Every journal-shaped block found in a ticket body, in document order, plus what went
+ * wrong along the way. Scans line-by-line (like `fenceRegions` in `src/tickets/spec.ts`)
+ * rather than a single greedy regex, so CRLF parses like LF, and a fence a run forgot to
+ * close can't silently swallow the next block as its own closing fence: an older unclosed
+ * block is discarded with a warning so a newer valid one still counts.
  */
-export function parseJournalEntries(body: string): JournalEntry[] {
+export function parseJournal(body: string): ParsedJournal {
   const entries: JournalEntry[] = [];
+  const warnings: string[] = [];
   let openKind: "progress-journal" | "resume-manifest" | undefined;
+  let openLine = 0;
   let buffer: string[] = [];
 
-  for (const rawLine of body.split(/\r\n|\r|\n/)) {
+  const lines = body.split(/\r\n|\r|\n/);
+  lines.forEach((rawLine, i) => {
+    const lineNo = i + 1;
     if (!openKind) {
       const m = OPEN_FENCE.exec(rawLine);
       if (m) {
         openKind = m[1] as "progress-journal" | "resume-manifest";
+        openLine = lineNo;
         buffer = [];
+      } else {
+        const ind = INDENTED_OPEN_FENCE.exec(rawLine);
+        if (ind) {
+          warnings.push(
+            `line ${lineNo}: \`\`\`${ind[1]}\`\`\` block is indented 4+ spaces or with a tab, so it was ignored — indent fences at most 3 spaces`,
+          );
+        }
       }
-      continue;
+      return;
     }
     if (CLOSE_FENCE.test(rawLine)) {
       const fields = parseFields(buffer.join("\n"));
       entries.push(openKind === "resume-manifest" ? fromResumeManifest(fields) : fromProgressJournal(fields));
       openKind = undefined;
-      continue;
+      return;
     }
-    if (OPEN_FENCE.test(rawLine)) {
-      throw new Error(
-        `unclosed \`\`\`${openKind}\`\`\` block in ticket notes — a new fenced block started before it was closed, which would otherwise get folded into it`,
-      );
+    const reopen = OPEN_FENCE.exec(rawLine);
+    if (reopen) {
+      warnings.push(`unclosed \`\`\`${openKind}\`\`\` block opened at line ${openLine} was skipped — a new fenced block started at line ${lineNo} before it was closed`);
+      openKind = reopen[1] as "progress-journal" | "resume-manifest";
+      openLine = lineNo;
+      buffer = [];
+      return;
     }
     buffer.push(rawLine);
-  }
+  });
 
-  if (openKind) {
-    throw new Error(
-      `unclosed \`\`\`${openKind}\`\`\` block in ticket notes — add a closing \`\`\` fence instead of leaving it to run into whatever follows`,
-    );
-  }
+  const unclosedTrailing = openKind
+    ? `unclosed \`\`\`${openKind}\`\`\` block opened at line ${openLine} in ticket notes — add a closing \`\`\` fence instead of leaving it to run into whatever follows`
+    : undefined;
+  return { entries, warnings, unclosedTrailing };
+}
 
+/** Like `parseJournal`, but throws when the last block never closed (an older one is just skipped). */
+export function parseJournalEntries(body: string): JournalEntry[] {
+  const { entries, unclosedTrailing } = parseJournal(body);
+  if (unclosedTrailing) throw new Error(unclosedTrailing);
   return entries;
 }
 

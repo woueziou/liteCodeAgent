@@ -11,7 +11,8 @@
  */
 
 import type { Finding, PrLookup, Probes } from "./report/verify.ts";
-import { latestJournalEntry, type JournalEntry } from "./report/journal.ts";
+import { dirname, resolve } from "node:path";
+import { parseJournal, type JournalEntry } from "./report/journal.ts";
 
 export type ResumeProbes = Probes & {
   worktreeExists(path: string): Promise<boolean>;
@@ -21,10 +22,12 @@ export type ResumeProbes = Probes & {
   headCommit(branch: string): Promise<string | null>;
   /** An open PR's url/number for `branch`, or `null` when there isn't one. */
   openPrForBranch(branch: string): Promise<string | null>;
+  /** A merged or closed PR for `branch` (most recent), or `null` when there is none. */
+  closedPrForBranch(branch: string): Promise<{ url: string; state: string } | null>;
 };
 
 export type ResumeResult =
-  | { kind: "no-journal" }
+  | { kind: "no-journal"; findings: Finding[] }
   | { kind: "resolved"; entry: JournalEntry; findings: Finding[]; resumeAt: string };
 
 function describePr(pr: PrLookup, prRef: string, findings: Finding[], branch: string | undefined): void {
@@ -36,6 +39,11 @@ function describePr(pr: PrLookup, prRef: string, findings: Finding[], branch: st
     findings.push({
       severity: "error",
       message: `PR '${prRef}' is for branch '${pr.headRefName}', not the journal's branch '${branch}'`,
+    });
+  } else if (pr.state === "MERGED" || pr.state === "CLOSED") {
+    findings.push({
+      severity: "warn",
+      message: `PR '${prRef}' is ${pr.state} — the work may already be finished; check before resuming`,
     });
   }
 }
@@ -54,14 +62,43 @@ function nextStep(entry: JournalEntry, findings: Finding[]): string {
   return `resume at step "${entry.step}"`;
 }
 
+/**
+ * The primary checkout's root when `root` is a linked worktree, else `root` itself:
+ * a worktree's copy of a ticket file is a stale snapshot, the primary checkout's is the
+ * one every agent writes notes to (ADR 0015). Falls back to `root` when it can't tell.
+ */
+export async function primaryCheckoutRoot(root: string): Promise<string> {
+  try {
+    const proc = Bun.spawn(["git", "-C", root, "rev-parse", "--git-common-dir"], {
+      stdout: "pipe",
+      stderr: "ignore",
+    });
+    const lines = (await new Response(proc.stdout).text()).trim().split("\n");
+    const out = lines[lines.length - 1]!.trim();
+    if ((await proc.exited) !== 0 || !out) return root;
+    // The common dir may be relative to `root` (older git has no --path-format=absolute).
+    const abs = resolve(root, out);
+    return abs.endsWith("/.git") ? dirname(abs) : root;
+  } catch {
+    return root;
+  }
+}
+
 /** `ticketBody` is the ticket file's markdown body (frontmatter stripped), notes included. */
 export async function resumeState(ticketBody: string, probes: ResumeProbes): Promise<ResumeResult> {
-  const entry = latestJournalEntry(ticketBody);
-  if (!entry) return { kind: "no-journal" };
-
+  const parsed = parseJournal(ticketBody);
   const findings: Finding[] = [];
   const error = (message: string) => findings.push({ severity: "error", message });
   const warn = (message: string) => findings.push({ severity: "warn", message });
+  for (const w of parsed.warnings) warn(w);
+  if (parsed.unclosedTrailing) error(parsed.unclosedTrailing);
+
+  const entry = parsed.entries[parsed.entries.length - 1];
+  if (!entry) return { kind: "no-journal", findings };
+
+  for (const bad of entry.invalid ?? []) {
+    warn(`journal ${bad.field} '${bad.value}' is not a valid ${bad.field === "pr" ? "PR reference (number or URL)" : "commit sha or 'none'"} — ignored`);
+  }
 
   if (entry.worktree && !(await probes.worktreeExists(entry.worktree))) {
     warn(`worktree '${entry.worktree}' no longer exists — recreate it from branch '${entry.branch ?? "?"}' if resuming`);
@@ -105,6 +142,11 @@ export async function resumeState(ticketBody: string, probes: ResumeProbes): Pro
       const openPr = await probes.openPrForBranch(entry.branch);
       if (openPr) {
         warn(`branch '${entry.branch}' has an open PR (${openPr}) the journal never recorded — journal is behind the repo`);
+      } else {
+        const closed = await probes.closedPrForBranch(entry.branch);
+        if (closed) {
+          warn(`branch '${entry.branch}' has a ${closed.state} PR (${closed.url}) the journal never recorded — the work may already be finished`);
+        }
       }
     }
   }
