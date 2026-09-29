@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0064-perf-agents-sortie-d-outils-filtree-rapports-pla
 title: "perf(agents): sortie d'outils filtrée, rapports plafonnés, relecture unique pour les petits tickets"
 label: feature
-status: planned
+status: inProgress
 priority: high
 size: medium
 assignedAgent: human
