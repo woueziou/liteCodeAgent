@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0068-perf-packs-descriptions-d-agents-et-de-skills-co
 title: "perf(packs): descriptions d'agents et de skills courtes, cas rares hors des skills"
 label: feature
-status: readyToMerge
+status: done
 priority: high
 size: small
 assignedAgent: human
