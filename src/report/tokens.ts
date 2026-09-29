@@ -68,3 +68,8 @@ export function withTokensLine(output: string, usage: { input: number; output: n
   if (/^\s*(?:[-*>]\s+)?(?:\*\*|`)?TOKENS:/m.test(output)) return output;
   return `${output.replace(/\s+$/, "")}\nTOKENS: ${usage.input + usage.output}\n`;
 }
+
+/** The ticket note `litecode run --ticket` appends: this run's tokens, from the runner's usage report. */
+export function runnerJournalNote(agent: string, usage: { input: number; output: number }, date: string): string {
+  return `### ${date} — ${agent}: tokens (direct runner)\n\n\`\`\`progress-journal\nstep: runner usage\ntokens: ${usage.input + usage.output}\n\`\`\``;
+}

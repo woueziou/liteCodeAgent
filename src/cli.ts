@@ -40,7 +40,7 @@ import { applyConfigMutation } from "./config-edit.ts";
 import { confirm, isInteractive, multiSelect } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
 import { parseJournalEntries } from "./report/journal.ts";
-import { formatTokens, ticketTokens, withTokensLine } from "./report/tokens.ts";
+import { formatTokens, runnerJournalNote, ticketTokens, withTokensLine } from "./report/tokens.ts";
 import { tokensPerEpic } from "./dashboard/build.ts";
 import { applyUpgrade, hasChanges, hasSkips, planUpgrade } from "./project-upgrade.ts";
 import {
@@ -87,7 +87,7 @@ function usage(): void {
                                      ${c.dim("--fix fills in missing agentSkills keys and writes the config")}
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
-                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
+                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>; --ticket <id> (journal tokens)")}
   ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--force]
                                      draft a ticket file; blocks if its title reads like an existing
                                      ticket's — pass --force to create anyway
@@ -395,6 +395,12 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
   } finally {
     process.off("SIGINT", onSigint);
     process.off("SIGTERM", onSigterm);
+  }
+  const ticketRef = arg(argv, "--ticket");
+  if (ticketRef) {
+    const ticket = await findTicketByRef(root, config.project.tickets.dir, ticketRef);
+    if (!ticket) console.error(c.red(`--ticket: no ticket matches ${ticketRef}; tokens not journaled`));
+    else await appendTicketNote(root, ticket, runnerJournalNote(agent, report.usage, new Date().toISOString().slice(0, 10)));
   }
   const recordPath = arg(argv, "--record");
   if (recordPath) {
