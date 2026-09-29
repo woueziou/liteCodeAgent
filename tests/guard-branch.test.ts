@@ -12,6 +12,16 @@ test("refuses a commit on the default branch by default", () => {
   if (!result.allowed) expect(result.reason).toContain("main");
 });
 
+test("the refusal message suggests all three ways out: a feature branch, the config flag, and the env override", () => {
+  const result = checkBranchGuard({ branch: "main", defaultBranch: "main", allowDefaultBranchCommits: false });
+  expect(result.allowed).toBe(false);
+  if (!result.allowed) {
+    expect(result.reason).toContain("git switch -c");
+    expect(result.reason).toContain("project.allowDefaultBranchCommits");
+    expect(result.reason).toContain("LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT");
+  }
+});
+
 test("allows a commit on the default branch when project.allowDefaultBranchCommits is true", () => {
   const result = checkBranchGuard({ branch: "main", defaultBranch: "main", allowDefaultBranchCommits: true });
   expect(result.allowed).toBe(true);

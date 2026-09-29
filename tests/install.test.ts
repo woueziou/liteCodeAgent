@@ -249,6 +249,105 @@ test("install activates the hook by setting core.hooksPath, without overriding o
   expect(configured.trim()).toBe(".githooks");
 });
 
+async function captureWarnings<T>(run: () => Promise<T>): Promise<{ result: T; warnings: string }> {
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+  try {
+    const result = await run();
+    return { result, warnings: warnings.join("\n") };
+  } finally {
+    console.warn = originalWarn;
+  }
+}
+
+test("ticket 0055: activating the guard on the default branch warns that the setup commit itself would be refused", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q", "-b", "main"], { cwd: root }).exited;
+
+  const { warnings } = await captureWarnings(async () =>
+    applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", {
+      force: false,
+      defaultBranch: "main",
+      allowDefaultBranchCommits: false,
+    }),
+  );
+  expect(warnings).toMatch(/branch guard is now active/i);
+  expect(warnings).toContain("git switch -c");
+  expect(warnings).toContain("project.allowDefaultBranchCommits");
+  expect(warnings).toContain("LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT");
+});
+
+test("ticket 0055: no warning when not on the default branch", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q", "-b", "feat/x"], { cwd: root }).exited;
+
+  const { warnings } = await captureWarnings(async () =>
+    applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", {
+      force: false,
+      defaultBranch: "main",
+      allowDefaultBranchCommits: false,
+    }),
+  );
+  expect(warnings).not.toMatch(/branch guard is now active/i);
+});
+
+test("ticket 0055: no warning when project.allowDefaultBranchCommits is true", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q", "-b", "main"], { cwd: root }).exited;
+
+  const { warnings } = await captureWarnings(async () =>
+    applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", {
+      force: false,
+      defaultBranch: "main",
+      allowDefaultBranchCommits: true,
+    }),
+  );
+  expect(warnings).not.toMatch(/branch guard is now active/i);
+});
+
+test("ticket 0055: no warning when the guard was already active before this run (not just-activated)", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q", "-b", "main"], { cwd: root }).exited;
+
+  // First run activates the guard.
+  await applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", {
+    force: false,
+    defaultBranch: "main",
+    allowDefaultBranchCommits: false,
+  });
+
+  // Second run: the guard is already active, so nothing new gets activated this time.
+  const { warnings } = await captureWarnings(async () =>
+    applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", {
+      force: false,
+      defaultBranch: "main",
+      allowDefaultBranchCommits: false,
+    }),
+  );
+  expect(warnings).not.toMatch(/branch guard is now active/i);
+});
+
+test("ticket 0055: no warning when the guard never activates (a pre-existing hook is left untouched)", async () => {
+  const config = await exampleConfig();
+  const root = await targetRepo();
+  await Bun.spawn(["git", "init", "-q", "-b", "main"], { cwd: root }).exited;
+  await Bun.write(join(root, ".githooks", "pre-commit"), "#!/usr/bin/env bash\necho existing\n");
+
+  const { warnings } = await captureWarnings(async () =>
+    applyPlan(root, await buildPlan(root, PACKS, config), "0.0.0-test", {
+      force: false,
+      defaultBranch: "main",
+      allowDefaultBranchCommits: false,
+    }),
+  );
+  expect(warnings).not.toMatch(/branch guard is now active/i);
+});
+
 test("install never overrides a core.hooksPath a project already set to something else", async () => {
   const config = await exampleConfig();
   const root = await targetRepo();

@@ -258,7 +258,11 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
     console.log(c.dim("\nDry run. Re-run with --apply to write these files."));
     return counts.drift > 0 ? 1 : 0;
   }
-  await applyPlan(root, plan, VERSION, { force: argv.includes("--force") });
+  await applyPlan(root, plan, VERSION, {
+    force: argv.includes("--force"),
+    defaultBranch: config.project.defaultBranch,
+    allowDefaultBranchCommits: config.project.allowDefaultBranchCommits,
+  });
   console.log(c.green("\nInstalled."));
   return 0;
 }
