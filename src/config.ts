@@ -59,6 +59,18 @@ const TicketsSchema = z.object({
   dir: z.string().default("docs/tickets"),
 });
 
+/**
+ * `dashboard --serve`'s trust boundary (ADR 0017, amended by ticket 0052): extra `Host`
+ * header values the server accepts, on top of the fixed local addresses and the explicit
+ * `--host`. Each entry is an exact `name` or `name:port`, never a wildcard — merged with
+ * any `--allow-host` flags passed on the command line, not replaced by them. Optional with
+ * no default entries: a config predating this key has no `dashboard` key at all and must
+ * still parse (same reasoning as `tickets` above).
+ */
+const DashboardSchema = z.object({
+  allowedHosts: z.array(z.string()).default([]),
+});
+
 export const ProjectSchema = z.object({
   name: z.string(),
   /** owner/repo */
@@ -130,6 +142,8 @@ export const ProjectSchema = z.object({
     enabled: true,
     dir: "docs/tickets",
   }),
+  /** Optional: absent entirely in a config predating `--allow-host` (ticket 0052). */
+  dashboard: DashboardSchema.optional(),
 
   /**
    * Free-text working language for agent prose (e.g. "French", "Brazilian Portuguese") —

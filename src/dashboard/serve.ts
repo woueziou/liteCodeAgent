@@ -17,8 +17,10 @@
  * local dev servers) doesn't check the `Host` header on its own, so every request is
  * checked against the address this server actually listens on before it touches the
  * filesystem: only `GET`/`HEAD` are accepted (405 otherwise), and only a `Host` naming
- * `127.0.0.1`, `localhost`, `[::1]`, or the explicit `--host` (each with the bound port)
- * is accepted (403 otherwise).
+ * `127.0.0.1`, `localhost`, `[::1]`, the explicit `--host`, or one of any `--allow-host`
+ * entries (each with the bound port, or without one when it's port 80) is accepted (403
+ * otherwise). `--allow-host` never accepts a wildcard — every entry names one exact host
+ * (ticket 0052, ADR 0017 amendment).
  */
 
 import { stat } from "node:fs/promises";
@@ -27,7 +29,7 @@ import { buildDashboard } from "./build.ts";
 import { renderDashboard } from "./render.ts";
 import { filterFromSearchParams } from "./filter.ts";
 
-export type ServeOptions = { port?: number; host?: string };
+export type ServeOptions = { port?: number; host?: string; allowHosts?: string[] };
 
 export const DEFAULT_PORT = 4173;
 export const DEFAULT_HOST = "127.0.0.1";
@@ -80,19 +82,57 @@ function formatHostForHeader(host: string): string {
 }
 
 /**
- * The set of `Host` header values this server accepts for a given bound port: the fixed
- * local addresses named in ticket 0041 (`127.0.0.1`, `localhost`, `[::1]`), plus whichever
- * host the server was actually told to bind (covers an explicit `--host` other than the
- * default, e.g. a LAN address the owner opted into).
+ * Splits an `--allow-host` entry into a host and an optional explicit port: `name:port` or
+ * `[::1]:port` carry their own port; a bare `name` (or bracketed IPv6 literal with no port)
+ * falls back to the server's bound port when added to the allow-list (ticket 0052).
  */
-export function buildAllowedHosts(port: number, boundHost: string): Set<string> {
-  return new Set([
-    `127.0.0.1:${port}`,
-    `localhost:${port}`,
-    `[::1]:${port}`,
-    `${formatHostForHeader(boundHost)}:${port}`,
-  ]);
+function parseAllowedHostEntry(entry: string): { host: string; port?: number } {
+  const bracketedWithPort = entry.match(/^(\[[0-9a-fA-F:]+\]):(\d+)$/);
+  if (bracketedWithPort) return { host: bracketedWithPort[1]!, port: Number(bracketedWithPort[2]) };
+  if (/^\[[0-9a-fA-F:]+\]$/.test(entry)) return { host: entry };
+
+  const lastColon = entry.lastIndexOf(":");
+  if (lastColon !== -1 && /^\d+$/.test(entry.slice(lastColon + 1))) {
+    return { host: entry.slice(0, lastColon), port: Number(entry.slice(lastColon + 1)) };
+  }
+  return { host: entry };
 }
+
+/**
+ * The set of `Host` header values this server accepts for a given bound port: the fixed
+ * local addresses named in ticket 0041 (`127.0.0.1`, `localhost`, `[::1]`), whichever host
+ * the server was actually told to bind (covers an explicit `--host` other than the default,
+ * e.g. a LAN address the owner opted into), plus any `--allow-host` entries (ticket 0052) —
+ * no wildcard is ever accepted here, only exact host[:port] names the caller opted in.
+ *
+ * Each host is added with its port (the entry's own, or the server's bound port when none
+ * is given), and — when that port is 80, the default HTTP port — also without a port, since
+ * a browser omits `:80` from the `Host` header it sends.
+ */
+export function buildAllowedHosts(port: number, boundHost: string, additionalHosts: string[] = []): Set<string> {
+  const hosts = new Set<string>();
+  const addHost = (name: string, explicitPort?: number) => {
+    const formatted = formatHostForHeader(name);
+    const resolvedPort = explicitPort ?? port;
+    hosts.add(`${formatted}:${resolvedPort}`);
+    if (resolvedPort === 80) hosts.add(formatted);
+  };
+
+  addHost("127.0.0.1");
+  addHost("localhost");
+  addHost("[::1]");
+  addHost(boundHost);
+  for (const entry of additionalHosts) {
+    const { host, port: entryPort } = parseAllowedHostEntry(entry);
+    addHost(host, entryPort);
+  }
+  return hosts;
+}
+
+/** `--host` values that bind every interface: no `Host` header can name these literally, so
+ * without an explicit `--allow-host` only requests from the local machine itself will ever
+ * match the allow-list (ticket 0052). */
+const WILDCARD_BIND_HOSTS = new Set(["0.0.0.0", "::", "[::]"]);
 
 /**
  * Rejects a request whose method isn't read-only, or whose `Host` header doesn't name this
@@ -153,6 +193,15 @@ export type DashboardServer = { stop: () => void; url: string };
 export async function startDashboardServer(root: string, dir: string, options: ServeOptions = {}): Promise<DashboardServer> {
   const port = options.port ?? DEFAULT_PORT;
   const host = options.host ?? DEFAULT_HOST;
+  const allowHosts = options.allowHosts ?? [];
+
+  if (WILDCARD_BIND_HOSTS.has(host) && allowHosts.length === 0) {
+    console.warn(
+      `dashboard: listening on ${host} but no --allow-host was given — only requests whose Host header names ` +
+        "127.0.0.1, localhost or [::1] will be served (DNS-rebinding protection, ADR 0017). " +
+        "To let another machine's browser through, pass --allow-host <name[:port]> for the address it will connect with.",
+    );
+  }
 
   // Populated right after `Bun.serve` returns, before any request can reach `fetch` — the
   // actual bound port (relevant when `port: 0` asks for an ephemeral one) is only known
@@ -181,7 +230,7 @@ export async function startDashboardServer(root: string, dir: string, options: S
   const boundHost =
     boundHostname.includes(":") && !boundHostname.startsWith("[") ? `[${boundHostname}]` : boundHostname;
   const url = `http://${boundHost}:${server.port}`;
-  allowedHosts = buildAllowedHosts(server.port ?? port, host);
+  allowedHosts = buildAllowedHosts(server.port ?? port, host, allowHosts);
   console.log(`dashboard listening on ${url}`);
 
   const onSigint = () => {

@@ -243,6 +243,91 @@ test("buildAllowedHosts: an explicit --host with uppercase letters is lowercased
   expect(allowed.has("MyBox.Local:4173")).toBe(false);
 });
 
+test("buildAllowedHosts: --allow-host entries are added with the server's port when they don't carry their own (ticket 0052)", () => {
+  const allowed = buildAllowedHosts(4173, "127.0.0.1", ["my.lan.example"]);
+  expect(allowed.has("my.lan.example:4173")).toBe(true);
+});
+
+test("buildAllowedHosts: an --allow-host entry can carry its own explicit port", () => {
+  const allowed = buildAllowedHosts(4173, "127.0.0.1", ["my.lan.example:8080"]);
+  expect(allowed.has("my.lan.example:8080")).toBe(true);
+  expect(allowed.has("my.lan.example:4173")).toBe(false);
+});
+
+test("buildAllowedHosts: an --allow-host bracketed IPv6 entry with an explicit port is accepted", () => {
+  const allowed = buildAllowedHosts(4173, "127.0.0.1", ["[2001:db8::1]:8080"]);
+  expect(allowed.has("[2001:db8::1]:8080")).toBe(true);
+});
+
+test("buildAllowedHosts: on port 80, a host is accepted with and without the port suffix (browsers omit :80)", () => {
+  const allowed = buildAllowedHosts(80, "127.0.0.1", ["my.lan.example"]);
+  expect(allowed.has("my.lan.example:80")).toBe(true);
+  expect(allowed.has("my.lan.example")).toBe(true);
+});
+
+test("buildAllowedHosts: off the default port, the bare hostname (no port) is NOT accepted", () => {
+  const allowed = buildAllowedHosts(4173, "127.0.0.1", ["my.lan.example"]);
+  expect(allowed.has("my.lan.example")).toBe(false);
+});
+
+test("startDashboardServer: a Host matching --allow-host is served; anything else still 403s (DNS rebinding stays closed)", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const port = freshPort();
+  const server = await startDashboardServer(root, "docs/tickets", {
+    port,
+    host: "0.0.0.0",
+    allowHosts: ["my.lan.example"],
+  });
+  servers.push(server);
+
+  const allowed = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: `my.lan.example:${port}` } });
+  expect(allowed.status).toBe(200);
+
+  const foreign = await fetch(`http://127.0.0.1:${port}/`, { headers: { host: "evil.example:1234" } });
+  expect(foreign.status).toBe(403);
+});
+
+test("startDashboardServer: binding a wildcard host with no --allow-host warns on startup (ticket 0052)", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const port = freshPort();
+    const server = await startDashboardServer(root, "docs/tickets", { port, host: "0.0.0.0" });
+    servers.push(server);
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(String(warnings[0]![0])).toContain("--allow-host");
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test("startDashboardServer: binding a wildcard host WITH --allow-host does not warn", async () => {
+  const root = await tmpRoot();
+  await mkdir(join(root, "docs/decisions"), { recursive: true });
+
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const port = freshPort();
+    const server = await startDashboardServer(root, "docs/tickets", {
+      port,
+      host: "0.0.0.0",
+      allowHosts: ["my.lan.example"],
+    });
+    servers.push(server);
+    expect(warnings.length).toBe(0);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test("filters the queue from the request's query string", async () => {
   const root = await tmpRoot();
   await mkdir(join(root, "docs/decisions"), { recursive: true });
