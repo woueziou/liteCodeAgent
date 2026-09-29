@@ -399,7 +399,9 @@ export function hasPendingAdr(body: string): boolean {
   const fences = fenceRegions(text);
   const inFence = (at: number) => fences.some(([a, b]) => at >= a && at < b);
   const heading = /^##[ \t\u00a0]+ADR[ \t\u00a0]+[àa][ \t\u00a0]+valider\b/gim;
-  const adrHeading = /^##[ \t\u00a0]+ADR[ \t\u00a0]+(?:[àa][ \t\u00a0]+valider|approuvé)\b/gim;
+  // `\b` never matches after the non-ASCII `é` (no `u` flag), so "approuvé" needs an
+  // explicit lookahead or an approved heading would never end a pending section.
+  const adrHeading = /^##[ \t\u00a0]+ADR[ \t\u00a0]+(?:[àa][ \t\u00a0]+valider\b|approuvé(?=[\s:]|$))/gim;
   let m: RegExpExecArray | null;
   while ((m = heading.exec(text))) {
     if (inFence(m.index)) continue;
