@@ -34,9 +34,15 @@ function ticketNumber(id: string): string {
   return id.slice(0, 4);
 }
 
-type WorktreeEntry = { path: string; branch: string | null };
+type WorktreeEntry = { path: string; branch: string | null; prunable: boolean };
 
-/** Parses `git worktree list --porcelain` into path + branch (null when detached). */
+/**
+ * Parses `git worktree list --porcelain` into path + branch (null when detached) + whether
+ * git itself considers the entry prunable (its directory was deleted but the worktree is
+ * still registered — `git worktree prune` would remove it). Note this always lists the main
+ * worktree (the primary checkout) first, regardless of which worktree `root` points at —
+ * relied on by `primaryCheckoutRoot` below.
+ */
 async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
   const { stdout, code } = await git(root, ["worktree", "list", "--porcelain"]);
   if (code !== 0) return [];
@@ -44,15 +50,28 @@ async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
   let current: Partial<WorktreeEntry> | null = null;
   for (const line of stdout.split("\n")) {
     if (line.startsWith("worktree ")) {
-      if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null });
+      if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null, prunable: current.prunable ?? false });
       current = { path: line.slice("worktree ".length) };
     } else if (line.startsWith("branch ")) {
       const ref = line.slice("branch ".length);
       if (current) current.branch = ref.replace(/^refs\/heads\//, "");
+    } else if (line.startsWith("prunable")) {
+      if (current) current.prunable = true;
     }
   }
-  if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null });
+  if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null, prunable: current.prunable ?? false });
   return entries;
+}
+
+/**
+ * The main worktree (the primary checkout), regardless of which worktree `doctor` itself was
+ * invoked from. `git worktree list` always reports the main worktree first (git's own
+ * documented ordering), so this holds even when `root` is a ticket worktree under
+ * `project.worktreeRoot` — `doctor` run from inside one must still resolve
+ * `project.worktreeRoot` relative to the primary checkout, not to itself.
+ */
+function primaryCheckoutRoot(root: string, worktrees: WorktreeEntry[]): string {
+  return worktrees[0]?.path ?? root;
 }
 
 /** Local or remote branch (short name) ending in `/<number>`, litecodeagent's naming convention. */
@@ -80,7 +99,7 @@ async function remoteBranchExists(root: string, branch: string): Promise<boolean
 
 type PrLookup = { kind: "found"; state: string; url: string } | { kind: "missing" } | { kind: "unknown"; reason: string };
 
-async function prForBranch(repo: string, branch: string): Promise<PrLookup> {
+async function prForBranchUncached(repo: string, branch: string): Promise<PrLookup> {
   try {
     const out = await gh(["pr", "list", "--repo", repo, "--head", branch, "--state", "all", "--json", "state,url"]);
     const prs = JSON.parse(out) as { state: string; url: string }[];
@@ -98,6 +117,25 @@ async function prForBranch(repo: string, branch: string): Promise<PrLookup> {
   }
 }
 
+/** A single doctor run's `gh pr list` cache, keyed by branch — `checkPushedBranchWithoutPr`
+ * and `checkStalePrStatus` both look up the same branch's PR, so without this every branch
+ * pays for `gh pr list` twice per `doctor` invocation. */
+type PrCache = Map<string, Promise<PrLookup>>;
+
+function newPrCache(): PrCache {
+  return new Map();
+}
+
+function prForBranch(cache: PrCache, repo: string, branch: string): Promise<PrLookup> {
+  const key = `${repo}\u0000${branch}`;
+  let lookup = cache.get(key);
+  if (!lookup) {
+    lookup = prForBranchUncached(repo, branch);
+    cache.set(key, lookup);
+  }
+  return lookup;
+}
+
 /** ticket inProgress but no worktree/branch anywhere matching its number: work was abandoned mid-flight. */
 async function checkOrphanedInProgressTickets(
   root: string,
@@ -108,7 +146,9 @@ async function checkOrphanedInProgressTickets(
   for (const t of tickets) {
     if (t.status !== "inProgress") continue;
     const number = ticketNumber(t.id);
-    const hasWorktree = worktrees.some((w) => basename(w.path) === number);
+    // A prunable worktree's directory is gone (deleted, but git still has it registered) —
+    // it doesn't count as "present" here; `checkPrunableWorktrees` reports it separately.
+    const hasWorktree = worktrees.some((w) => basename(w.path) === number && !w.prunable);
     const branches = await branchesForTicket(root, number);
     if (!hasWorktree && branches.length === 0) {
       findings.push({
@@ -122,16 +162,19 @@ async function checkOrphanedInProgressTickets(
 
 /** A worktree under `project.worktreeRoot` whose ticket number has no active (inProgress) ticket. */
 async function checkOrphanedWorktrees(
-  root: string,
+  primaryRoot: string,
   worktreeRoot: string,
   worktrees: WorktreeEntry[],
   tickets: Ticket[],
 ): Promise<Finding[]> {
+  // `worktreeRoot` (e.g. `../worktrees`) is always relative to the primary checkout, never to
+  // whichever worktree `doctor` happened to be invoked from — so this must resolve/compare
+  // against `primaryRoot`, not `root`.
   // `git worktree list` reports realpaths (e.g. macOS resolves /var/folders -> /private/var/folders),
   // so both sides of the comparison must go through `realpath` or every worktree silently
   // fails to match and this check reports nothing.
-  const absRoot = await realpath(resolve(root, worktreeRoot)).catch(() => resolve(root, worktreeRoot));
-  const realRoot = await realpath(root).catch(() => resolve(root));
+  const absRoot = await realpath(resolve(primaryRoot, worktreeRoot)).catch(() => resolve(primaryRoot, worktreeRoot));
+  const realRoot = await realpath(primaryRoot).catch(() => resolve(primaryRoot));
   // "active" means the worktree is still legitimately in use: an implementer resumed on it
   // (`inProgress`), or a `review`/`readyToMerge` ticket getting a same-PR review fixup (the
   // workflow this very fix went through — see the `implementer` flow's resume-on-review-fixup
@@ -142,6 +185,10 @@ async function checkOrphanedWorktrees(
   );
   const findings: Finding[] = [];
   for (const w of worktrees) {
+    // A prunable worktree's directory is already gone — it's reported by
+    // `checkPrunableWorktrees` instead of being evaluated (and mis-evaluated, since its path
+    // no longer resolves) here.
+    if (w.prunable) continue;
     const abs = await realpath(w.path).catch(() => resolve(w.path));
     if (abs === realRoot) continue; // the primary checkout itself always shows up here
     if (!abs.startsWith(`${absRoot}/`) && abs !== absRoot) continue;
@@ -157,16 +204,28 @@ async function checkOrphanedWorktrees(
   return findings;
 }
 
+/** A worktree git still has registered whose directory was deleted out from under it — not
+ * counted as "present" by the other checks, and needs `git worktree prune` to clear. */
+function checkPrunableWorktrees(worktrees: WorktreeEntry[]): Finding[] {
+  return worktrees
+    .filter((w) => w.prunable)
+    .map((w) => ({
+      severity: "warn" as const,
+      message: `worktree at ${w.path} is registered but its directory is gone (prunable) — run \`git worktree prune\``,
+    }));
+}
+
 /** A ticket's branch was pushed to origin but no PR (open or closed) exists for it. */
-async function checkPushedBranchWithoutPr(root: string, repo: string, tickets: Ticket[]): Promise<Finding[]> {
+async function checkPushedBranchWithoutPr(root: string, repo: string, tickets: Ticket[], cache: PrCache): Promise<Finding[]> {
   const findings: Finding[] = [];
   for (const t of tickets) {
     if (t.status !== "inProgress" && t.status !== "review" && t.status !== "readyToMerge") continue;
     const number = ticketNumber(t.id);
     const branches = await branchesForTicket(root, number);
     for (const branch of branches) {
+      // "pushed but no PR" only makes sense for a branch that's actually on origin.
       if (!(await remoteBranchExists(root, branch))) continue;
-      const pr = await prForBranch(repo, branch);
+      const pr = await prForBranch(cache, repo, branch);
       if (pr.kind === "missing") {
         findings.push({
           severity: "error",
@@ -184,24 +243,41 @@ async function checkPushedBranchWithoutPr(root: string, repo: string, tickets: T
 }
 
 /** A ticket sitting in review/readyToMerge whose PR is actually closed or merged. */
-async function checkStalePrStatus(root: string, repo: string, tickets: Ticket[]): Promise<Finding[]> {
+async function checkStalePrStatus(root: string, repo: string, tickets: Ticket[], cache: PrCache): Promise<Finding[]> {
   const findings: Finding[] = [];
   for (const t of tickets) {
     if (t.status !== "review" && t.status !== "readyToMerge") continue;
     const number = ticketNumber(t.id);
+    // A ticket can have more than one branch: an abandoned first attempt (its PR closed) and
+    // a live second attempt (its PR open). Also don't gate on `remoteBranchExists` — once a
+    // PR merges, `gh pr merge --delete-branch` removes the remote branch, but `gh pr list
+    // --head <branch>` still finds the PR by branch name, and the local branch (still
+    // checked out in the ticket's worktree) still matches `branchesForTicket`. Gating on the
+    // remote branch's existence would mask exactly the merged/closed case this check exists
+    // to catch.
     const branches = await branchesForTicket(root, number);
-    for (const branch of branches) {
-      if (!(await remoteBranchExists(root, branch))) continue;
-      const pr = await prForBranch(repo, branch);
-      if (pr.kind === "found" && (pr.state === "CLOSED" || pr.state === "MERGED")) {
+    if (branches.length === 0) continue;
+    const lookups = await Promise.all(
+      branches.map(async (branch) => ({ branch, pr: await prForBranch(cache, repo, branch) })),
+    );
+    // Any branch with a live, open PR means this ticket's work is still legitimately in
+    // flight — a sibling branch's closed/merged PR (an abandoned earlier attempt) isn't
+    // stale, it's just history.
+    const hasOpenPr = lookups.some((l) => l.pr.kind === "found" && l.pr.state === "OPEN");
+    if (!hasOpenPr) {
+      const closed = lookups.find((l) => l.pr.kind === "found" && (l.pr.state === "CLOSED" || l.pr.state === "MERGED"));
+      if (closed && closed.pr.kind === "found") {
         findings.push({
           severity: "error",
-          message: `${t.id}: status '${t.status}' but its PR (${pr.url}) is ${pr.state.toLowerCase()} — update the ticket`,
+          message: `${t.id}: status '${t.status}' but its PR (${closed.pr.url}) is ${closed.pr.state.toLowerCase()} — update the ticket`,
         });
-      } else if (pr.kind === "unknown") {
+      }
+    }
+    for (const l of lookups) {
+      if (l.pr.kind === "unknown") {
         findings.push({
           severity: "warn",
-          message: `${t.id}: PR status non vérifié (gh indisponible: ${pr.reason})`,
+          message: `${t.id}: PR status non vérifié (gh indisponible: ${l.pr.reason})`,
         });
       }
     }
@@ -327,11 +403,14 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
 
   const tickets = await listTickets(root, config.project.tickets.dir);
   const worktrees = await listWorktrees(root);
+  const primaryRoot = primaryCheckoutRoot(root, worktrees);
+  const prCache = newPrCache();
 
   findings.push(...(await checkOrphanedInProgressTickets(root, worktrees, tickets)));
-  findings.push(...(await checkOrphanedWorktrees(root, config.project.worktreeRoot, worktrees, tickets)));
-  findings.push(...(await checkPushedBranchWithoutPr(root, config.project.repo, tickets)));
-  findings.push(...(await checkStalePrStatus(root, config.project.repo, tickets)));
+  findings.push(...(await checkOrphanedWorktrees(primaryRoot, config.project.worktreeRoot, worktrees, tickets)));
+  findings.push(...checkPrunableWorktrees(worktrees));
+  findings.push(...(await checkPushedBranchWithoutPr(root, config.project.repo, tickets, prCache)));
+  findings.push(...(await checkStalePrStatus(root, config.project.repo, tickets, prCache)));
   findings.push(...(await checkInstallDrift(root, packsRoot, config)));
   findings.push(...(await checkPrimaryCheckoutLeak(root, tickets)));
   findings.push(...(await checkPendingAdrDrafts(root, tickets)));
