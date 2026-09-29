@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.2.0",
-  "installedAt": "2026-09-29T13:57:32.144Z",
+  "installedAt": "2026-09-29T14:38:40.457Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -23,7 +23,7 @@
     ".claude/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "6c76589421c9ed7c"
+      "hash": "5012134dabec3b9e"
     },
     ".claude/agents/tracker.md": {
       "pack": "core",
@@ -63,27 +63,72 @@
     ".claude/agents/bug-hunter.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "1b5cbbc7fca24406"
+      "hash": "834e8fc05387666a"
     },
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "72bea6683f975e2f"
+      "hash": "a55f8d81b43cfcf0"
+    },
+    ".claude/skills/implementer-leak-cleanup/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "bdd325c513f813da"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "6761f5a4814e0e89"
     },
+    ".claude/skills/implementer-stacked-pr/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "3dddbe447c38e70b"
+    },
+    ".claude/skills/implementer-adr-gate/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "2f3513c488226fbe"
+    },
     ".claude/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "f7b2ad07902b242d"
+      "hash": "a58a53b2091f7afa"
+    },
+    ".claude/skills/implementer-resume/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "620aa317d8190596"
+    },
+    ".claude/skills/implementer-review-disputes/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "d9cb762d7f31a490"
+    },
+    ".claude/skills/implementer-verification-only/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "d2dff25f246b0719"
     },
     ".claude/skills/security-expert/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "961cf2b092f1573b"
+    },
+    ".claude/skills/implementer-subagent-steps/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "6535184b17bee68e"
+    },
+    ".claude/skills/implementer-cli-resolution/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "7a7224d3fab54945"
+    },
+    ".claude/skills/implementer-github-outage/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "25a3ca13a39dfdb3"
     },
     ".claude/skills/idea-to-planned/SKILL.md": {
       "pack": "core",

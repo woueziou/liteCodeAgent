@@ -136,6 +136,29 @@ function delegateImplementerIsolation(target: RenderTarget): string {
   }
 }
 
+/**
+ * Choosing the model of one delegated call (ticket 0061 / ADR 0021): a small ticket asks
+ * for `bug-hunter` at the `balanced` tier instead of its default `reasoning` one, without a
+ * second copy of the agent. Only Claude Code's `Agent` tool takes a per-call `model`; every
+ * other target, and the API runner (which fixes a model per agent tier), keeps the agent's
+ * own default tier, and the prompt says so instead of inventing a knob.
+ */
+const TIER_NAMES = ["fast", "balanced", "reasoning"];
+const DEFAULT_TIER_MODELS: Record<string, string> = { fast: "haiku", balanced: "sonnet", reasoning: "opus" };
+
+function delegateTier(target: RenderTarget, tier: string, tiers: Record<string, string | undefined>): string {
+  if (!TIER_NAMES.includes(tier)) throw new Error(`{{> delegateTier ${tier}}}: unknown tier (known: ${TIER_NAMES.join(", ")})`);
+  if (target === "claude-code") {
+    const model = (Object.hasOwn(tiers, tier) ? tiers[tier] : undefined) ?? DEFAULT_TIER_MODELS[tier];
+    if (!model) throw new Error(`{{> delegateTier ${tier}}}: no model configured for tier '${tier}'`);
+    return `pass \`model: "${model}"\` on that call (the \`${tier}\` tier)`;
+  }
+  return (
+    "this target cannot choose a model per call, so keep that agent's default tier — " +
+    "nothing to add to the prompt and nothing lost but the saving"
+  );
+}
+
 /** Names of the agents a set of packs installs (`agents/<name>.md`). */
 export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]): Set<string> {
   return new Set(packs.flatMap(({ pack }) => pack.files.flatMap((f) => /^agents\/([^/]+)\.md$/.exec(f.rel)?.[1] ?? [])));
@@ -146,7 +169,11 @@ export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]):
  * (the pack agents being installed), delegating to anything else — a typo, an agent from
  * a pack that isn't installed — fails the render instead of failing at run time.
  */
-export function delegationHelpers(target: RenderTarget, agents?: ReadonlySet<string>): Helpers {
+export function delegationHelpers(
+  target: RenderTarget,
+  agents?: ReadonlySet<string>,
+  tiers: Record<string, string | undefined> = {},
+): Helpers {
   return {
     delegate(arg) {
       if (!AGENT_NAME.test(arg)) throw new Error(`{{> delegate}} needs an agent name, got '${arg}'`);
@@ -158,6 +185,10 @@ export function delegationHelpers(target: RenderTarget, agents?: ReadonlySet<str
     delegation(arg) {
       if (arg) throw new Error(`{{> delegation}} takes no argument, got '${arg}'`);
       return delegation(target);
+    },
+    delegateTier(arg) {
+      if (!/^[a-z]+$/.test(arg)) throw new Error(`{{> delegateTier}} needs a tier name, got '${arg}'`);
+      return delegateTier(target, arg, tiers);
     },
     delegateImplementerIsolation(arg) {
       if (arg) throw new Error(`{{> delegateImplementerIsolation}} takes no argument, got '${arg}'`);
