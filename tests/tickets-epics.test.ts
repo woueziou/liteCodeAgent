@@ -34,8 +34,18 @@ test("chooseEpicDir: keeps an explicit prefix, reuses existing by unprefixed nam
   expect(chooseEpicDir(["07-resilience"], "99-resilience")).toBe("07-resilience");
 });
 
+test("chooseEpicDir rejects names without any letter or digit", () => {
+  expect(() => chooseEpicDir([], "   ")).toThrow();
+  expect(() => chooseEpicDir([], "!!!")).toThrow();
+});
+
+test("chooseEpicDir reuses digit-leading and non-slug existing epics", () => {
+  expect(chooseEpicDir(["08-2026-roadmap"], "2026-roadmap")).toBe("08-2026-roadmap");
+  expect(chooseEpicDir(["09-My_Epic"], "My_Epic")).toBe("09-My_Epic");
+});
+
 test("chooseEpicDir neutralizes path traversal", () => {
-  expect(chooseEpicDir([], "../..")).not.toMatch(/[./]/);
+  expect(() => chooseEpicDir([], "../..")).toThrow();
   expect(chooseEpicDir([], "../evil")).toBe("01-evil");
 });
 
