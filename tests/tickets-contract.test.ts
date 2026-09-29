@@ -82,3 +82,11 @@ test("hasPendingAdr is case/accent/NFD insensitive and ignores a mid-implementat
   expect(hasPendingAdr(gate)).toBe(false);
   expect(hasPendingAdr(`${gate}\n## ADR à valider : 0023\nplain draft`)).toBe(true);
 });
+
+test("hasPendingAdr exempts a full mid-implementation draft with its own '## ' headings before the manifest", () => {
+  const gate = "## ADR à valider : 0022\ndraft\n\n## Context\nc\n\n## Decisions\nd\n\n```resume-manifest\nadr_posted: true\n```\n";
+  expect(hasPendingAdr(gate)).toBe(false);
+  // a manifest merely quoted inside an outer fence does not exempt a planning-time draft
+  expect(hasPendingAdr("## ADR à valider : 0023\n````\n```resume-manifest\nx\n```\n````\n")).toBe(true);
+  expect(hasPendingAdr("## ADR\u00a0à valider : 0023\nx")).toBe(true);
+});
