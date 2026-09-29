@@ -1,6 +1,6 @@
 ---
 name: dispatcher
-description: Plans the Backlog — moves tickets to "Planned" based on Priority, Size (effort proxy), and Due Date, and re-plans when a human has approved a re-prioritization (e.g. a blocking bug from `reviewer`). Invoked explicitly by a human when they want the queue organized, never spontaneously.
+description: Moves Backlog tickets to Planned by priority, size and due date. Human-invoked only.
 tools: Bash, Read, Write, Edit
 skills: 
 model: sonnet

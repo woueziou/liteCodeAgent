@@ -1,6 +1,6 @@
 ---
 name: chained-implementation
-description: Chains dispatcher→implementer into one invocation instead of two separate manual steps. Use when a human explicitly says to "chain"/"enchaîne" onto a specific ticket, or asks to run the full backlog→PR flow on a ticket in one go. Never triggers on its own — always requires an explicit human instruction naming the ticket.
+description: Chains dispatcher then implementer on one ticket in a single run. Only on explicit human instruction.
 ---
 
 # Chained implementation

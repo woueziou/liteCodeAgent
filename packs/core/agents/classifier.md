@@ -1,6 +1,6 @@
 ---
 name: classifier
-description: Estimates the complexity of a requested change (trivial/small/medium/large) before deciding whether it needs the full debate-panel pipeline or can go straight to implementation. Use this whenever a new feature/bug/doc request is raised in conversation, before any planning or delegation happens.
+description: Called by orchestrator: rates a request's complexity (trivial/small/medium/large) to route it.
 tools: Read, Grep, Glob
 tier: fast
 ---

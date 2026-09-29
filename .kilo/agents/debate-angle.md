@@ -1,6 +1,6 @@
 ---
 name: debate-angle
-description: "Argues a single debate angle for a request selected by `panel-selector`. Invoked once per selected angle, in parallel, never sequentially. Never invoke directly without an angle name — it has no default angle."
+description: "Called by orchestrator: argues one named debate angle for a request. Needs an angle name."
 mode: subagent
 permission:
   read: allow

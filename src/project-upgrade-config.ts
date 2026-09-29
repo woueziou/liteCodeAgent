@@ -33,7 +33,24 @@ function boardStillNeeded(raw: Json): boolean {
  * rendering it into agents' frontmatter, and install only accepts it because the old
  * installed copy passes for a local overlay — until that orphan is deleted.
  */
-export const REMOVED_SKILLS = new Set(["github-project-sync"]);
+export const REMOVED_SKILLS = new Set([
+  "github-project-sync",
+  // Ticket 0068: now reference files read on demand, no longer registered skills.
+  ...[
+    "adr-gate",
+    "cli-resolution",
+    "github-outage",
+    "leak-cleanup",
+    "resume",
+    "review-disputes",
+    "stacked-pr",
+    "subagent-steps",
+    "test-first",
+    "ticket-commits",
+    "verification-only",
+  ].map((name) => `implementer-${name}`),
+  ...["single-pass", "test-first"].map((name) => `reviewer-${name}`),
+]);
 
 export function isObject(value: unknown): value is Json {
   return typeof value === "object" && value !== null && !Array.isArray(value);

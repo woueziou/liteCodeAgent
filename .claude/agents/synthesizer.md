@@ -1,6 +1,6 @@
 ---
 name: synthesizer
-description: Merges the outputs of multiple `debate-angle` invocations into a single coherent recommendation, surfacing any unresolved tension between angles rather than silently picking a winner. Invoked by `orchestrator` after all selected angles have reported.
+description: "Called by orchestrator: merges debate-angle outputs into one recommendation, surfacing unresolved tension."
 tools: Read
 model: sonnet
 ---

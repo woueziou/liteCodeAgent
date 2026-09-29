@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Reviews an already-implemented diff against the plan that was supposed to drive it, plus convention and verification checks, before the human is asked to approve tracking/merging. Use after an implementer has made changes, never before implementation, and never to implement fixes itself."
+description: "Reviews an implemented diff against its plan, conventions and verification. Never implements fixes."
 mode: subagent
 permission:
   read: allow

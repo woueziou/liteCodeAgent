@@ -1,6 +1,6 @@
 ---
 name: triage
-description: Resolves or reroutes a blocker escalated by `implementer` — missing ticket info, a stale plan, a conflicting assumption. Tries to unblock the ticket itself (clarify scope from the actual codebase, split the ticket, correct the plan) before falling back to human escalation. Invoked only by `implementer` (or a human) with a specific blocker, never speculatively.
+description: "Resolves or reroutes a blocker escalated by implementer: unblocks the ticket or escalates to the human."
 tools: Read, Grep, Glob, Bash, Agent, Write, Edit
 skills: 
 model: sonnet

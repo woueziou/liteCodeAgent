@@ -12,7 +12,7 @@
  * own API runner, `litecode run`, which is synchronous everywhere.
  */
 
-import type { InstallTarget } from "./config.ts";
+import { TARGET_ROOTS, type InstallTarget } from "./config.ts";
 import type { Helpers } from "./template.ts";
 
 /** Every place a pack prompt is rendered: an install target, or the built-in API runner. */
@@ -164,18 +164,11 @@ function delegateTier(target: RenderTarget, tier: string, tiers: Record<string, 
  * Reads on demand, ticket 0064), relative to the project root. `claude-code` follows the
  * configured `outDir`; the API runner (which serves Pi) reads them from the first installed target's root.
  */
-export const REFERENCE_ROOTS: Record<RenderTarget, string> = {
-  "claude-code": ".claude",
-  codex: ".codex",
-  pi: ".pi",
-  opencode: ".opencode",
-  "kilo-code": ".kilo",
-  runner: ".claude",
-};
+export const REFERENCE_ROOTS: Record<RenderTarget, string> = { ...TARGET_ROOTS, runner: TARGET_ROOTS["claude-code"] };
 
 function reference(target: RenderTarget, name: string, rootOverride?: string): string {
   if (!/^[a-z][a-z-]*$/.test(name)) throw new Error(`{{> reference}} needs a reference name, got '${name}'`);
-  const root = rootOverride ?? REFERENCE_ROOTS[target];
+  const root = (rootOverride ?? REFERENCE_ROOTS[target]).replace(/\/+$/, "");
   return `\`${root}/reference/${name}.md\` (relative to the primary checkout)`;
 }
 
