@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0062-feat-report-mesurer-les-tokens-consommes-par-tic
 title: "feat(report): mesurer les tokens consommés par ticket"
 label: feature
-status: readyToMerge
+status: done
 priority: high
 size: small
 assignedAgent: human
