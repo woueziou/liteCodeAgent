@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { gh, GhError } from "../gh.ts";
 import { listTickets } from "../tickets/store.ts";
 import type { ResumeProbes } from "../resume.ts";
-import type { PrChecksLookup, PrLookup, Probes } from "./verify.ts";
+import type { ForcePushLookup, PrChecksLookup, PrLookup, Probes } from "./verify.ts";
 
 async function git(root: string, args: string[]): Promise<{ stdout: string; code: number }> {
   const proc = Bun.spawn(["git", "-C", root, ...args], { stdout: "pipe", stderr: "ignore" });
@@ -150,7 +150,42 @@ export function realProbes(ctx: ProbeContext): Probes {
       const key = /^\d{1,4}$/.test(bare) ? bare.padStart(4, "0") : bare;
       return tickets.find((t) => t.id === key || t.id.startsWith(`${key}-`))?.status;
     },
+
+    /**
+     * Ticket 0056: whether the PR's head ref was ever force-pushed, from GitHub's own
+     * `head_ref_force_pushed` timeline event — the one artefact that survives independently
+     * of any agent's self-report. Resolves the PR to its issue number first (`pr` may be a
+     * number or a full URL, same as every other probe here), then walks that issue's
+     * events, since the events endpoint only takes a bare number, never a URL.
+     */
+    async forcePushed(pr): Promise<ForcePushLookup> {
+      const viewArgs = ["pr", "view", pr, "--json", "number,url"];
+      if (!/^https?:\/\//.test(pr)) viewArgs.push("--repo", repo);
+      let number: number;
+      let ownerRepo: string;
+      try {
+        const view = JSON.parse(await gh(viewArgs)) as { number: number; url: string };
+        number = view.number;
+        // The PR's number and events live on the BASE repo (the one in its URL), never on
+        // the head repo a fork PR was pushed from.
+        ownerRepo = /github\.com\/([^/\s]+\/[^/\s]+)\/pull\/\d+/i.exec(view.url)?.[1] ?? repo;
+      } catch (e) {
+        return { kind: "unknown", reason: reasonOf(e) };
+      }
+      try {
+        const out = await gh(["api", `repos/${ownerRepo}/issues/${number}/events`, "--paginate", "--jq", ".[].event"]);
+        const count = out.split("\n").filter((line) => line.trim() === "head_ref_force_pushed").length;
+        return count > 0 ? { kind: "yes", count } : { kind: "no" };
+      } catch (e) {
+        return { kind: "unknown", reason: reasonOf(e) };
+      }
+    },
   };
+}
+
+/** A `GhError` message is "gh … failed (exit N):\n<stderr>": the stderr line is the actual reason. */
+function reasonOf(e: unknown): string {
+  return (e as Error).message.replace(/\s*\n\s*/g, " ").trim();
 }
 
 /** Adds `resumeState`'s two extra probes (worktree presence, commit reachability) to `realProbes`. */

@@ -23,6 +23,7 @@ function probes(overrides: Partial<ResumeProbes> = {}): ResumeProbes {
     dirtyFiles: async () => [],
     branchFiles: async () => [],
     ticketStatus: async () => "inProgress",
+    forcePushed: async () => ({ kind: "no" }),
     worktreeExists: async (p) => p === "../worktrees/0034",
     commitInBranch: async (b, c) => b === "feat/x/0034" && c === "abc123",
     headCommit: async (b) => (b === "feat/x/0034" ? "abc123" : null),
