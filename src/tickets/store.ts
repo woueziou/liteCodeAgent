@@ -94,7 +94,7 @@ export async function writeTicket(root: string, ticket: Ticket): Promise<void> {
 export async function appendTicketNote(root: string, ticket: Ticket, note: string): Promise<void> {
   const abs = resolve(root, ticket.path);
   const raw = await Bun.file(abs).text();
-  await Bun.write(abs, `${raw.trimEnd()}\n\n${note.trim()}\n`);
+  await Bun.write(abs, `${raw.replace(/\n+$/, "")}\n\n${note.trim()}\n`);
 }
 
 /**
@@ -105,14 +105,16 @@ export async function appendTicketNote(root: string, ticket: Ticket, note: strin
  */
 export async function setTicketStatus(root: string, ticket: Ticket, status: string): Promise<void> {
   const abs = resolve(root, ticket.path);
-  const raw = await Bun.file(abs).text();
-  const close = raw.indexOf("\n---", 3);
-  const head = close === -1 ? "" : raw.slice(0, close);
-  const line = /^status:.*$/m;
-  if (!raw.startsWith("---") || !line.test(head)) {
+  const lines = (await Bun.file(abs).text()).split("\n");
+  // Same delimiter rule as the parser: a line that is exactly `---`. When a key appears
+  // twice the parser keeps the last one, so that is the line to rewrite.
+  const close = lines.findIndex((l, i) => i > 0 && l === "---");
+  const statusLine = lines.findLastIndex((l, i) => close > 0 && i > 0 && i < close && /^\s*status\s*:/.test(l));
+  if (lines[0] !== "---" || statusLine === -1) {
     throw new Error(`${ticket.path}: no 'status:' line in the frontmatter to update`);
   }
-  await Bun.write(abs, head.replace(line, `status: ${status}`) + raw.slice(close));
+  lines[statusLine] = `status: ${status}`;
+  await Bun.write(abs, lines.join("\n"));
 }
 
 /**

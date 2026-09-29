@@ -88,3 +88,21 @@ test("two simultaneous runs of the dashboard suite both pass", async () => {
   const codes = await Promise.all([a.exited, b.exited]);
   expect(codes).toEqual([0, 0]);
 }, 120_000);
+
+test("`ticket move` rewrites the last of duplicate status lines and an indented one (parser parity)", async () => {
+  const { root, file } = await setup();
+  await Bun.write(file, HAND_FORMATTED.replace("status:   planned", "status: planned\n  status : backlog"));
+  const { code } = await run(root, ["ticket", "move", "--project", root, "0001", "planned"]);
+  expect(code).toBe(0);
+  const after = await Bun.file(file).text();
+  expect(after).toContain("status: planned\nstatus: planned");
+});
+
+test("`ticket note` keeps trailing spaces (markdown hard break) of the last existing line", async () => {
+  const { root, file } = await setup();
+  await Bun.write(file, HAND_FORMATTED.replace("odd   spacing\n", "odd   spacing  \n\n\n"));
+  const notePath = join(root, "n.txt");
+  await Bun.write(notePath, "note\n");
+  await run(root, ["ticket", "note", "--project", root, "0001", "--file", notePath]);
+  expect(await Bun.file(file).text()).toContain("odd   spacing  \n\nnote\n");
+});
