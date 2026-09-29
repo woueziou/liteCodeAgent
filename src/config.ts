@@ -74,7 +74,8 @@ const DashboardSchema = z.object({
 /**
  * Ticket 0059: which CI checks must have actually run (and passed) on a PR's head before a
  * green CI counts as proof the tests ran. Matched against `gh pr checks`'s check `name`
- * (for GitHub Actions, the job name), case-insensitively. A stacked PR (`--base` another
+ * (for GitHub Actions, the job name), case-insensitively and in full: a matrix job is
+ * reported as e.g. `test (ubuntu-latest)`, which must be listed as such. A stacked PR (`--base` another
  * PR branch) doesn't trigger a workflow that only targets the default branch, so its
  * "all checks pass" may be just a third-party check. An empty list turns the requirement off.
  * Optional with a default, like `tickets`, so an older config still parses.

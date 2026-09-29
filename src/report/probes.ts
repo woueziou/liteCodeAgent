@@ -137,7 +137,8 @@ export function realProbes(ctx: ProbeContext): Probes {
           } catch (e) {
             if (e instanceof RateLimitError || !(e instanceof GhError)) throw e;
             // Non-zero exit that still printed the rows (fail = 1, pending = 8).
-            if (parseCheckRows(e.stdout) === null && !PR_NO_CHECKS.test(e.message)) throw e;
+            // An empty array next to an unrelated error (HTTP 502) is a failure, not "no CI".
+            if (!(parseCheckRows(e.stdout)?.length ?? 0) && !PR_NO_CHECKS.test(e.message)) throw e;
             stdout = e.stdout;
           }
           result = classifyChecks(parseCheckRows(stdout) ?? [], expected);

@@ -176,6 +176,12 @@ test("prChecks reports fail, pending (exit 8 with JSON still on stdout), pass, n
   expect(JSON.stringify(r)).toContain("gh: some other failure");
 });
 
+test("prChecks: an unrelated gh error printed next to an empty array is unknown, not none", async () => {
+  const root = await repo();
+  await stubGh(`echo '[]'; echo 'HTTP 502' >&2; exit 1`);
+  expect((await realProbes({ ...ctx(root), ...fast }).prChecks("7")).kind).toBe("unknown");
+});
+
 test("prChecks asks gh for the check names, not just the buckets", async () => {
   const root = await repo();
   await stubGh(`case "$*" in *"--json name,bucket"*) echo '[${T("pass")}]';; *) echo 'bad args' >&2; exit 1;; esac`);
