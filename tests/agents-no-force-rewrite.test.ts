@@ -17,7 +17,9 @@ async function reviewerSource() {
   const core = await loadPack(PACKS, "core");
   const reviewer = core.files.find((f) => f.rel === "agents/reviewer.md");
   if (!reviewer) throw new Error("agents/reviewer.md not found in core pack");
-  return reviewer.source;
+  // Ticket 0064: rare cases moved into reviewer-* skills; the contract is the agent plus those skills.
+  const skills = core.files.filter((f) => /^skills\/reviewer-[a-z-]+\/SKILL\.md$/.test(f.rel)).map((f) => f.source);
+  return [reviewer.source, ...skills].join("\n");
 }
 
 async function implementerSource() {
