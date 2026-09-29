@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0053-fix-journal-durcir-la-lecture-des-blocs-de-journ
 title: "fix(journal): durcir la lecture des blocs de journal et des titres ADR à valider"
 label: bug
-status: readyToMerge
+status: done
 priority: low
 size: small
 assignedAgent: human

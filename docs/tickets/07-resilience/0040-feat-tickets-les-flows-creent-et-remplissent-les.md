@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0040-feat-tickets-les-flows-creent-et-remplissent-les
 title: "feat(tickets): les flows créent et remplissent les épics"
 label: feature
-status: readyToMerge
+status: done
 priority: medium
 size: medium
 assignedAgent: human
