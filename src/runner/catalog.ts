@@ -1,10 +1,16 @@
 import { basename, isAbsolute, relative, resolve } from "node:path";
 import { realpath } from "node:fs/promises";
-import type { Config } from "../config.ts";
+import { selectedTargets, type Config } from "../config.ts";
 import { parseFrontmatter, parseList } from "../frontmatter.ts";
 import { loadPack, TIERS, type Tier } from "../packs.ts";
 import { render, templateProject } from "../template.ts";
-import { delegationHelpers, packAgentNames } from "../delegation.ts";
+import { delegationHelpers, packAgentNames, REFERENCE_ROOTS } from "../delegation.ts";
+
+/** Where the installed `reference/*.md` files live for the runner: outDir if claude-code is installed, else the first installed target's root. */
+function runnerReferenceRoot(config: Config): string {
+  const targets = selectedTargets(config);
+  return targets.includes("claude-code") ? config.outDir : REFERENCE_ROOTS[targets[0]!];
+}
 import type { AgentDefinition } from "./types.ts";
 
 type SkillDefinition = { name: string; description: string; prompt: string };
@@ -54,7 +60,7 @@ export class AgentCatalog {
     }
     const catalog = new AgentCatalog(projectRoot, config.outDir, runnerSkillRoots);
     const packs = await Promise.all(config.packs.map(async (packName) => ({ packName, pack: await loadPack(packsRoot, packName) })));
-    const helpers = delegationHelpers("runner", packAgentNames(packs));
+    const helpers = delegationHelpers("runner", packAgentNames(packs), config.tiers, runnerReferenceRoot(config));
     for (const { packName, pack } of packs) {
       for (const file of pack.files) {
         const where = `${packName}/${file.rel}`;

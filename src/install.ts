@@ -426,7 +426,7 @@ function outputFiles(
     file.source,
     { project: templateProject(config.project) },
     `${file.rel}`,
-    delegationHelpers(target, agents, config.tiers),
+    delegationHelpers(target, agents, config.tiers, target === "claude-code" ? config.outDir : undefined),
   );
   const { data, body } = parseFrontmatter(rendered, file.rel);
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
