@@ -418,3 +418,11 @@ test("an empty or valueless `--project` is refused instead of falling back to cw
   expect(file).not.toContain("### note");
   expect(file).toMatch(/^status: backlog$/m);
 });
+
+test("`--project=<dir>` is refused rather than silently ignored", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Equals form", "--label", "feature"]);
+  const { exitCode, output } = await runCliWithExit(root, ["ticket", "move", "0001", "planned", `--project=${root}`]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/separate argument/);
+});

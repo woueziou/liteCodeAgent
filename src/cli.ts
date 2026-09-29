@@ -1100,7 +1100,11 @@ const argv = process.argv.slice(2);
 // implementer passing an unset/empty path would otherwise write its ticket changes into
 // its own worktree copy while reporting success (ticket 0057, bug-hunter finding).
 const projectArg = arg(argv, "--project");
-if (argv.includes("--project") && (!projectArg || projectArg.startsWith("--"))) {
+if (argv.some((a) => a.startsWith("--project="))) {
+  console.log(c.red("--project takes its value as a separate argument: --project <dir>"));
+  process.exit(1);
+}
+if (argv.includes("--project") && (!projectArg?.trim() || projectArg.startsWith("--"))) {
   console.log(c.red("--project requires a non-empty directory path"));
   process.exit(1);
 }
