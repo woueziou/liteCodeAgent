@@ -39,6 +39,9 @@ import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
 import { confirm, isInteractive, multiSelect } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
+import { parseJournalEntries } from "./report/journal.ts";
+import { formatTokens, runnerJournalNote, ticketTokens, withTokensLine } from "./report/tokens.ts";
+import { tokensPerEpic } from "./dashboard/build.ts";
 import { applyUpgrade, hasChanges, hasSkips, planUpgrade } from "./project-upgrade.ts";
 import {
   RunCancelledError,
@@ -84,7 +87,7 @@ function usage(): void {
                                      ${c.dim("--fix fills in missing agentSkills keys and writes the config")}
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
-                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>")}
+                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>; --ticket <id> (journal tokens)")}
   ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--force]
                                      draft a ticket file; blocks if its title reads like an existing
                                      ticket's — pass --force to create anyway
@@ -393,6 +396,12 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
     process.off("SIGINT", onSigint);
     process.off("SIGTERM", onSigterm);
   }
+  const ticketRef = arg(argv, "--ticket");
+  if (ticketRef && report.usage.input + report.usage.output > 0) {
+    const ticket = await findTicketByRef(root, config.project.tickets.dir, ticketRef);
+    if (!ticket) console.error(c.red(`--ticket: no ticket matches ${ticketRef}; tokens not journaled`));
+    else await appendTicketNote(root, ticket, runnerJournalNote(agent, report.usage, new Date().toISOString().slice(0, 10)));
+  }
   const recordPath = arg(argv, "--record");
   if (recordPath) {
     const destination = resolve(root, recordPath);
@@ -400,7 +409,9 @@ async function cmdRun(root: string, argv: string[]): Promise<number> {
     await Bun.write(destination, `${JSON.stringify(report, null, 2)}\n`);
   }
   if (argv.includes("--json")) console.log(JSON.stringify(report, null, 2));
-  else if (report.status === "completed") console.log(report.output);
+  else if (report.status === "completed") {
+    console.log(agent === "implementer" ? withTokensLine(report.output, report.usage) : report.output);
+  }
   else console.error(c.red(`\n${report.error.message}`));
   if (!argv.includes("--json") && (argv.includes("--usage") || argv.includes("--trace"))) {
     console.error(c.dim(usageLine(report)));
@@ -616,7 +627,9 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     const { tickets, errors } = await listTicketsDetailed(root, dir);
     const pendingByTicket = new Map((await listPendingAdrs(root, tickets)).map((p) => [p.ticketId, p]));
     for (const t of tickets) {
-      console.log(`  ${t.status.padEnd(12)} ${t.id.padEnd(52)} ${c.dim(`${t.priority}/${t.size}`)}`);
+      const tk = ticketTokens(t.body, parseJournalEntries);
+      const tokens = tk === undefined ? "" : c.dim(` · ${formatTokens(tk)} tokens`);
+      console.log(`  ${t.status.padEnd(12)} ${t.id.padEnd(52)} ${c.dim(`${t.priority}/${t.size}`)}${tokens}`);
       const pending = pendingByTicket.get(t.id);
       if (pending) {
         console.log(`    ${c.yellow("⚠ ADR en attente d'approbation")} ${pending.adrPath} — lire dans ${pending.ticketPath}`);
@@ -624,6 +637,10 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     }
     for (const e of errors) {
       console.log(`  ${c.red("error ")} ${e.path}: ${e.error}`);
+    }
+    const perEpic = tokensPerEpic(tickets, dir);
+    if (perEpic.length > 0) {
+      console.log(c.dim("\n  tokens per epic: " + perEpic.map(([e, n]) => `${e} ${formatTokens(n)}`).join(" · ")));
     }
     if (tickets.length === 0 && errors.length === 0) {
       console.log(c.dim(`No tickets in ${dir}. Create one with \`litecode ticket new\`.`));
