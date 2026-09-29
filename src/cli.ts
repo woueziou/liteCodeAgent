@@ -18,7 +18,7 @@ import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.t
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 import { resumeState } from "./resume.ts";
-import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
+import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, setTicketStatus, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
   CLARIFICATION_MARKER,
@@ -806,7 +806,7 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       );
       return 1;
     }
-    await writeTicket(root, { ...ticket, status: to });
+    await setTicketStatus(root, ticket, to);
     console.log(`${c.green("moved")} ${ticket.id}: ${ticket.status} -> ${to}`);
     return 0;
   }
