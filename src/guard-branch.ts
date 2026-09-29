@@ -51,7 +51,8 @@ export function checkBranchGuard(input: GuardBranchInput): GuardBranchResult {
     allowed: false,
     reason:
       `refusing to commit on '${input.defaultBranch}' (the project's default branch). ` +
-      `Only ticket files may be committed there. Move the work onto a feature branch, or set project.allowDefaultBranchCommits: true ` +
-      `in litecode.config.json, or set LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT=1 for this one commit.`,
+      `Only ticket files may be committed there. Move the work onto a feature branch (e.g. \`git switch -c my-branch\`), ` +
+      `or set project.allowDefaultBranchCommits: true in litecode.config.json, ` +
+      `or set LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT=1 for this one commit.`,
   };
 }

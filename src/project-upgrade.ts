@@ -144,7 +144,12 @@ const renderPacks: Migration = {
       changes: [
         {
           summary: `write ${changed.length} file(s) (${creates} new, ${changed.length - creates} updated)`,
-          apply: () => applyPlan(ctx.root, plan, ctx.litecodeVersion, { force: false }),
+          apply: () =>
+            applyPlan(ctx.root, plan, ctx.litecodeVersion, {
+              force: false,
+              defaultBranch: ctx.config.project.defaultBranch,
+              allowDefaultBranchCommits: ctx.config.project.allowDefaultBranchCommits,
+            }),
         },
       ],
       skipped: [],

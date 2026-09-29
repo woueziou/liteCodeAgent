@@ -603,7 +603,13 @@ export async function applyPlan(
   projectRoot: string,
   plan: InstallPlan,
   litecodeVersion: string,
-  opts: { force: boolean },
+  opts: {
+    force: boolean;
+    /** `project.defaultBranch`, used only for the post-activation commit warning below. */
+    defaultBranch?: string;
+    /** `project.allowDefaultBranchCommits`, used only for the post-activation commit warning below. */
+    allowDefaultBranchCommits?: boolean;
+  },
 ): Promise<void> {
   const drifted = plan.entries.filter((entry) => entry.status === "drift");
   if (plan.hook?.status === "drift") drifted.push({ ...plan.hook, status: "drift", harness: "claude-code" });
@@ -658,8 +664,48 @@ export async function applyPlan(
       },
       HOOK_LOCK_PATH,
     );
-    await activateGitHooksPath(projectRoot, plan.hook.kitVersion);
+    const activated = await activateGitHooksPath(projectRoot, plan.hook.kitVersion);
+    if (activated) {
+      await warnIfCommittingSetupOnDefaultBranch(
+        projectRoot,
+        opts.defaultBranch ?? "main",
+        opts.allowDefaultBranchCommits ?? false,
+      );
+    }
   }
+}
+
+/**
+ * Ticket 0055: once this install run has just activated the branch guard, a human who
+ * follows the quick-start straight into `git commit` on the default branch gets refused
+ * with no warning from `setup`/`install` itself having told them that was coming — the
+ * README explains it (PR #94), but nothing in the CLI output did. Only fires when this
+ * exact run is the one that turned the guard on (see `activated` above): a guard that was
+ * already active before this run, or never activated at all (pre-existing hook,
+ * `core.hooksPath` already set to something else), prints nothing here — those cases are
+ * unrelated to "the mise en place I'm about to commit".
+ */
+async function warnIfCommittingSetupOnDefaultBranch(
+  projectRoot: string,
+  defaultBranch: string,
+  allowDefaultBranchCommits: boolean,
+): Promise<void> {
+  if (allowDefaultBranchCommits) return;
+  const branchProc = Bun.spawn(["git", "branch", "--show-current"], {
+    cwd: projectRoot,
+    stdout: "pipe",
+    stderr: "ignore",
+  });
+  const currentBranch = (await new Response(branchProc.stdout).text()).trim();
+  await branchProc.exited;
+  if (!currentBranch || currentBranch !== defaultBranch) return;
+
+  console.warn(
+    `\nWarning: the branch guard is now active, and you're on '${defaultBranch}' (the project's default branch). ` +
+      `Committing this setup here will be refused. Move it onto a branch first (e.g. \`git switch -c setup/litecode\`), ` +
+      `or set project.allowDefaultBranchCommits: true in litecode.config.json, ` +
+      `or set LITECODE_ALLOW_DEFAULT_BRANCH_COMMIT=1 for this one commit.\n`,
+  );
 }
 
 /**
@@ -711,13 +757,21 @@ async function guardBranchLine(projectRoot: string, kitVersion: string): Promise
   return `(cd ${shellQuote(relProjectDir)} && ${base})`;
 }
 
-async function activateGitHooksPath(projectRoot: string, kitVersion: string): Promise<void> {
+/**
+ * Returns `true` only when this call is the one that actually flips `core.hooksPath` to
+ * `.githooks` — i.e. the guard was off before and is on now. Every other outcome (not a
+ * git repo, a subdirectory project, `core.hooksPath` already `.githooks` or set to
+ * something else on purpose, real hooks already under `.git/hooks`) returns `false`, so a
+ * caller can tell "the guard just became active" apart from "the guard was already active
+ * or never became active" without re-deriving the same warn/skip logic itself.
+ */
+async function activateGitHooksPath(projectRoot: string, kitVersion: string): Promise<boolean> {
   const check = Bun.spawn(["git", "rev-parse", "--is-inside-work-tree"], {
     cwd: projectRoot,
     stdout: "ignore",
     stderr: "ignore",
   });
-  if ((await check.exited) !== 0) return;
+  if ((await check.exited) !== 0) return false;
 
   const guardLine = await guardBranchLine(projectRoot, kitVersion);
   const manualNotice = `To enable it manually, add this line to your pre-commit hook (create it if missing):\n\n  ${guardLine}\n`;
@@ -742,7 +796,7 @@ async function activateGitHooksPath(projectRoot: string, kitVersion: string): Pr
       `\nWarning: ${projectRoot} is a subdirectory of the git repo at ${gitRoot}. ` +
         "core.hooksPath is repo-wide, so litecodeagent won't change it from here.\n" + manualNotice,
     );
-    return;
+    return false;
   }
 
   const current = Bun.spawn(["git", "config", "--get", "core.hooksPath"], {
@@ -752,12 +806,12 @@ async function activateGitHooksPath(projectRoot: string, kitVersion: string): Pr
   });
   const existing = (await new Response(current.stdout).text()).trim();
   await current.exited;
-  if (existing === ".githooks") return;
+  if (existing === ".githooks") return false;
   if (existing) {
     console.warn(
       `\nWarning: core.hooksPath is already set to '${existing}'. Leaving it as-is.\n` + manualNotice,
     );
-    return;
+    return false;
   }
 
   const hooksPathOutput = Bun.spawn(["git", "rev-parse", "--git-path", "hooks"], {
@@ -780,14 +834,15 @@ async function activateGitHooksPath(projectRoot: string, kitVersion: string): Pr
         `\nWarning: ${hooksDirRel} already has hook(s) installed (${realHooks.join(", ")}) — ` +
           "leaving core.hooksPath unset so they keep running.\n" + manualNotice,
       );
-      return;
+      return false;
     }
   }
 
   console.log(`\nSetting core.hooksPath to .githooks so the branch guard runs.`);
-  await Bun.spawn(["git", "config", "core.hooksPath", ".githooks"], {
+  const setHooksPath = await Bun.spawn(["git", "config", "core.hooksPath", ".githooks"], {
     cwd: projectRoot,
     stdout: "ignore",
     stderr: "ignore",
   }).exited;
+  return setHooksPath === 0;
 }
