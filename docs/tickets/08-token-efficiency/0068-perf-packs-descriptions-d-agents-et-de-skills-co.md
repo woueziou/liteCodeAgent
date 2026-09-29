@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0068-perf-packs-descriptions-d-agents-et-de-skills-co
 title: "perf(packs): descriptions d'agents et de skills courtes, cas rares hors des skills"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: high
 size: small
 assignedAgent: human
@@ -27,3 +27,7 @@ Au démarrage de chaque session et de chaque sous-agent, le harness charge la de
 
 ## Hors périmètre
 Changer le comportement des agents.
+
+### 2026-09-29 — implementer: PR opened, ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/113. reviewer: approve. bug-hunter: HUNT complete, one non-blocking finding (agent-attribution filtered) fixed in 0511c41. CI: test pass. Note: the installed `bunx litecodeagent` (1.1.1) lacks `ticket note`/`--project`; used `bun run src/cli.ts` from the primary checkout.
