@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0064-perf-agents-sortie-d-outils-filtree-rapports-pla
 title: "perf(agents): sortie d'outils filtrée, rapports plafonnés, relecture unique pour les petits tickets"
 label: feature
-status: inProgress
+status: review
 priority: high
 size: medium
 assignedAgent: human
@@ -28,3 +28,22 @@ Mesure du 0063 (small, .gitignore + filtre) : implementer 46 k, reviewer 26 k, b
 
 ## Hors périmètre
 Lots de tickets (ticket séparé).
+
+### 2026-09-29 — implementer: PR #112 opened, landed on Review
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/112 (CI test: pass). reviewer: approve-with-notes. bug-hunter first pass: 1 blocking (single-pass contradiction) fixed; re-hunt: HUNT complete, 1 NEW blocking finding, so Review (no looping).
+
+Open blocking finding (re-hunt): the agents say "Read `reference/<name>.md`" as a bare relative path, but the files install at `<root>/reference/` per target (.claude, .codex, .opencode, .kilo, .pi); sub-agents start in the primary checkout and Pi/runner have no agents dir. implementer-ticket-commits.md is used on every ticket move, so its rules (commit by path, never push, no signing bypass) should be back inline. Fix: template helper rendering the per-target reference dir, expose references to the runner, inline commit rules, per-target install test that the named path exists. Priority High, same-PR fixup.
+
+Non-blocking left: `small` bullet still says "both passes" (one clause); `src/` hard-coded in the single-pass rule (new ticket, deferrable).
+Deliberate notes: bug-hunter.md left unchanged (single pass just skips it); the 5 rare-case docs are reference files (not registered skills) per the human's adjustment, including two extra implementer ones (implementer-test-first, implementer-ticket-commits) to fit implementer.md's word budget. Full reports are on the PR.
+
+```progress-journal
+step: step 10: Review
+worktree: ../worktrees/0064
+branch: perf-lean-agents/0064
+base: main
+commit: see branch tip
+checks: bun run check pass; bun test 576 pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/112
+```
