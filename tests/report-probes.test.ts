@@ -164,6 +164,56 @@ test("prChecks reports unknown, not an uncaught throw, when the gh binary itself
   expect(result.kind).toBe("unknown");
 });
 
+test("forcePushed reports yes with a count, no, and unknown on a gh failure", async () => {
+  const root = await repo();
+  const p = realProbes(ctx(root));
+
+  await stubGh(`
+    case "$*" in
+      "pr view 7 --json number,url --repo o/r")
+        echo '{"number":7,"url":"https://github.com/o/r/pull/7"}';;
+      "api repos/o/r/issues/7/events --paginate --jq .[].event")
+        printf 'commented\\nhead_ref_force_pushed\\nclosed\\nhead_ref_force_pushed\\n';;
+      *) exit 1;;
+    esac
+  `);
+  expect(await p.forcePushed("7")).toEqual({ kind: "yes", count: 2 });
+
+  await stubGh(`
+    case "$*" in
+      "pr view 7 --json number,url --repo o/r")
+        echo '{"number":7,"url":"https://github.com/o/r/pull/7"}';;
+      "api repos/o/r/issues/7/events --paginate --jq .[].event")
+        printf 'commented\\nclosed\\n';;
+      *) exit 1;;
+    esac
+  `);
+  expect(await p.forcePushed("7")).toEqual({ kind: "no" });
+
+  await stubGh(`echo 'gh: pull request not found' >&2; exit 1`);
+  const unknown = await p.forcePushed("7");
+  expect(unknown.kind).toBe("unknown");
+});
+
+test("forcePushed queries the base repo from the PR url, keeps the gh stderr as the reason", async () => {
+  const root = await repo();
+  const p = realProbes(ctx(root));
+  await stubGh(`
+    case "$*" in
+      "pr view https://github.com/base/repo/pull/9 --json number,url")
+        echo '{"number":9,"url":"https://github.com/base/repo/pull/9"}';;
+      "api repos/base/repo/issues/9/events --paginate --jq .[].event")
+        printf 'head_ref_force_pushed\\n';;
+      *) exit 1;;
+    esac
+  `);
+  expect(await p.forcePushed("https://github.com/base/repo/pull/9")).toEqual({ kind: "yes", count: 1 });
+
+  await stubGh(`echo 'no pull requests found' >&2; exit 1`);
+  const r = await p.forcePushed("7");
+  expect(r.kind === "unknown" && r.reason).toContain("no pull requests found");
+});
+
 test("ticketStatus reads only the primary checkout, never a stale copy committed on a branch", async () => {
   const root = await repo();
   await sh(root, "git", "switch", "-q", "feat/x/issue-7");
