@@ -100,6 +100,42 @@ function delegation(target: RenderTarget): string {
   }
 }
 
+/**
+ * Whether/how the target's own delegation mechanism can hand a sub-agent a dedicated git
+ * worktree, so `implementer` never starts inside the caller's shared checkout in the first
+ * place (ticket 0057 / ADR 0020). Only Claude Code's `Agent` tool has this: an `isolation:
+ * "worktree"` option that creates the worktree before the sub-agent's first turn. No other
+ * target documented here exposes an equivalent — `opencode`'s `task` tool, Kilo Code's
+ * `task` tool, a Codex subagent, and Pi's `litecode run` all start in the caller's existing
+ * working directory, with no per-call isolation knob. Inventing one for a target that
+ * doesn't document it would be worse than not offering isolation at all, so those targets
+ * keep the pre-0057 behavior: `implementer` creates its own worktree with `git worktree
+ * add` as step 3 always did.
+ */
+function delegateImplementerIsolation(target: RenderTarget): string {
+  switch (target) {
+    case "claude-code":
+      return (
+        "This target supports per-call worktree isolation: pass `isolation: \"worktree\"` on the `Agent` call. " +
+        "When you do, state explicitly in the prompt (a) the absolute path of the primary checkout " +
+        "(the directory you were invoked in, before isolation moved `implementer` into its own worktree) and " +
+        "(b) that `implementer` should treat the worktree it wakes up in as its ticket worktree instead of " +
+        "creating a second one with `git worktree add` — see implementer.md's \"Worktree isolation\" section for " +
+        "what it does with both."
+      );
+    case "runner":
+    case "opencode":
+    case "kilo-code":
+    case "codex":
+    case "pi":
+      return (
+        "This target has no per-call worktree isolation for a delegated `implementer` — it starts in the " +
+        "caller's existing working directory, same as any other delegation. `implementer` creates its own " +
+        "worktree with `git worktree add` as step 3 always did; nothing to state differently in the prompt."
+      );
+  }
+}
+
 /** Names of the agents a set of packs installs (`agents/<name>.md`). */
 export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]): Set<string> {
   return new Set(packs.flatMap(({ pack }) => pack.files.flatMap((f) => /^agents\/([^/]+)\.md$/.exec(f.rel)?.[1] ?? [])));
@@ -122,6 +158,10 @@ export function delegationHelpers(target: RenderTarget, agents?: ReadonlySet<str
     delegation(arg) {
       if (arg) throw new Error(`{{> delegation}} takes no argument, got '${arg}'`);
       return delegation(target);
+    },
+    delegateImplementerIsolation(arg) {
+      if (arg) throw new Error(`{{> delegateImplementerIsolation}} takes no argument, got '${arg}'`);
+      return delegateImplementerIsolation(target);
     },
   };
 }

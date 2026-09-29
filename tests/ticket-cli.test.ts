@@ -325,3 +325,104 @@ test("`ticket doctor` warns about a ticket from a newer schema", async () => {
   );
   expect((await runCliWithExit(root, ["ticket", "doctor"])).output).toContain("newer than this CLI understands");
 });
+
+// Ticket 0057 / ADR 0020: `ticket note` is the one sanctioned way to append a note to a
+// ticket's body from Bash instead of an Edit/Write on the file directly, so an agent
+// running inside its own isolated worktree can still land a note on the primary
+// checkout's copy of the ticket without ever touching a relative path.
+test("`ticket note` appends the given file's contents to the ticket body, append-only", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Note me", "--label", "feature"]);
+
+  const notePath = join(root, "note.txt");
+  await Bun.write(notePath, "### 2026-09-29 — implementer: first note\n\nsome details\n");
+  const output = await runCli(root, ["ticket", "note", "0001-note-me", "--file", notePath]);
+  expect(output).toContain("noted");
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-note-me.md")).text();
+  expect(file).toContain("### 2026-09-29 — implementer: first note");
+  expect(file).toContain("some details");
+
+  // A second note appends rather than overwriting the first (append-only).
+  await Bun.write(notePath, "### 2026-09-29 — implementer: second note\n\nmore details\n");
+  await runCli(root, ["ticket", "note", "0001-note-me", "--file", notePath]);
+  const updated = await Bun.file(join(root, "docs/tickets/0001-note-me.md")).text();
+  expect(updated).toContain("first note");
+  expect(updated).toContain("second note");
+});
+
+test("`ticket note` accepts a bare NNNN id, not just the full slug", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Bare id note", "--label", "feature"]);
+  const notePath = join(root, "note.txt");
+  await Bun.write(notePath, "### 2026-09-29 — implementer: note via bare id\n");
+  const output = await runCli(root, ["ticket", "note", "0001", "--file", notePath]);
+  expect(output).toContain("noted");
+  const file = await Bun.file(join(root, "docs/tickets/0001-bare-id-note.md")).text();
+  expect(file).toContain("note via bare id");
+});
+
+test("`ticket note` and `ticket move --project` write to the given project root, not cwd — the isolated-worktree case", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Written from elsewhere", "--label", "feature"]);
+  await runCli(root, ["ticket", "move", "0001-written-from-elsewhere", "planned"]);
+
+  // Simulate an agent whose cwd is a different worktree entirely: run the CLI from a
+  // scratch directory, targeting `root` only via `--project`.
+  const elsewhere = await mkdtemp(join(tmpdir(), "litecode-elsewhere-"));
+  const notePath = join(elsewhere, "note.txt");
+  await Bun.write(notePath, "### 2026-09-29 — implementer: written via --project\n");
+
+  await runCli(elsewhere, ["ticket", "move", "--project", root, "0001-written-from-elsewhere", "inProgress"]);
+  await runCli(elsewhere, ["ticket", "note", "--project", root, "0001-written-from-elsewhere", "--file", notePath]);
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-written-from-elsewhere.md")).text();
+  expect(file).toMatch(/^status: inProgress$/m);
+  expect(file).toContain("written via --project");
+  // Nothing was written under `elsewhere` itself.
+  const leaked = await Bun.file(join(elsewhere, "docs/tickets/0001-written-from-elsewhere.md")).exists();
+  expect(leaked).toBe(false);
+});
+
+test("`ticket note` refuses an empty file and a duplicate/unknown id, same as `ticket move`", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Empty note guard", "--label", "feature"]);
+
+  const emptyPath = join(root, "empty.txt");
+  await Bun.write(emptyPath, "   \n");
+  const empty = await runCliWithExit(root, ["ticket", "note", "0001-empty-note-guard", "--file", emptyPath]);
+  expect(empty.exitCode).toBe(1);
+  expect(empty.output).toMatch(/empty/i);
+
+  const notePath = join(root, "note.txt");
+  await Bun.write(notePath, "some note\n");
+  const unknown = await runCliWithExit(root, ["ticket", "note", "9999-does-not-exist", "--file", notePath]);
+  expect(unknown.exitCode).toBe(1);
+  expect(unknown.output).toMatch(/No ticket/);
+});
+
+test("an empty or valueless `--project` is refused instead of falling back to cwd (isolated-worktree leak)", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "No silent cwd", "--label", "feature"]);
+  const notePath = join(root, "note.txt");
+  await Bun.write(notePath, "### note\n");
+
+  const empty = await runCliWithExit(root, ["ticket", "note", "--project", "", "0001", "--file", notePath]);
+  expect(empty.exitCode).toBe(1);
+  expect(empty.output).toMatch(/--project requires/);
+
+  const trailing = await runCliWithExit(root, ["ticket", "move", "0001", "planned", "--project"]);
+  expect(trailing.exitCode).toBe(1);
+
+  const file = await Bun.file(join(root, "docs/tickets/0001-no-silent-cwd.md")).text();
+  expect(file).not.toContain("### note");
+  expect(file).toMatch(/^status: backlog$/m);
+});
+
+test("`--project=<dir>` is refused rather than silently ignored", async () => {
+  const root = await project();
+  await runCli(root, ["ticket", "new", "--title", "Equals form", "--label", "feature"]);
+  const { exitCode, output } = await runCliWithExit(root, ["ticket", "move", "0001", "planned", `--project=${root}`]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/separate argument/);
+});

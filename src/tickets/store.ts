@@ -83,6 +83,22 @@ export async function writeTicket(root: string, ticket: Ticket): Promise<void> {
 }
 
 /**
+ * Appends a note to a ticket's body and writes it back (ticket 0057). This is the one
+ * sanctioned way to add a note/progress-journal entry to a ticket from a Bash command
+ * instead of an Edit/Write on the file directly — the append-only rule ("never rewrite or
+ * delete what's already there") is kept here: the body is only ever extended (the file is
+ * re-serialized, so frontmatter formatting may be normalized, as `ticket move` already does). `note` is appended verbatim after a blank-line separator; callers
+ * own their own heading formatting (e.g. `### <date> — implementer: ...`).
+ */
+export async function appendTicketNote(root: string, ticket: Ticket, note: string): Promise<Ticket> {
+  const trimmedNote = note.trim();
+  const body = `${ticket.body.trimEnd()}\n\n${trimmedNote}\n`;
+  const updated: Ticket = { ...ticket, body };
+  await writeTicket(root, updated);
+  return updated;
+}
+
+/**
  * Like `writeTicket`, but refuses to overwrite anything already at `ticket.path` — throws
  * an `EEXIST` error instead. `createTicket` needs this to avoid two concurrent drafters
  * silently clobbering each other's file for the same id.

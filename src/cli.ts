@@ -18,7 +18,7 @@ import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.t
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 import { resumeState } from "./resume.ts";
-import { createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
+import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
   CLARIFICATION_MARKER,
@@ -99,6 +99,8 @@ function usage(): void {
   ${c.bold("bunx litecodeagent ticket move")} <id> <status>    validate and write a ticket's status transition
                                      ${c.dim(`refuses a transition the pipeline's status machine doesn't allow (e.g. planned -> review)`)}
                                      ${c.dim(`statuses: ${TICKET_STATUSES.join(", ")}`)}
+  ${c.bold("bunx litecodeagent ticket note")} <id> --file <path>   append the file's contents as a note to a ticket's body
+                                     ${c.dim("pair with --project <primary-checkout> to write there from an isolated worktree (ADR 0020)")}
   ${c.bold("bunx litecodeagent guard-branch")}              refuse (exit 1) a commit on the default branch, unless it holds only ticket files
                                      ${c.dim("called from .githooks/pre-commit; not meant to be run by a human")}
   ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
@@ -154,6 +156,21 @@ async function cmdSetup(root: string, argv: string[]): Promise<number> {
 function arg(argv: string[], name: string): string | undefined {
   const i = argv.indexOf(name);
   return i === -1 ? undefined : argv[i + 1];
+}
+
+/**
+ * Removes a `--flag value` pair from anywhere in argv. `root` (from `--project`) is
+ * already resolved once, globally, before any subcommand dispatch — but `ticket move`/
+ * `ticket note` parse their remaining arguments positionally (`argv[2]`, `argv[3]`), so a
+ * `--project <path>` left in place would shift those positions wherever an agent happened
+ * to put it in the command line (ticket 0057 / ADR 0020: an isolated implementer needs
+ * `--project` on every ticket-writing call, not just at the end). Stripping it here once,
+ * before positional parsing, means every ticket subcommand accepts `--project` anywhere.
+ */
+function stripFlag(argv: string[], name: string): string[] {
+  const i = argv.indexOf(name);
+  if (i === -1) return argv;
+  return [...argv.slice(0, i), ...argv.slice(i + 2)];
 }
 
 /** Like `arg`, but collects every occurrence — for a repeatable flag such as `--allow-host`. */
@@ -794,6 +811,41 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
     return 0;
   }
 
+  // `ticket note` (ticket 0057): the one sanctioned way to append a note to a ticket file
+  // from Bash instead of an Edit/Write on the file directly. Paired with `--project`
+  // (already the global root override, see `root` below), this lets an agent running
+  // inside its own isolated worktree still land the note on the primary checkout's copy
+  // of the ticket, on the default branch, without ever touching a relative path that
+  // would otherwise resolve inside the worktree.
+  if (sub === "note") {
+    const id = argv[2];
+    const file = arg(argv, "--file");
+    if (!id || !file) {
+      console.log(c.red("ticket note requires <id> --file <path>"));
+      return 1;
+    }
+    const noteText = await Bun.file(resolve(file)).text();
+    if (!noteText.trim()) {
+      console.log(c.red(`ticket note: ${file} is empty`));
+      return 1;
+    }
+    const { tickets } = await listTicketsDetailed(root, dir);
+    const exact = tickets.find((t) => t.id === id);
+    const byNumber = exact ? [exact] : tickets.filter((t) => t.id.startsWith(`${id}-`));
+    if (byNumber.length === 0) {
+      console.log(c.red(`No ticket with id ${id} in ${dir}.`));
+      return 1;
+    }
+    if (byNumber.length > 1) {
+      console.log(c.red(`"${id}" matches more than one ticket: ${byNumber.map((t) => t.id).join(", ")}. Use the full id.`));
+      return 1;
+    }
+    const ticket = byNumber[0]!;
+    await appendTicketNote(root, ticket, noteText);
+    console.log(`${c.green("noted")} ${ticket.id}`);
+    return 0;
+  }
+
   usage();
   return 1;
 }
@@ -1044,7 +1096,19 @@ async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
 }
 
 const argv = process.argv.slice(2);
-const root = resolve(arg(argv, "--project") ?? process.cwd());
+// A `--project` with no usable value must never fall back to the cwd: an isolated
+// implementer passing an unset/empty path would otherwise write its ticket changes into
+// its own worktree copy while reporting success (ticket 0057, bug-hunter finding).
+const projectArg = arg(argv, "--project");
+if (argv.some((a) => a.startsWith("--project="))) {
+  console.log(c.red("--project takes its value as a separate argument: --project <dir>"));
+  process.exit(1);
+}
+if (argv.includes("--project") && (!projectArg?.trim() || projectArg.startsWith("--"))) {
+  console.log(c.red("--project requires a non-empty directory path"));
+  process.exit(1);
+}
+const root = resolve(projectArg ?? process.cwd());
 
 try {
   const code = await (async () => {
@@ -1077,7 +1141,7 @@ try {
       case "status": return cmdStatus(root);
       case "config": return cmdConfig(root, argv);
       case "run": return cmdRun(root, argv);
-      case "ticket": return cmdTicket(root, argv);
+      case "ticket": return cmdTicket(root, stripFlag(argv, "--project"));
       case "guard-branch": return cmdGuardBranch(root, argv);
       case "dashboard": return cmdDashboard(root, argv);
       case "verify-report": return cmdVerifyReport(root, argv);
