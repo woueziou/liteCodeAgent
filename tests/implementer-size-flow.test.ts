@@ -132,7 +132,8 @@ test("delegateTier picks the model per call where the target allows it, and says
     expect(text).not.toContain("model:");
   }
   expect(() => delegationHelpers("claude-code").delegateTier!("Not A Tier")).toThrow();
-  expect(() => delegationHelpers("claude-code").delegateTier!("nonexistent")).toThrow(/no model configured/);
+  expect(() => delegationHelpers("claude-code").delegateTier!("constructor")).toThrow(/unknown tier/);
+  expect(() => delegationHelpers("codex").delegateTier!("balnced")).toThrow(/unknown tier/);
 });
 
 test("the rendered implementer carries the per-call model on Claude Code and the plain fallback elsewhere", async () => {

@@ -143,11 +143,13 @@ function delegateImplementerIsolation(target: RenderTarget): string {
  * other target, and the API runner (which fixes a model per agent tier), keeps the agent's
  * own default tier, and the prompt says so instead of inventing a knob.
  */
+const TIER_NAMES = ["fast", "balanced", "reasoning"];
 const DEFAULT_TIER_MODELS: Record<string, string> = { fast: "haiku", balanced: "sonnet", reasoning: "opus" };
 
 function delegateTier(target: RenderTarget, tier: string, tiers: Record<string, string | undefined>): string {
+  if (!TIER_NAMES.includes(tier)) throw new Error(`{{> delegateTier ${tier}}}: unknown tier (known: ${TIER_NAMES.join(", ")})`);
   if (target === "claude-code") {
-    const model = tiers[tier] ?? DEFAULT_TIER_MODELS[tier];
+    const model = (Object.hasOwn(tiers, tier) ? tiers[tier] : undefined) ?? DEFAULT_TIER_MODELS[tier];
     if (!model) throw new Error(`{{> delegateTier ${tier}}}: no model configured for tier '${tier}'`);
     return `pass \`model: "${model}"\` on that call (the \`${tier}\` tier)`;
   }

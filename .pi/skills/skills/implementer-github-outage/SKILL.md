@@ -14,4 +14,4 @@ If a `gh`/push call fails for connectivity/outage reasons:
 - Finish whatever local-only steps remain (implement, commit) — never skip committing just because a later step will fail.
 - Do not retry in a loop, do not fabricate a PR URL, and do not move the ticket's status to reflect a step that didn't actually happen (leave whatever status was last truthfully set — don't guess).
 - Leave the worktree in place (don't remove it) so a resumed run can pick it back up.
-- Stop and report `STATUS: implemented-pending-github` with the exact branch name so a human can resume you later (see "If you're asked to resume" above) once GitHub is back.
+- Stop and report `STATUS: implemented-pending-github` with the exact branch name so a human can resume you later (see `implementer-resume`) once GitHub is back.
