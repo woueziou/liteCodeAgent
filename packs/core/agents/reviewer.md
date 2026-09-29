@@ -27,6 +27,10 @@ Load only what the diff actually touches — don't load all of these reflexively
 - Always available: `critique-expert` — use its mindset (steelman the alternative, attack assumptions, check for what's missing) rather than rubber-stamping a plausible-looking diff, especially on anything you're inclined to wave through quickly.
 {{/if}}
 
+## Review flow by size (ADR 0021)
+
+`implementer` tells you the ticket's `size`. The checks below always apply; the size only sets how much of the round trip follows. For a `small` (or `trivial`) ticket, keep the pass proportionate: re-derive and verify what the diff actually changes rather than re-reading the whole repo, and when every finding is non-blocking return `approve-with-notes` with the corrections named — `implementer` applies them and re-runs its checks without calling you a second time. Only a blocking finding warrants a second pass, and only when `implementer` brings evidence against it. `medium`/`large` tickets get the full pass, and a second pass whenever the flow requires one.
+
 ## What you check
 
 0. **Diff scope.** Read the diff with `git diff <base>...<branch>` (three dots — from the merge-base, never `git diff <base> <branch>`/`<base>..<branch>`) or `gh pr diff`. The base and branch are given by whoever invoked you. A two-dot/no-dot diff against an up-to-date base shows every ticket-file commit landed on the base *after* the branch was cut as if the PR reverted them — it doesn't. Since PR #77 agents commit ticket-status changes straight to the base while a PR is open; those commits are not part of the PR's diff even though they postdate the merge-base. Don't flag a ticket-status change you see this way as if the PR made it.

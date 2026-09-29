@@ -72,8 +72,11 @@ test("`ticket note` only appends to the end of the body, rest untouched byte for
 test("implementer.md says how to resolve the CLI when the installed version lacks `ticket note`", async () => {
   const pack = await loadPack(PACKS, "core");
   const src = pack.files.find((f) => f.rel.endsWith("agents/implementer.md"))!.source;
+  const skill = pack.files.find((f) => f.rel.endsWith("skills/implementer-cli-resolution/SKILL.md"))!.source;
   expect(src).toMatch(/ticket note --help/);
-  expect(src).toMatch(/lacks|does not have|doesn't have|missing/i);
+  expect(src).toContain("implementer-cli-resolution");
+  expect(skill).toMatch(/ticket note --help/);
+  expect(skill).toMatch(/lacking|lacks|does not have|doesn't have|missing/i);
 });
 
 test("dashboard tests never bind a fixed port", async () => {
