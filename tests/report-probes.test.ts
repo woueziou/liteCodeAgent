@@ -102,6 +102,13 @@ test("dirtyFiles lists modified and untracked paths, but not ticket files", asyn
   expect((await realProbes(ctx(root)).dirtyFiles()).sort()).toEqual(["new/dir/file.txt", "src/a.ts"]);
 });
 
+test("dirtyFiles ignores agents' isolated worktrees under .claude/worktrees/", async () => {
+  const root = await repo();
+  await Bun.write(join(root, ".claude/worktrees/agent-abc/src/a.ts"), "x\n");
+  await Bun.write(join(root, "src/a.ts"), "leaked\n");
+  expect(await realProbes(ctx(root)).dirtyFiles()).toEqual(["src/a.ts"]);
+});
+
 test("non-ASCII paths match between dirtyFiles and branchFiles", async () => {
   const root = await repo();
   await sh(root, "git", "switch", "-q", "feat/x/issue-7");
