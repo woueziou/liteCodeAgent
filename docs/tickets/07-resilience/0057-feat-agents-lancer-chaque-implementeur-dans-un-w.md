@@ -29,3 +29,14 @@ Malgré les consignes (ticket 0048 : chemin absolu du worktree, vérification du
 
 ## Hors périmètre
 Sandbox des outils d'écriture (non disponible dans les harnesses).
+
+### 2026-09-29 — implementer: progress journal
+
+```progress-journal
+step: step 3: worktree/branch created
+worktree: ../worktrees/0057
+branch: feat-implementer-worktree-isolation/0057
+base: origin/main
+commit: none
+checks: not yet run
+```
