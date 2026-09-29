@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.2.0",
-  "installedAt": "2026-09-29T13:42:18.586Z",
+  "installedAt": "2026-09-29T14:58:29.940Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -23,7 +23,7 @@
     ".kilo/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "70ff709e01d50b01"
+      "hash": "60309cfff99ddbd2"
     },
     ".kilo/agents/tracker.md": {
       "pack": "core",
@@ -63,27 +63,72 @@
     ".kilo/agents/bug-hunter.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "82f157d1a480921b"
+      "hash": "5cc9b08e4930e7ae"
     },
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "b282d9defb782d2a"
+      "hash": "c4405db9783fbae3"
+    },
+    ".kilo/skills/skills/implementer-leak-cleanup/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "bdd325c513f813da"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "6761f5a4814e0e89"
     },
+    ".kilo/skills/skills/implementer-stacked-pr/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "3dddbe447c38e70b"
+    },
+    ".kilo/skills/skills/implementer-adr-gate/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "2f3513c488226fbe"
+    },
     ".kilo/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "473327753be5aba3"
+      "hash": "a23daf3990ae68c5"
+    },
+    ".kilo/skills/skills/implementer-resume/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "620aa317d8190596"
+    },
+    ".kilo/skills/skills/implementer-review-disputes/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "d9cb762d7f31a490"
+    },
+    ".kilo/skills/skills/implementer-verification-only/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "d2dff25f246b0719"
     },
     ".kilo/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "961cf2b092f1573b"
+    },
+    ".kilo/skills/skills/implementer-subagent-steps/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "3b07425b7abc6473"
+    },
+    ".kilo/skills/skills/implementer-cli-resolution/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "7a7224d3fab54945"
+    },
+    ".kilo/skills/skills/implementer-github-outage/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "25a3ca13a39dfdb3"
     },
     ".kilo/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",

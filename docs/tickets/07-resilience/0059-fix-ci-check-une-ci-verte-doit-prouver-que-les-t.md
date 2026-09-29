@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0059-fix-ci-check-une-ci-verte-doit-prouver-que-les-t
 title: "fix(ci-check): une CI verte doit prouver que les tests ont tourné"
 label: bug
-status: backlog
+status: planned
 priority: medium
 size: small
 assignedAgent: human

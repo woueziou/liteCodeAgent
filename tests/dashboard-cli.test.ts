@@ -67,3 +67,18 @@ test("dashboard --serve --allow-host '*' is rejected, not accepted as a wildcard
   expect(exitCode).toBe(1);
   expect(output).toContain("wildcard");
 });
+
+test("dashboard --serve --allow-host with no value errors instead of swallowing the next option (ticket 0058)", async () => {
+  const root = await project();
+  const { output, exitCode } = await runCliWithExit(root, ["dashboard", "--serve", "--allow-host", "--port", "4999"]);
+  expect(exitCode).toBe(1);
+  expect(output).toContain("--allow-host");
+  expect(output).toMatch(/requires a value|missing value/);
+});
+
+test("dashboard --serve --allow-host as the last argument errors too (ticket 0058)", async () => {
+  const root = await project();
+  const { output, exitCode } = await runCliWithExit(root, ["dashboard", "--serve", "--allow-host"]);
+  expect(exitCode).toBe(1);
+  expect(output).toMatch(/requires a value|missing value/);
+});

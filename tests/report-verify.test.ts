@@ -232,6 +232,21 @@ test("a readyToMerge ticket with a passing check is not an error", async () => {
   expect(findings).toEqual([]);
 });
 
+test("a readyToMerge ticket whose test check never ran is a warning naming what did run (ticket 0059)", async () => {
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({
+      ticketStatus: async () => "readyToMerge",
+      prChecks: async () => ({ kind: "no-test-check", expected: ["test"], ran: ["GitGuardian"] }),
+    }),
+  );
+  expect(findings).toHaveLength(1);
+  expect(findings[0]!.severity).toBe("warn");
+  expect(findings[0]!.message).toContain("test");
+  expect(findings[0]!.message).toContain("GitGuardian");
+  expect(findings[0]!.message).toContain("readyToMerge");
+});
+
 test("gh being unreachable for CI checks is a warning, unverified — like other probes", async () => {
   const findings = await verifyReport(
     parsed(GOOD),

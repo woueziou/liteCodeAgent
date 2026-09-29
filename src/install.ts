@@ -426,7 +426,7 @@ function outputFiles(
     file.source,
     { project: templateProject(config.project) },
     `${file.rel}`,
-    delegationHelpers(target, agents),
+    delegationHelpers(target, agents, config.tiers),
   );
   const { data, body } = parseFrontmatter(rendered, file.rel);
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
@@ -844,5 +844,12 @@ async function activateGitHooksPath(projectRoot: string, kitVersion: string): Pr
     stdout: "ignore",
     stderr: "ignore",
   }).exited;
-  return setHooksPath === 0;
+  if (setHooksPath !== 0) {
+    console.warn(
+      "\nWarning: could not set core.hooksPath (`git config core.hooksPath .githooks` failed), " +
+        "so the branch guard is NOT active.\n" + manualNotice,
+    );
+    return false;
+  }
+  return true;
 }

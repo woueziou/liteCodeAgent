@@ -9,8 +9,9 @@
 
 import type { Ticket } from "../tickets/spec.ts";
 import { escapeHtml } from "./html.ts";
+import { formatTokens } from "../report/tokens.ts";
 
-export function renderTicketDetail(ticket: Ticket): string {
+export function renderTicketDetail(ticket: Ticket, tokens?: number): string {
   return `
     <details class="ticket-detail" id="ticket-${escapeHtml(ticket.id)}">
       <summary>
@@ -26,6 +27,7 @@ export function renderTicketDetail(ticket: Ticket): string {
           <dt>Priorité</dt><dd>${escapeHtml(ticket.priority)}</dd>
           <dt>Taille</dt><dd>${escapeHtml(ticket.size)}</dd>
           <dt>Agent assigné</dt><dd>${escapeHtml(ticket.assignedAgent)}</dd>
+          ${tokens === undefined ? "" : `<dt>Tokens</dt><dd>${formatTokens(tokens)}</dd>`}
           <dt>Chemin</dt><dd><code>${escapeHtml(ticket.path)}</code></dd>
         </dl>
         <pre class="ticket-body">${escapeHtml(ticket.body)}</pre>

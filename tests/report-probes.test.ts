@@ -1,10 +1,13 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, setDefaultTimeout, test } from "bun:test";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { realProbes, realResumeProbes } from "../src/report/probes.ts";
 import { writeTicket } from "../src/tickets/store.ts";
 import type { Ticket } from "../src/tickets/spec.ts";
+
+// Every prChecks case spawns a bash stub (several times when polling): slow on a loaded machine.
+setDefaultTimeout(30_000);
 
 const dirs: string[] = [];
 const realGhBin = process.env.LITECODE_GH_BIN;
@@ -137,24 +140,140 @@ test("worktreeExists resolves a relative worktree path against the primary check
   expect(await fromInsideTheWorktree.worktreeExists("../does-not-exist/0049")).toBe(false);
 });
 
+const T = (bucket: string, name = "test") => `{"name":"${name}","bucket":"${bucket}"}`;
+const fast = { noChecksWait: { retries: 2, intervalMs: 5 } };
+
+/** A counter file the stub appends to, so a test can see how many times gh was called. */
+async function counterFile(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "litecode-gh-count-"));
+  dirs.push(dir);
+  const file = join(dir, "calls");
+  await writeFile(file, "");
+  return file;
+}
+const callCount = async (file: string) => (await Bun.file(file).text()).split("\n").filter(Boolean).length;
+
 test("prChecks reports fail, pending (exit 8 with JSON still on stdout), pass, none and unknown", async () => {
   const root = await repo();
-  const p = realProbes(ctx(root));
+  const p = realProbes({ ...ctx(root), ...fast });
 
-  await stubGh(`echo '[{"bucket":"pass"},{"bucket":"fail"}]'; exit 0`);
+  // gh exits 1 for a failing check but still prints the JSON on stdout.
+  await stubGh(`echo '[${T("pass")},${T("fail", "lint")}]'; exit 1`);
   expect(await p.prChecks("7")).toEqual({ kind: "fail" });
 
-  await stubGh(`echo '[{"bucket":"pass"},{"bucket":"pending"}]'; exit 8`);
+  await stubGh(`echo '[${T("pass")},${T("pending", "lint")}]'; exit 8`);
   expect(await p.prChecks("7")).toEqual({ kind: "pending" });
 
-  await stubGh(`echo '[{"bucket":"pass"},{"bucket":"skipping"}]'; exit 0`);
+  await stubGh(`echo '[${T("pass")},${T("skipping", "lint")}]'; exit 0`);
   expect(await p.prChecks("7")).toEqual({ kind: "pass" });
 
   await stubGh(`echo 'no checks reported on the '"'"'main'"'"' branch' >&2; exit 1`);
   expect(await p.prChecks("7")).toEqual({ kind: "none" });
 
   await stubGh(`echo 'gh: some other failure' >&2; exit 1`);
-  expect(await p.prChecks("7")).toEqual({ kind: "unknown", reason: "gh: some other failure" });
+  const r = await p.prChecks("7");
+  expect(r.kind).toBe("unknown");
+  expect(JSON.stringify(r)).toContain("gh: some other failure");
+});
+
+test("prChecks: an unrelated gh error printed next to an empty array is unknown, not none", async () => {
+  const root = await repo();
+  await stubGh(`echo '[]'; echo 'HTTP 502' >&2; exit 1`);
+  expect((await realProbes({ ...ctx(root), ...fast }).prChecks("7")).kind).toBe("unknown");
+});
+
+test("prChecks asks gh for the check names, not just the buckets", async () => {
+  const root = await repo();
+  await stubGh(`case "$*" in *"--json name,bucket"*) echo '[${T("pass")}]';; *) echo 'bad args' >&2; exit 1;; esac`);
+  expect(await realProbes({ ...ctx(root), ...fast }).prChecks("7")).toEqual({ kind: "pass" });
+});
+
+test("prChecks never reports pass when only non-test checks ran (stacked PR, ticket 0059)", async () => {
+  const root = await repo();
+  await stubGh(`echo '[${T("pass", "GitGuardian Security Checks")}]'; exit 0`);
+  const r = await realProbes({ ...ctx(root), ...fast }).prChecks("7");
+  expect(r.kind).toBe("no-test-check");
+  expect(JSON.stringify(r)).toContain("GitGuardian Security Checks");
+});
+
+test("prChecks treats a skipped test check as not having run", async () => {
+  const root = await repo();
+  await stubGh(`echo '[${T("skipping")}]'; exit 0`);
+  expect((await realProbes({ ...ctx(root), ...fast }).prChecks("7")).kind).toBe("no-test-check");
+});
+
+test("prChecks: a failing non-test check still wins over a missing test check", async () => {
+  const root = await repo();
+  await stubGh(`echo '[${T("fail", "lint")}]'; exit 1`);
+  expect(await realProbes({ ...ctx(root), ...fast }).prChecks("7")).toEqual({ kind: "fail" });
+});
+
+test("prChecks expected test check names are configurable, matched case-insensitively", async () => {
+  const root = await repo();
+  await stubGh(`echo '[${T("pass", "Build-And-Test")}]'; exit 0`);
+  expect((await realProbes({ ...ctx(root), ...fast }).prChecks("7")).kind).toBe("no-test-check");
+  expect(await realProbes({ ...ctx(root), ...fast, testChecks: ["build-and-test"] }).prChecks("7")).toEqual({ kind: "pass" });
+  // Every configured name must have run.
+  expect((await realProbes({ ...ctx(root), ...fast, testChecks: ["build-and-test", "e2e"] }).prChecks("7")).kind).toBe(
+    "no-test-check",
+  );
+  // An empty list turns the requirement off.
+  await stubGh(`echo '[${T("pass", "anything")}]'; exit 0`);
+  expect(await realProbes({ ...ctx(root), ...fast, testChecks: [] }).prChecks("7")).toEqual({ kind: "pass" });
+});
+
+test("prChecks waits a bounded time for checks not yet registered right after a push", async () => {
+  const root = await repo();
+  const counter = await counterFile();
+  await stubGh(`
+    echo x >> ${counter}
+    if [ "$(wc -l < ${counter})" -lt 3 ]; then echo 'no checks reported on the branch' >&2; exit 1; fi
+    echo '[${T("pass")}]'
+  `);
+  expect(await realProbes({ ...ctx(root), noChecksWait: { retries: 50, intervalMs: 5 } }).prChecks("7")).toEqual({ kind: "pass" });
+
+  // Never registers: gives up with none after the bound, having polled more than once.
+  const never = await counterFile();
+  await stubGh(`echo x >> ${never}; echo 'no checks reported on the branch' >&2; exit 1`);
+  expect(await realProbes({ ...ctx(root), ...fast }).prChecks("7")).toEqual({ kind: "none" });
+  expect(await callCount(never)).toBeGreaterThan(1);
+});
+
+test("prChecks waits for the test check to register when only other checks have", async () => {
+  const root = await repo();
+  const counter = await counterFile();
+  await stubGh(`
+    echo x >> ${counter}
+    if [ "$(wc -l < ${counter})" -lt 2 ]; then echo '[${T("pass", "GitGuardian")}]'; exit 0; fi
+    echo '[${T("pass", "GitGuardian")},${T("pass")}]'
+  `);
+  expect(await realProbes({ ...ctx(root), noChecksWait: { retries: 50, intervalMs: 5 } }).prChecks("7")).toEqual({ kind: "pass" });
+});
+
+test("prChecks goes through the shared gh() rate-limit handling", async () => {
+  const root = await repo();
+  const counter = await counterFile();
+  process.env.LITECODE_GH_BACKOFF_MS = "1";
+  try {
+    await stubGh(`
+      if [ "$1" = "api" ]; then echo '{"resources":{"graphql":{"remaining":4000,"reset":1}}}'; exit 0; fi
+      echo x >> ${counter}
+      if [ "$(wc -l < ${counter})" -lt 2 ]; then echo 'API rate limit exceeded (secondary rate limit)' >&2; exit 1; fi
+      echo '[${T("pass")}]'
+    `);
+    expect(await realProbes({ ...ctx(root), ...fast }).prChecks("7")).toEqual({ kind: "pass" });
+
+    // A drained hourly quota is unknown, with the reason, not an endless retry.
+    await stubGh(`
+      if [ "$1" = "api" ]; then echo '{"resources":{"graphql":{"remaining":0,"reset":4102444800}}}'; exit 0; fi
+      echo 'API rate limit exceeded' >&2; exit 1
+    `);
+    const r = await realProbes({ ...ctx(root), ...fast }).prChecks("7");
+    expect(r.kind).toBe("unknown");
+    expect(JSON.stringify(r)).toContain("quota");
+  } finally {
+    delete process.env.LITECODE_GH_BACKOFF_MS;
+  }
 });
 
 test("prChecks reports unknown, not an uncaught throw, when the gh binary itself doesn't exist", async () => {

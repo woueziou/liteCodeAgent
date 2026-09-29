@@ -1,0 +1,18 @@
+[
+  { "file": "reviewer/approve-legacy-pr76.json", "agent": "reviewer", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#76, comment 0", "legacy": true, "expect": { "verdict": "approve" } },
+  { "file": "reviewer/approve-with-notes-legacy-pr84.json", "agent": "reviewer", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#84, comment 0", "legacy": true, "expect": { "verdict": "approve-with-notes" } },
+  { "file": "reviewer/changes-requested-legacy-pr81.json", "agent": "reviewer", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#81, comment 0", "legacy": true, "expect": { "verdict": "changes-requested" } },
+  { "file": "reviewer/changes-requested-testfirst-pr95.json", "agent": "reviewer", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#95, comment 0", "expect": { "verdict": "changes-requested" } },
+  { "file": "reviewer/approve-testfirst-pr98.json", "agent": "reviewer", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#98, comment 2", "legacy": true, "expect": { "verdict": "approve" } },
+  { "file": "reviewer/approve-with-notes-current-pr101.json", "agent": "reviewer", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#101, comment 0", "expect": { "verdict": "approve-with-notes" } },
+  { "file": "bug-hunter/complete-blocking-pr76.json", "agent": "bug-hunter", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#76, comment 1", "expect": { "hunt": "complete" } },
+  { "file": "bug-hunter/partial-tools-failed-pr79.json", "agent": "bug-hunter", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#79, comment 1", "expect": { "hunt": "partial" } },
+  { "file": "bug-hunter/partial-pr98.json", "agent": "bug-hunter", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#98, comment 1", "expect": { "hunt": "partial" } },
+  { "file": "bug-hunter/complete-pr83.json", "agent": "bug-hunter", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#83, comment 1", "expect": { "hunt": "complete" } },
+  { "file": "bug-hunter/complete-rehunt-pr101.json", "agent": "bug-hunter", "provenance": "pr-comment", "source": "woueziou/liteCodeAgent#101, comment 2", "expect": { "hunt": "complete" } },
+  { "file": "implementer/pr-opened-for-review.json", "agent": "implementer", "provenance": "synthetic", "source": "written from the implementer Output contract; describes the real PR #100", "expect": { "status": "pr-opened-for-review", "ticket": "0056-fix-agents-reviewer-must-not-request-force-push", "branch": "fix-no-force-rewrite/0056", "pr": "https://github.com/woueziou/liteCodeAgent/pull/100", "ci": "pass" } },
+  { "file": "implementer/blocked-before-implementation.json", "agent": "implementer", "provenance": "synthetic", "source": "written from the implementer Output contract", "expect": { "status": "in-progress-blocked", "ticket": "0039-chore-tests-rejouer-des-sessions-enregistrees-po", "ci": "none" } },
+  { "file": "implementer/pending-github-bold-wrapped.json", "agent": "implementer", "provenance": "synthetic", "source": "written from the implementer Output contract, with the bold-wrapped keys agents sometimes emit", "expect": { "status": "implemented-pending-github", "ticket": "0057-feat-isolation", "branch": "feat-isolation/0057", "ci": "none" } },
+  { "file": "orchestrator/complete.json", "agent": "orchestrator", "provenance": "synthetic", "source": "written from the orchestrator Output contract", "expect": { "panel": "complete", "size": "medium" } },
+  { "file": "orchestrator/degraded.json", "agent": "orchestrator", "provenance": "synthetic", "source": "written from the orchestrator Output contract", "expect": { "panel": "degraded", "size": "unknown" } }
+]

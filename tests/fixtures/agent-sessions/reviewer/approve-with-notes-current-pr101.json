@@ -1,0 +1,20 @@
+{
+  "provider": "pr-comment",
+  "agent": "reviewer",
+  "agentCalls": 0,
+  "startedAt": "2026-09-29T12:35:58Z",
+  "durationMs": 0,
+  "retries": 0,
+  "requestIds": [],
+  "usage": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "requests": 0,
+    "costUsd": null,
+    "byAgent": []
+  },
+  "status": "completed",
+  "output": "VERDICT: approve-with-notes\nCHECK_OUTPUT: `bun run check` -> `tsc --noEmit`, no errors. `bun test` -> 462 pass, 0 fail, 1754 expect() calls, 46 files. `git diff --quiet` clean afterwards. `doctor` only warns \"ADR draft awaiting approval\" for 0057 (expected).\nACCEPTANCE:\n- satisfied: claude-code delegation asks for isolation (`delegateImplementerIsolation` in src/delegation.ts, used in chained-implementation SKILL.md step 3; implementer.md uses the provided worktree, no second `git worktree add`, `git checkout -b` in place).\n- satisfied: ticket writes take an explicit root (`ticket note`, `appendTicketNote`, `stripFlag(argv, \"--project\")`; implementer.md uses `ticket move/note --project <primary-checkout>` and `git -C`). The ticket said `--root`; ADR 0020 substitutes the existing global `--project` flag and justifies it (wording deviation to flag to the human).\n- satisfied: no `git restore` cleanup without a comparison (paragraph unchanged, implementer.md:205).\n- satisfied: non-isolating targets keep today's behavior.\n- satisfied: tests exist for per-target delegation render, `ticket note`/`ticket move --project`, implementer.md contract.\nTEST_FIRST: not applicable (label feature).\nFINDINGS:\n- (non-blocking) docs/decisions/0020-*.md still says `Status: proposed`; set to `accepted` before merge.\n- (non-blocking) tests/implementer-worktree-isolation.test.ts: the leak-cleanup test matches text that predates this PR; the chained-implementation SKILL regex is very loose.\n- (non-blocking) src/cli.ts `ticket note`: `--file` before the id breaks parsing; `stripFlag` removes only the first `--project`; `--project=<path>` unsupported. Consistent with existing CLI style.\n- (non-blocking, design) The isolation contract relies on the caller stating the primary-checkout path in the prompt; prose contract, tested on pack text only (ADR 0020 acknowledges it).\n- No not-requested additions. No security concern.\nPLAN_FIDELITY: matches; only deviation is `--project` instead of `--root`, documented in ADR 0020. Merge commit e46002e has `Agent:` but no `Task:` trailer (trivial).\nREENTRY: ADR status proposed -> accepted: same-PR fixup (non-blocking). Test looseness and CLI hardening: deferrable.\n",
+  "error": null
+}
