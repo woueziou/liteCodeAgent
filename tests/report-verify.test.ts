@@ -26,6 +26,7 @@ function probes(overrides: Partial<Probes> = {}): Probes {
     dirtyFiles: async () => [],
     branchFiles: async () => ["src/a.ts"],
     ticketStatus: async () => "review",
+    forcePushed: async () => ({ kind: "no" }),
     ...overrides,
   };
 }
@@ -94,6 +95,29 @@ test("pr-opened-for-review without a PR or a check run is an error", async () =>
     "STATUS pr-opened-for-review, but PR: claims no pull request",
     "STATUS pr-opened-for-review, but CHECK_OUTPUT: is empty — a PR was opened without a recorded check run",
   ]);
+});
+
+// Ticket 0056: a force-pushed head ref means already-pushed history was rewritten — never
+// itself blocking (the report may still be entirely truthful), but always worth surfacing.
+test("a force-pushed PR head ref is a warning, not an error", async () => {
+  const findings = await verifyReport(parsed(GOOD), probes({ forcePushed: async () => ({ kind: "yes", count: 2 }) }));
+  expect(findings).toEqual([
+    { severity: "warn", message: "PR 'https://github.com/o/r/pull/7' head ref was force-pushed 2 time(s) — already-pushed history was rewritten" },
+  ]);
+});
+
+test("an unknown force-push check is a warning too", async () => {
+  const findings = await verifyReport(
+    parsed(GOOD),
+    probes({ forcePushed: async () => ({ kind: "unknown", reason: "offline" }) }),
+  );
+  expect(findings).toEqual([
+    { severity: "warn", message: "could not check whether PR 'https://github.com/o/r/pull/7' was force-pushed: offline" },
+  ]);
+});
+
+test("a PR that was never force-pushed produces no force-push finding", async () => {
+  expect(await verifyReport(parsed(GOOD), probes())).toEqual([]);
 });
 
 test("a status that implies a branch requires one", async () => {

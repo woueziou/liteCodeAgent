@@ -164,6 +164,37 @@ test("prChecks reports unknown, not an uncaught throw, when the gh binary itself
   expect(result.kind).toBe("unknown");
 });
 
+test("forcePushed reports yes with a count, no, and unknown on a gh failure", async () => {
+  const root = await repo();
+  const p = realProbes(ctx(root));
+
+  await stubGh(`
+    case "$*" in
+      "pr view 7 --json number,headRepository,headRepositoryOwner --repo o/r")
+        echo '{"number":7,"headRepository":{"name":"r"},"headRepositoryOwner":{"login":"o"}}';;
+      "api repos/o/r/issues/7/events --paginate --jq .[].event")
+        printf 'commented\\nhead_ref_force_pushed\\nclosed\\nhead_ref_force_pushed\\n';;
+      *) exit 1;;
+    esac
+  `);
+  expect(await p.forcePushed("7")).toEqual({ kind: "yes", count: 2 });
+
+  await stubGh(`
+    case "$*" in
+      "pr view 7 --json number,headRepository,headRepositoryOwner --repo o/r")
+        echo '{"number":7,"headRepository":{"name":"r"},"headRepositoryOwner":{"login":"o"}}';;
+      "api repos/o/r/issues/7/events --paginate --jq .[].event")
+        printf 'commented\\nclosed\\n';;
+      *) exit 1;;
+    esac
+  `);
+  expect(await p.forcePushed("7")).toEqual({ kind: "no" });
+
+  await stubGh(`echo 'gh: pull request not found' >&2; exit 1`);
+  const unknown = await p.forcePushed("7");
+  expect(unknown.kind).toBe("unknown");
+});
+
 test("ticketStatus reads only the primary checkout, never a stale copy committed on a branch", async () => {
   const root = await repo();
   await sh(root, "git", "switch", "-q", "feat/x/issue-7");
