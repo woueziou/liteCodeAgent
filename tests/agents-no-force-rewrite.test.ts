@@ -17,8 +17,8 @@ async function reviewerSource() {
   const core = await loadPack(PACKS, "core");
   const reviewer = core.files.find((f) => f.rel === "agents/reviewer.md");
   if (!reviewer) throw new Error("agents/reviewer.md not found in core pack");
-  // Ticket 0064: rare cases moved into reviewer-* skills; the contract is the agent plus those skills.
-  const skills = core.files.filter((f) => /^skills\/reviewer-[a-z-]+\/SKILL\.md$/.test(f.rel)).map((f) => f.source);
+  // Ticket 0064: rare cases moved into reference/reviewer-* files; the contract is the agent plus those skills.
+  const skills = core.files.filter((f) => /^reference\/reviewer-[a-z-]+\.md$/.test(f.rel)).map((f) => f.source);
   return [reviewer.source, ...skills].join("\n");
 }
 
@@ -27,7 +27,7 @@ async function implementerSource() {
   const implementer = core.files.find((f) => f.rel === "agents/implementer.md");
   if (!implementer) throw new Error("agents/implementer.md not found in core pack");
   // Ticket 0061: the detailed refusal moved into implementer-review-disputes; the rules are the union.
-  return [implementer, ...core.files.filter((f) => /^skills\/implementer-/.test(f.rel))].map((f) => f.source).join("\n");
+  return [implementer, ...core.files.filter((f) => /^(skills|reference)\/implementer-/.test(f.rel))].map((f) => f.source).join("\n");
 }
 
 test("reviewer never asks to rewrite, split, or squash already-pushed history over a missing test-first commit", async () => {

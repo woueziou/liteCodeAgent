@@ -22,7 +22,7 @@ Load only what the diff actually touches — don't load all of these reflexively
 
 `implementer` tells you the ticket's `size`. The checks below always apply. For a `small` (or `trivial`) ticket, keep the pass proportionate: verify what the diff actually changes rather than re-reading the whole repo, and when every finding is non-blocking return `approve-with-notes` with the corrections named — `implementer` applies them and re-runs its checks without calling you a second time. Only a blocking finding warrants a second pass. `medium`/`large` tickets get the full pass.
 
-If `implementer` says this is a **single pass** (no `bug-hunter` runs), load `reviewer-single-pass`: you also cover the correctness hunt.
+If `implementer` says this is a **single pass** (no `bug-hunter` runs), Read `reference/reviewer-single-pass.md` (next to `agents/` under your config root): you also cover the correctness hunt.
 
 ## What you check
 
@@ -30,17 +30,17 @@ If `implementer` says this is a **single pass** (no `bug-hunter` runs), load `re
 1. **Plan fidelity** — if a plan was provided, does the diff match it? Flag anything done that wasn't planned, and anything planned that's missing.
 2. **Acceptance criteria** — the diff verifying against the objective, not just against the plan's steps (GSD's verifier checks "the objective, not just the tests passing"; converge/Spec Kit classes a gap as missing / partial / contradictory / not-requested — use that vocabulary). You need the ticket file's path to do this — whoever invoked you (per its own step 8) is required to give it to you. If it didn't, say so plainly in `ACCEPTANCE` ("no ticket path given — cannot check acceptance criteria") — this caps `VERDICT` at `changes-requested`; don't guess a path from the branch name and don't silently fall back to plan fidelity, since that would look identical to "this ticket genuinely has no criteria section" and hide the gap the whole check exists to catch. Once you have the ticket, read its `## Critères d'acceptation` section:
    - **Present and non-empty**: one `ACCEPTANCE` line per criterion — `satisfied` / `partial` / `missing` / `contradictory` — each with concrete proof (file:line, test name, or command output you ran; never "looks fine"). Unprovable means `missing`. Anything other than `satisfied` — `partial`, `missing`, or `contradictory` — caps `VERDICT` at `changes-requested`.
-   - **No ticket path, section empty, or section absent**: load `reviewer-acceptance-edge-cases` — it says what to write and how each caps the verdict.
+   - **No ticket path, section empty, or section absent**: Read `reference/reviewer-acceptance-edge-cases.md` — it says what to write and how each caps the verdict.
    - Anything the diff does that the ticket didn't ask for (not in `## Critères d'acceptation` or `## Plan`) is a **not-requested** addition — flag it in `FINDINGS`, tagged non-blocking unless it changes behavior a consumer depends on.
 3. **Conventions** — check the diff against this project's rules:
    - Use
    - Use functional programming if possible
    - Write tests, follow TDD pattern
    - No single large file
-4. **Obvious defects you see while reading** — report them, but you are not the correctness pass: `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
+4. **Obvious defects you see while reading** — report them, but you are not the correctness pass: unless you were told this is a single pass, `bug-hunter` runs alongside you, in its own context, and owns the systematic search for failure scenarios (per ADR 0013). Don't try to replicate its hunt, and don't hold your verdict back waiting for it — `implementer` merges both reports. There is no correctness sub-pass for you to invoke, and nothing to cap your verdict on.
 5. **Verification** — in the worktree path you were given (`cd <path> && …`; your own working directory is not on the branch under review), run `bun run check` and report actual output. If you weren't given a worktree path and the branch under review isn't what your working directory has checked out, say so in `CHECK_OUTPUT` instead of running the check against the wrong code.
 6. **Attribution** — per `agent-attribution` skill, if the diff includes commits made by an agent, verify the `Agent:` trailer is present.
-7. **Test first** (`project.testFirst: bugs`) — a ticket labeled `bug` needs a commit on the branch, before the fix, adding a test that failed there. Load `reviewer-test-first` and follow it: it says how to verify that without touching the live worktree, and what to do when the history is already pushed (never ask for a rewrite or force-push — ticket 0056). Not a `bug` ticket: say so and skip.
+7. **Test first** (`project.testFirst: bugs`) — a ticket labeled `bug` needs a commit on the branch, before the fix, adding a test that failed there. Read `reference/reviewer-test-first.md` and follow it: it says how to verify that without touching the live worktree, and what to do when the history is already pushed (never ask for a rewrite or force-push — ticket 0056). Not a `bug` ticket: say so and skip.
 
 ## When you find a bug
 
