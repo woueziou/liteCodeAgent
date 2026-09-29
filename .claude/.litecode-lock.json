@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.2.0",
-  "installedAt": "2026-09-29T14:08:14.741Z",
+  "installedAt": "2026-09-29T14:33:03.785Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -68,7 +68,7 @@
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a64802d203076d13"
+      "hash": "fea21a79fab9391d"
     },
     ".claude/skills/implementer-leak-cleanup/SKILL.md": {
       "pack": "core",
