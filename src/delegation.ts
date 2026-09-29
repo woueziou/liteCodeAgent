@@ -159,6 +159,26 @@ function delegateTier(target: RenderTarget, tier: string, tiers: Record<string, 
   );
 }
 
+/**
+ * Where each target installs the pack's `reference/*.md` files (rare-case docs an agent
+ * Reads on demand, ticket 0064), relative to the project root. `claude-code` follows the
+ * configured `outDir`; the API runner (which serves Pi) reads them from the first installed target's root.
+ */
+export const REFERENCE_ROOTS: Record<RenderTarget, string> = {
+  "claude-code": ".claude",
+  codex: ".codex",
+  pi: ".pi",
+  opencode: ".opencode",
+  "kilo-code": ".kilo",
+  runner: ".claude",
+};
+
+function reference(target: RenderTarget, name: string, rootOverride?: string): string {
+  if (!/^[a-z][a-z-]*$/.test(name)) throw new Error(`{{> reference}} needs a reference name, got '${name}'`);
+  const root = rootOverride ?? REFERENCE_ROOTS[target];
+  return `\`${root}/reference/${name}.md\` (relative to the primary checkout)`;
+}
+
 /** Names of the agents a set of packs installs (`agents/<name>.md`). */
 export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]): Set<string> {
   return new Set(packs.flatMap(({ pack }) => pack.files.flatMap((f) => /^agents\/([^/]+)\.md$/.exec(f.rel)?.[1] ?? [])));
@@ -173,8 +193,12 @@ export function delegationHelpers(
   target: RenderTarget,
   agents?: ReadonlySet<string>,
   tiers: Record<string, string | undefined> = {},
+  referenceRoot?: string,
 ): Helpers {
   return {
+    reference(arg) {
+      return reference(target, arg, referenceRoot);
+    },
     delegate(arg) {
       if (!AGENT_NAME.test(arg)) throw new Error(`{{> delegate}} needs an agent name, got '${arg}'`);
       if (agents && arg !== "general-purpose" && !agents.has(arg)) {

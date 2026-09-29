@@ -27,8 +27,7 @@ This page holds the nominal flow. When a case below arises, load its skill (the 
 - `implementer-review-disputes` — you think a blocking `reviewer` finding is a false positive, or it asks to rewrite pushed history.
 - `implementer-cli-resolution` — `ticket note --help` shows the installed CLI lacks `ticket note`.
 - `implementer-verification-only` — the ticket needs no code change.
-- Read `reference/implementer-test-first.md` (not a skill) — a ticket that requires test-first, in step 4.
-- Read `reference/implementer-ticket-commits.md` (not a skill) — committing a ticket-file change on the default branch.
+- Read `.kilo/reference/implementer-test-first.md` (relative to the primary checkout) — a ticket that requires test-first, in step 4.
 - `implementer-leak-cleanup` — before your final report, whenever you delegated to a sub-agent.
 
 ## Worktree isolation
@@ -49,7 +48,11 @@ The ticket file is the ticket's whole history. All status/note writes go through
 
 A **note on the ticket**: write the text (heading `### <YYYY-MM-DD> — implementer: <what this note is>`) to a temporary file, then `bunx litecodeagent ticket note --project <primary-checkout> <NNNN> --file <path>`. It only appends. Never edit or commit a ticket file in your worktree.
 
-**Committing ticket files.** Every ticket-file change is committed right away on `main` in the primary checkout (the one exception to "never commit on the default branch"); never switch that checkout's branch. Read `reference/implementer-ticket-commits.md` for the exact procedure.
+**Committing ticket files.** Every ticket-file change is committed right away on `main` in the primary checkout — the one standing exception to "never commit on the default branch", ticket files only:
+- `git -C <primary-checkout> branch --show-current` must print `main`; if not, don't switch (that checkout is the human's), leave the change uncommitted and say so in your report.
+- Commit only the ticket files you changed, by path: `git -C <primary-checkout> add -- <paths> && git -C <primary-checkout> commit -m "chore(tickets): <NNNN> <what changed>" -m "Agent: implementer" -- <paths>`. Never push.
+- If the commit fails (signing agent, `index.lock`), retry once, then leave it uncommitted and report; never disable signing or delete a lock file.
+
 
 **Progress journal.** After step 3 and after each step a resume needs to know about (implementing, PR opened, review passes invoked, an approved ADR committed), append a note ending in a fenced block:
 
@@ -78,7 +81,7 @@ After reading the ticket, load whichever of these match what it touches — neve
 1. Read the ticket file in full, including any linked ADR path and earlier notes: `docs/tickets/**/<NNNN>-*.md`. If no file matches, or more than one does, stop — that's a blocker (see "When you hit a blocker"). Note its `size:`: it selects the review flow ("Review flow by size").
 2. Move the ticket from `Planned` to `In Progress` before writing any code: `bunx litecodeagent ticket move --project <primary-checkout> <id> inProgress` (ticket 0033: it validates the transition and writes it; ADR 0012, ADR 0015). Verify it landed by re-reading the file.
 3. Create the worktree + feature branch per "Worktree isolation" (`<descriptive-name>/<NNNN>`, off `main`; for a follow-on to an unmerged PR branch, load `implementer-stacked-pr`).
-4. Implement per the ticket and per "Project conventions". For Medium/Large tickets, load `implementer-subagent-steps` instead of writing every file in one continuous context. For a ticket labeled `bug`: write the test first and commit it failing, before the fix, and confirm it fails for the reason the ticket describes. **Blocking checkpoint**: before your first `git push`, confirm that commit exists (`git log`); once pushed it can't be inserted without rewriting history (ticket 0056). Read `reference/implementer-test-first.md` for the details. While working run only the targeted tests for what you touch; run the full suite (`bun run check` plus the project's full test run) once, before the push, and again only after a fix-up that could break it. Filter tool output (see "Output economy").
+4. Implement per the ticket and per "Project conventions". For Medium/Large tickets, load `implementer-subagent-steps` instead of writing every file in one continuous context. For a ticket labeled `bug`: write the test first and commit it failing, before the fix, and confirm it fails for the reason the ticket describes. **Blocking checkpoint**: before your first `git push`, confirm that commit exists (`git log`); once pushed it can't be inserted without rewriting history (ticket 0056). Read `.kilo/reference/implementer-test-first.md` (relative to the primary checkout) for the details. While working run only the targeted tests for what you touch; run the full suite (`bun run check` plus the project's full test run) once, before the push, and again only after a fix-up that could break it. Filter tool output (see "Output economy").
 5. If the ticket names an ADR path (from `planner`'s `ADR:` line) or you judge one is genuinely warranted mid-implementation: load `implementer-adr-gate` and follow it — it writes the draft, then **stops before committing anything**. Never silently commit the ADR alongside code.
 6. Commit with the `agent-attribution` skill's required `Agent: implementer` trailer.
 7. Push your feature branch and open a PR (`--base main` normally): `gh pr create --repo woueziou/liteCodeAgent --title "..." --body-file <path> --base <base-branch>`, the body naming the ticket (`Ticket: <NNNN-slug>`, file path). After this push and every later push, wait for the PR's CI: `gh pr checks <pr> --watch`, bounded. A failing check: read its log (`gh run view <run-id> --log-failed`), fix it on the same PR, wait again — don't leave a red run for `reviewer`/`bug-hunter`. If it stays red after a reasonable attempt, carry the run's URL into step 10 (`Review`). No CI configured is not a failure, but green is not proof the tests ran: the expected test check(s) (`test`) must appear as passing; if they never ran, say so (`CI: none`) rather than claim a pass. Local checks are no substitute (PR #93: locally green, CI red).
@@ -95,7 +98,7 @@ Tool output costs tokens. Show a summary plus failures, not full logs (`bun test
 The flow is proportioned to the ticket's `size:` (read in step 1) and label:
 
 - **Single pass** — a `chore`/`doc` ticket whose diff touches nothing under `src/`, or a `small` ticket with no logic change: start only `reviewer`, at the `fast` tier (this target cannot choose a model per call, so keep that agent's default tier — nothing to add to the prompt and nothing lost but the saving), telling it this is a **single pass** so it also covers the bug hunt. No `bug-hunter`, so step 10's `bug-hunter` condition drops. If the diff changes logic, use the two-pass flow.
-- **`small`** (and `trivial`): still a worktree, PR and both passes, but cheaper. Start `bug-hunter` at the `balanced` tier: this target cannot choose a model per call, so keep that agent's default tier — nothing to add to the prompt and nothing lost but the saving. No re-hunt unless a finding is blocking. No second `reviewer` pass for non-blocking corrections: apply them, re-run `bun run check`, move on.
+- **`small`** (and `trivial`): still a worktree and PR, and both passes unless single pass applies, but cheaper. Start `bug-hunter` at the `balanced` tier: this target cannot choose a model per call, so keep that agent's default tier — nothing to add to the prompt and nothing lost but the saving. No re-hunt unless a finding is blocking. No second `reviewer` pass for non-blocking corrections: apply them, re-run `bun run check`, move on.
 - **`medium` / `large`** (or no `size:`): the full flow — `bug-hunter` at its default tier, one re-hunt after fixing a blocking finding, a second `reviewer` pass when step 10 requires it.
 
 ## Project conventions (litecodeagent)

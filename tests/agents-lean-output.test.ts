@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ConfigSchema } from "../src/config.ts";
 import { buildPlan } from "../src/install.ts";
+import { AgentCatalog } from "../src/runner/catalog.ts";
 import { loadPack } from "../src/packs.ts";
 
 /** Ticket 0064: lean tool output, capped final report, single review pass, lighter reviewer.md. */
@@ -53,13 +54,13 @@ test("reviewer.md stays within the word budget; rare cases are reference files, 
   const src = get("agents/reviewer.md");
   expect(words(body(src))).toBeLessThanOrEqual(MAX_REVIEWER_WORDS);
   const pack = await loadPack(PACKS, "core");
-  const refs = ["reviewer-acceptance-edge-cases", "reviewer-single-pass", "reviewer-test-first", "implementer-test-first", "implementer-ticket-commits"];
+  const refs = ["reviewer-acceptance-edge-cases", "reviewer-single-pass", "reviewer-test-first", "implementer-test-first"];
   const shipped = pack.files.map((f) => /^reference\/([a-z-]+)\.md$/.exec(f.rel)?.[1]).filter((n): n is string => !!n).sort();
   expect(shipped).toEqual([...refs].sort());
   for (const name of refs) {
     expect(pack.files.some((f) => f.rel === `skills/${name}/SKILL.md`)).toBe(false);
     const referrer = get(name.startsWith("reviewer") ? "agents/reviewer.md" : "agents/implementer.md");
-    expect(referrer).toContain(`reference/${name}.md`);
+    expect(referrer).toContain(`{{> reference ${name}}}`);
   }
 });
 
@@ -91,4 +92,42 @@ test("implementer's hard rules and steps agree with the single pass: no uncondit
   expect(src).not.toMatch(/Neither pass is optional;/);
   expect(src).toMatch(/except a single pass/);
   expect((await core())("agents/reviewer.md")).toMatch(/unless you were told this is a single pass/);
+});
+
+test("implementer keeps the ticket-commit rules inline, not behind a Read", async () => {
+  const src = (await core())("agents/implementer.md");
+  expect(src).toMatch(/Commit only the ticket files you changed, by path/);
+  expect(src).toMatch(/Never push\./);
+  expect(src).toMatch(/never disable signing or delete a lock file/);
+  expect(src).not.toMatch(/implementer-ticket-commits/);
+});
+
+test("every reference path a rendered agent names exists after install, on every target and for the runner", async () => {
+  const base = ConfigSchema.parse(await Bun.file(EXAMPLE).json());
+  const root = await mkdtemp(join(tmpdir(), "litecode-"));
+  await Bun.write(join(root, ".claude", "skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");
+  const pathRe = /`([^`\s]+\/reference\/[a-z-]+\.md)`/g;
+  for (const target of ["claude-code", "codex", "opencode", "kilo-code", "pi"] as const) {
+    const config = ConfigSchema.parse({ ...base, targets: [target], target });
+    const plan = await buildPlan(root, PACKS, config);
+    const rels = new Set(plan.entries.map((e) => e.rel));
+    const named = plan.entries.filter((e) => /agents\//.test(e.rel)).flatMap((e) => [...e.content.matchAll(pathRe)].map((m) => m[1]!));
+    if (target !== "pi") expect(named.length).toBeGreaterThan(0);
+    for (const path of named) expect({ target, path, exists: rels.has(path) }).toEqual({ target, path, exists: true });
+    if (target === "pi") {
+      await Bun.write(join(root, "extra-skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");
+      const catalog = await AgentCatalog.load(root, PACKS, { ...config, runner: { ...config.runner!, skillDirs: ["extra-skills"] } });
+      const prompts = catalog.agentNames().map((n) => catalog.agent(n).prompt);
+      const paths = prompts.flatMap((p) => [...p.matchAll(pathRe)].map((m) => m[1]!));
+      expect(paths.length).toBeGreaterThan(0);
+      for (const path of paths) expect({ path, exists: rels.has(path) }).toEqual({ path, exists: true });
+    }
+  }
+});
+
+test("the reference helper renders the per-target root and rejects a bad name", async () => {
+  const { delegationHelpers } = await import("../src/delegation.ts");
+  expect(delegationHelpers("codex").reference!("reviewer-test-first")).toContain("`.codex/reference/reviewer-test-first.md`");
+  expect(delegationHelpers("claude-code", undefined, {}, "out").reference!("x-y")).toContain("`out/reference/x-y.md`");
+  expect(() => delegationHelpers("pi").reference!("../etc")).toThrow(/needs a reference name/);
 });
