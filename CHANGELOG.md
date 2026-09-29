@@ -1,3 +1,27 @@
+## [1.3.1](https://github.com/woueziou/liteCodeAgent/compare/v1.3.0...v1.3.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* **agents:** bring implementer.md back under its word budget ([129a651](https://github.com/woueziou/liteCodeAgent/commit/129a651fa144d0dac8fa8e24f0a5897ec318ce80)), closes [#114](https://github.com/woueziou/liteCodeAgent/issues/114) [#115](https://github.com/woueziou/liteCodeAgent/issues/115)
+* **agents:** render real per-target reference paths, ticket-commit rules inline again ([780ddc9](https://github.com/woueziou/liteCodeAgent/commit/780ddc9478c4c70d535ec804a0dec941b031c3d4))
+* **install:** bot commit bypasses owner hook, tests read packs/, orphans count as stale ([fdc9885](https://github.com/woueziou/liteCodeAgent/commit/fdc9885f484aca941081845998c157e60873b687))
+* **install:** do not count orphans as stale (install never deletes them); follow-up needed ([070fc7b](https://github.com/woueziou/liteCodeAgent/commit/070fc7bd9a06a72c7ef3a21917dc705e077c476b))
+* **packs:** agent-attribution is always installed ([0511c41](https://github.com/woueziou/liteCodeAgent/commit/0511c41b1179517a296a211588248defe77e3ca9))
+* **pipeline:** pending-ADR gate ignores mid-implementation drafts, matches loosely ([2d01117](https://github.com/woueziou/liteCodeAgent/commit/2d01117d559931d14145d5fe3536e2418c4b85c1))
+* **pipeline:** pending-ADR section spans its full draft; manifest check is fence-aware ([d067870](https://github.com/woueziou/liteCodeAgent/commit/d0678702320743e80d6196710cada7c12fdd3876))
+* **tickets:** an '## ADR approuvé' heading now ends a pending ADR section ([2b497cd](https://github.com/woueziou/liteCodeAgent/commit/2b497cd9ce8f47668017f0bc1822780963baea9d)), closes [#114](https://github.com/woueziou/liteCodeAgent/issues/114)
+
+
+### Performance Improvements
+
+* **agents:** filtered tool output, capped reports, single review pass for small tickets ([02119f1](https://github.com/woueziou/liteCodeAgent/commit/02119f162388f9ac8793a189db3f09d508bc3e9b))
+* **agents:** single-pass consistency, rare cases as reference files instead of skills ([453b806](https://github.com/woueziou/liteCodeAgent/commit/453b8061b1e320e4cc4684d09265b69ede40bf7a))
+* **install:** regenerate installed agents on main after merge, add drift check ([a5c84ad](https://github.com/woueziou/liteCodeAgent/commit/a5c84ad44d1baea9f0833d3c99a900285fad5b1c))
+* **install:** sync workflow opens a bot PR instead of pushing to main ([bbceb79](https://github.com/woueziou/liteCodeAgent/commit/bbceb79c1c41b8defc2122ddd5ff28f702c46bdc))
+* **packs:** short agent/skill descriptions, implementer-* skills become reference files ([fc9b515](https://github.com/woueziou/liteCodeAgent/commit/fc9b5156b13d75f9ca27abd911aecca9186b38cf))
+* **pipeline:** draft and approve the ADR before implementation starts ([8f50c82](https://github.com/woueziou/liteCodeAgent/commit/8f50c8229f36a40e0d0003cff3e5394f2d4681ed))
+
 # [1.3.0](https://github.com/woueziou/liteCodeAgent/compare/v1.2.0...v1.3.0) (2026-09-29)
 
 
