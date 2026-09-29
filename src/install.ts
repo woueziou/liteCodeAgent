@@ -7,7 +7,7 @@ import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } f
 import { render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames } from "./delegation.ts";
 import { configSkills, skipSkill, withoutInstallKey } from "./skill-filter.ts";
-import { hash, readLockfile, writeLockfile, type Lockfile } from "./lockfile.ts";
+import { hash, readLockfile, writeLockfile, writeLockfileStable, type Lockfile } from "./lockfile.ts";
 
 export type PlanEntry = {
   rel: string;
@@ -652,7 +652,7 @@ export async function applyPlan(
   }
 
   for (const [target, files] of filesByTarget) {
-    await writeLockfile(projectRoot, {
+    await writeLockfileStable(projectRoot, {
       litecodeVersion,
       installedAt: new Date().toISOString(),
       packs: plan.packVersions,
@@ -673,7 +673,7 @@ export async function applyPlan(
       await Bun.write(plan.hook.target, plan.hook.content);
       await chmod(plan.hook.target, 0o755);
     }
-    await writeLockfile(
+    await writeLockfileStable(
       projectRoot,
       {
         litecodeVersion,

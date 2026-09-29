@@ -14,6 +14,7 @@ import { resolve, basename } from "node:path";
 import { realpath } from "node:fs/promises";
 import type { Config } from "./config.ts";
 import { buildPlan } from "./install.ts";
+import { staleFindings } from "./install-stale.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { doctor as configDoctor } from "./config-doctor.ts";
 import { listTickets } from "./tickets/store.ts";
@@ -301,7 +302,7 @@ async function checkStalePrStatus(root: string, repo: string, tickets: Ticket[],
   return findings;
 }
 
-/** Install lockfile drift (hand-edited managed files), reusing `buildPlan`'s own drift detection. */
+/** Install lockfile drift (hand-edited managed files) and stale installed copies (ADR 0022), reusing `buildPlan`'s own drift detection. */
 async function checkInstallDrift(root: string, packsRoot: string, config: Config): Promise<Finding[]> {
   let plan: Awaited<ReturnType<typeof buildPlan>>;
   try {
@@ -321,6 +322,7 @@ async function checkInstallDrift(root: string, packsRoot: string, config: Config
   if (plan.hook?.status === "drift") {
     findings.push({ severity: "warn", message: `${plan.hook.rel}: hand-edited since the last install (drift)` });
   }
+  findings.push(...staleFindings(plan));
   return findings;
 }
 

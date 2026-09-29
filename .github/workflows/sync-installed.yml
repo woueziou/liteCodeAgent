@@ -1,0 +1,55 @@
+name: Sync installed agents
+
+# ADR 0022: PRs change packs/ only. After merge, the installed copies (.claude/, .kilo/,
+# .pi/ and their lockfiles) are regenerated here and proposed as ONE pull request from the
+# bot-owned branch chore/sync-installed. A human merges it; nothing is pushed to main.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: sync-installed
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SYNC_BRANCH: chore/sync-installed
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run src/cli.ts install --apply --force
+      - name: Open or update the regeneration PR
+        run: |
+          git add -A -- .claude .kilo .pi .githooks
+          if git diff --cached --quiet; then
+            echo "Installed files already match packs/."
+            # An earlier regeneration PR is now obsolete: close it rather than leave it to conflict.
+            gh pr list --head "$SYNC_BRANCH" --state open --json number --jq '.[].number' |
+              while read -r n; do gh pr close "$n" --comment "Installed files already match packs/; nothing to regenerate."; done
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$SYNC_BRANCH"
+          # Bot commit: the repo's owner-only pre-commit hook (activated by `bun install`'s prepare
+          # script) must not apply. A human merges this PR; ADR 0022.
+          git -c core.hooksPath=/dev/null commit -m "chore(install): regenerate installed agents from packs/"
+          # The branch is owned by this job alone: force-updating it is the intended behaviour.
+          git push --force origin "$SYNC_BRANCH"
+          if [ -z "$(gh pr list --head "$SYNC_BRANCH" --state open --json number --jq '.[0].number')" ]; then
+            gh pr create --base main --head "$SYNC_BRANCH" \
+              --title "chore(install): regenerate installed agents from packs/" \
+              --body "Automatic regeneration of the installed agents after a change to packs/ (ADR 0022). Merge it; do not edit this branch."
+          fi

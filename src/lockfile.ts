@@ -43,3 +43,20 @@ export async function writeLockfile(
 export function hash(content: string): string {
   return new Bun.CryptoHasher("sha256").update(content).digest("hex").slice(0, 16);
 }
+
+/**
+ * Like `writeLockfile`, but keeps the existing `installedAt` when nothing else changed, so a
+ * regeneration that changes no file leaves the lockfile byte-identical. A timestamp that
+ * moves on every run is what made these lockfiles conflict in nearly every PR (ADR 0022).
+ */
+export async function writeLockfileStable(
+  projectRoot: string,
+  lock: Lockfile,
+  lockfileName = LOCKFILE_NAME,
+): Promise<void> {
+  const previous = await readLockfile(projectRoot, lockfileName);
+  const same =
+    previous !== null &&
+    JSON.stringify({ ...previous, installedAt: "" }) === JSON.stringify({ ...lock, installedAt: "" });
+  await writeLockfile(projectRoot, same ? { ...lock, installedAt: previous.installedAt } : lock, lockfileName);
+}

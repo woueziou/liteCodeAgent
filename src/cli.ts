@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, type InstallTarget } from "./config.ts";
 import { buildPlan, applyPlan } from "./install.ts";
+import { staleEntries } from "./install-stale.ts";
 import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
 import { RateLimitError, readBoardItems } from "./gh.ts";
@@ -75,9 +76,10 @@ function usage(): void {
                                      ${c.dim("--yes skips the questions and uses only what it detects")}
   ${c.bold("bunx litecodeagent targets")}                  list the coding tools you can install into
   ${c.bold("bunx litecodeagent packs")}                    list available packs
-  ${c.bold("bunx litecodeagent install")} [--apply] [--force]
+  ${c.bold("bunx litecodeagent install")} [--apply] [--force] [--check]
                                      render packs into configured AI coding tools
                                      ${c.dim("(dry-run by default; --apply writes)")}
+                                     ${c.dim("--check exits 1 if installed files differ from packs/ (nothing written)")}
   ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
   ${c.bold("bunx litecodeagent config")} [show|edit|get|set|targets|packs|doctor]
                                      view or change litecode.config.json from the CLI
@@ -290,6 +292,16 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
     `\n${counts.create} to create, ${counts.update} to update, ${counts.unchanged} unchanged` +
       (counts.drift ? c.red(`, ${counts.drift} hand-edited`) : ""),
   );
+
+  if (argv.includes("--check")) {
+    const stale = staleEntries(plan);
+    if (stale.length > 0 || counts.drift > 0) {
+      console.log(c.red(`\n${stale.length} installed file(s) out of date with packs/, ${counts.drift} hand-edited. Run \`install --apply --force\`.`));
+      return 1;
+    }
+    console.log(c.green("\nInstalled files match packs/."));
+    return 0;
+  }
 
   if (!apply) {
     console.log(c.dim("\nDry run. Re-run with --apply to write these files."));

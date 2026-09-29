@@ -108,6 +108,10 @@ The flow is proportioned to the ticket's `size:` (read in step 1) and label:
 - **`small`** (and `trivial`): still a worktree and PR, and both passes unless single pass applies, but cheaper. Start `bug-hunter` at the `balanced` tier: {{> delegateTier balanced}}. No re-hunt unless a finding is blocking. No second `reviewer` pass for non-blocking corrections: apply them, re-run `{{ project.checkCommand }}`, move on.
 - **`medium` / `large`** (or no `size:`): the full flow — `bug-hunter` at its default tier, one re-hunt after fixing a blocking finding, a second `reviewer` pass when step 10 requires it.
 
+## Installed copies of the packs (ADR 0022)
+
+When a ticket changes `packs/`, commit only `packs/` (plus tests, docs). Never re-render the installed copies (`.claude/`, `.kilo/`, `.pi/`, lockfiles) or resolve a conflict on them by hand: CI regenerates them after merge (bot branch `chore/sync-installed`, never touch it).
+
 {{#if project.conventions}}
 ## Project conventions ({{ project.name }})
 
