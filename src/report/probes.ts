@@ -5,7 +5,7 @@ import { dirname, resolve } from "node:path";
 import { gh, GhError } from "../gh.ts";
 import { listTickets } from "../tickets/store.ts";
 import type { ResumeProbes } from "../resume.ts";
-import type { PrChecksLookup, PrLookup, Probes } from "./verify.ts";
+import type { ForcePushLookup, PrChecksLookup, PrLookup, Probes } from "./verify.ts";
 
 async function git(root: string, args: string[]): Promise<{ stdout: string; code: number }> {
   const proc = Bun.spawn(["git", "-C", root, ...args], { stdout: "pipe", stderr: "ignore" });
@@ -149,6 +149,41 @@ export function realProbes(ctx: ProbeContext): Probes {
       const bare = ref.replace(/^#/, "");
       const key = /^\d{1,4}$/.test(bare) ? bare.padStart(4, "0") : bare;
       return tickets.find((t) => t.id === key || t.id.startsWith(`${key}-`))?.status;
+    },
+
+    /**
+     * Ticket 0056: whether the PR's head ref was ever force-pushed, from GitHub's own
+     * `head_ref_force_pushed` timeline event — the one artefact that survives independently
+     * of any agent's self-report. Resolves the PR to its issue number first (`pr` may be a
+     * number or a full URL, same as every other probe here), then walks that issue's
+     * events, since the events endpoint only takes a bare number, never a URL.
+     */
+    async forcePushed(pr): Promise<ForcePushLookup> {
+      const viewArgs = ["pr", "view", pr, "--json", "number,headRepository,headRepositoryOwner"];
+      if (!/^https?:\/\//.test(pr)) viewArgs.push("--repo", repo);
+      let number: number;
+      let ownerRepo: string;
+      try {
+        const view = JSON.parse(await gh(viewArgs)) as {
+          number: number;
+          headRepository?: { name: string };
+          headRepositoryOwner?: { login: string };
+        };
+        number = view.number;
+        ownerRepo =
+          view.headRepositoryOwner?.login && view.headRepository?.name
+            ? `${view.headRepositoryOwner.login}/${view.headRepository.name}`
+            : repo;
+      } catch (e) {
+        return { kind: "unknown", reason: (e as Error).message.split("\n")[0]! };
+      }
+      try {
+        const out = await gh(["api", `repos/${ownerRepo}/issues/${number}/events`, "--paginate", "--jq", ".[].event"]);
+        const count = out.split("\n").filter((line) => line.trim() === "head_ref_force_pushed").length;
+        return count > 0 ? { kind: "yes", count } : { kind: "no" };
+      } catch (e) {
+        return { kind: "unknown", reason: (e as Error).message.split("\n")[0]! };
+      }
     },
   };
 }

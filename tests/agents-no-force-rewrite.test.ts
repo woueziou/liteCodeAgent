@@ -36,7 +36,7 @@ test("reviewer never asks to rewrite, split, or squash already-pushed history ov
 test("reviewer independently verifies a missing test-first commit on pushed history and treats it as non-blocking when it can", async () => {
   const source = await reviewerSource();
   expect(source).toMatch(/not satisfied but non-blocking/);
-  expect(source).toMatch(/does not cap `VERDICT`/);
+  expect(source).toMatch(/`VERDICT` is left uncapped by this/);
 });
 
 test("reviewer's TEST_FIRST output line documents the non-blocking, already-pushed case", async () => {
