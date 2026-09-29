@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0062-feat-report-mesurer-les-tokens-consommes-par-tic
 title: "feat(report): mesurer les tokens consommés par ticket"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: high
 size: small
 assignedAgent: human
@@ -29,3 +29,18 @@ L'efficacité en tokens ne peut s'améliorer que si elle se mesure. Aujourd'hui 
 
 ## Hors périmètre
 Estimation du coût en devises pour les harnesses natifs.
+
+### 2026-09-29 — implementer: PR opened, reviewed
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/108. reviewer: approve-with-notes. bug-hunter re-hunt: HUNT: complete, no blocking finding. CI: pass.
+Deferred, non-blocking (see PR comment): double count if the agent also writes journal tokens under the direct runner; `--ticket` not wired into any flow; prefix-parse leniency; native harnesses cannot see the implementer's own total (design question, likely caller-recorded).
+
+```progress-journal
+step: step 10: ready to merge
+worktree: ../worktrees/0062
+branch: feat-report-tokens/0062
+base: main
+commit: see PR head
+checks: bun run check: pass
+pr: https://github.com/woueziou/liteCodeAgent/pull/108
+```
