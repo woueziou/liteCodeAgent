@@ -4,7 +4,16 @@
  * `verify-report`'s read-only `gh pr view`; agents run their own `gh pr` commands.
  */
 
-export class GhError extends Error {}
+export class GhError extends Error {
+  /**
+   * What the failed call printed on stdout. Some `gh` commands exit non-zero while still
+   * printing the data asked for (`gh pr checks --json` exits 1 on a failing check and 8 on a
+   * pending one), so callers that know this can still read it.
+   */
+  constructor(message: string, readonly stdout: string = "", readonly exitCode: number | null = null) {
+    super(message);
+  }
+}
 
 /**
  * GitHub answers "rate limit" for two very different situations, and they need opposite
@@ -101,7 +110,7 @@ export async function gh(args: string[]): Promise<string> {
     if (code === 0) return stdout;
 
     if (!looksRateLimited(stderr)) {
-      throw new GhError(`gh ${args.join(" ")} failed (exit ${code}):\n${stderr.trim()}`);
+      throw new GhError(`gh ${args.join(" ")} failed (exit ${code}):\n${stderr.trim()}`, stdout, code);
     }
 
     const quota = await readQuota();

@@ -47,6 +47,23 @@ test("a config predating the ticket buffer, with no `tickets` key at all, still 
   });
 });
 
+test("`project.ci.testChecks` defaults to [\"test\"] and is configurable (ticket 0059)", () => {
+  const base = {
+    target: "claude-code",
+    packs: ["core"],
+    project: {
+      name: "demo",
+      repo: "demo/demo",
+      checkCommand: "bun test",
+      angles: [{ name: "correctness", covers: "x", triggeredBy: "y", skills: [] }],
+      board: { owner: "demo" },
+    },
+  };
+  expect(ConfigSchema.parse(base).project.ci).toEqual({ testChecks: ["test"] });
+  const custom = ConfigSchema.parse({ ...base, project: { ...base.project, ci: { testChecks: ["unit", "e2e"] } } });
+  expect(custom.project.ci.testChecks).toEqual(["unit", "e2e"]);
+});
+
 test("a config predating `project.language`, with no `language` key at all, still parses", () => {
   const config = ConfigSchema.parse({
     target: "claude-code",

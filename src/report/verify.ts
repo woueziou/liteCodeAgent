@@ -136,6 +136,12 @@ export type PrChecksLookup =
   | { kind: "fail" }
   | { kind: "pending" }
   | { kind: "none" }
+  /**
+   * Checks ran and none failed, but none of the `expected` test checks passed on the PR's
+   * head (a stacked PR whose base isn't the default branch never triggers the workflow) —
+   * so a green CI proves nothing about the tests (ticket 0059). `ran` lists what did run.
+   */
+  | { kind: "no-test-check"; expected: string[]; ran: string[] }
   | { kind: "unknown"; reason: string };
 
 /**
@@ -262,6 +268,11 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
         error(`PR '${report.pr}' has a failing check, but the ticket is readyToMerge`);
       } else if (checks.kind === "pending") {
         warn(`PR '${report.pr}' still has checks running while the ticket is readyToMerge`);
+      } else if (checks.kind === "no-test-check") {
+        warn(
+          `PR '${report.pr}' has no passing test check (expected ${checks.expected.join(", ")}; ran: ${checks.ran.join(", ") || "nothing"}) ` +
+            "while the ticket is readyToMerge — CI did not prove the tests ran (a stacked PR does not trigger the base-branch workflow)",
+        );
       } else if (checks.kind === "unknown") {
         warn(`could not check CI status for PR '${report.pr}': ${checks.reason} — unverified`);
       }
