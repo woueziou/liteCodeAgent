@@ -1,10 +1,13 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, setDefaultTimeout, test } from "bun:test";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { realProbes, realResumeProbes } from "../src/report/probes.ts";
 import { writeTicket } from "../src/tickets/store.ts";
 import type { Ticket } from "../src/tickets/spec.ts";
+
+// Every prChecks case spawns a bash stub (several times when polling): slow on a loaded machine.
+setDefaultTimeout(30_000);
 
 const dirs: string[] = [];
 const realGhBin = process.env.LITECODE_GH_BIN;
@@ -138,7 +141,7 @@ test("worktreeExists resolves a relative worktree path against the primary check
 });
 
 const T = (bucket: string, name = "test") => `{"name":"${name}","bucket":"${bucket}"}`;
-const fast = { noChecksWait: { totalMs: 60, intervalMs: 5 } };
+const fast = { noChecksWait: { retries: 2, intervalMs: 5 } };
 
 /** A counter file the stub appends to, so a test can see how many times gh was called. */
 async function counterFile(): Promise<string> {
@@ -221,7 +224,7 @@ test("prChecks waits a bounded time for checks not yet registered right after a 
     if [ "$(wc -l < ${counter})" -lt 3 ]; then echo 'no checks reported on the branch' >&2; exit 1; fi
     echo '[${T("pass")}]'
   `);
-  expect(await realProbes({ ...ctx(root), noChecksWait: { totalMs: 5000, intervalMs: 5 } }).prChecks("7")).toEqual({ kind: "pass" });
+  expect(await realProbes({ ...ctx(root), noChecksWait: { retries: 50, intervalMs: 5 } }).prChecks("7")).toEqual({ kind: "pass" });
 
   // Never registers: gives up with none after the bound, having polled more than once.
   const never = await counterFile();
@@ -238,7 +241,7 @@ test("prChecks waits for the test check to register when only other checks have"
     if [ "$(wc -l < ${counter})" -lt 2 ]; then echo '[${T("pass", "GitGuardian")}]'; exit 0; fi
     echo '[${T("pass", "GitGuardian")},${T("pass")}]'
   `);
-  expect(await realProbes({ ...ctx(root), noChecksWait: { totalMs: 5000, intervalMs: 5 } }).prChecks("7")).toEqual({ kind: "pass" });
+  expect(await realProbes({ ...ctx(root), noChecksWait: { retries: 50, intervalMs: 5 } }).prChecks("7")).toEqual({ kind: "pass" });
 });
 
 test("prChecks goes through the shared gh() rate-limit handling", async () => {
