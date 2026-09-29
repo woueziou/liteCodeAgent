@@ -284,6 +284,15 @@ export type Project = z.infer<typeof ProjectSchema>;
 export const TARGETS = ["claude-code", "codex", "pi", "opencode", "kilo-code"] as const;
 export type InstallTarget = (typeof TARGETS)[number];
 
+/** Each tool's directory at the project root (agents, commands, reference files, lockfile). */
+export const TARGET_ROOTS: Record<InstallTarget, string> = {
+  "claude-code": ".claude",
+  codex: ".codex",
+  pi: ".pi",
+  opencode: ".opencode",
+  "kilo-code": ".kilo",
+};
+
 /** What each tool is called by the people who use it, and where its files land. */
 export const TARGET_INFO: Record<InstallTarget, { label: string; description: string; directory: string }> = {
   "claude-code": {

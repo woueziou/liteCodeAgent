@@ -1,6 +1,7 @@
 ---
 name: critique-expert
-description: Adversarial second-opinion expertise — stress-tests a plan, design, or piece of work by actively trying to find what's wrong with it, rather than confirming it looks reasonable. Use when you want a genuinely skeptical read (not a rubber stamp) on a decision, before committing to it, especially where the author (human or agent) may be anchored on their own approach.
+description: Adversarial second opinion: tries to find what is wrong with a plan or piece of work.
+install: referenced
 ---
 
 # Critique expert

@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.3.0",
-  "installedAt": "2026-09-29T15:56:16.013Z",
+  "installedAt": "2026-09-29T16:15:46.145Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -13,137 +13,102 @@
     ".kilo/agents/synthesizer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "9553624fe2d9a4aa"
+      "hash": "587752f6f1d4bdc7"
     },
     ".kilo/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "472044cb64f1a9be"
+      "hash": "31838d12471be6a8"
     },
     ".kilo/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a652b37a17000740"
+      "hash": "c99c156809c5f9b5"
     },
     ".kilo/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "de63449112143c3b"
+      "hash": "5a0655e7595ee9a4"
     },
     ".kilo/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "c368bc8bf1eee93c"
+      "hash": "62abb076840227a7"
     },
     ".kilo/agents/debate-angle.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e1ab7dabc517c9fa"
+      "hash": "b37c619300839ef3"
     },
     ".kilo/agents/classifier.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "cd459f78ad250081"
+      "hash": "a497686cd16b19a5"
     },
     ".kilo/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "9cd8448ea224e667"
+      "hash": "f35e58bd1090a46f"
     },
     ".kilo/agents/planner.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a22fa6799093615b"
+      "hash": "02c0f0fd61261bbc"
     },
     ".kilo/agents/panel-selector.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "13c7152015fbaf59"
+      "hash": "b16c80cc8908f3fe"
     },
     ".kilo/agents/bug-hunter.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "5cc9b08e4930e7ae"
+      "hash": "0f6d35112f5d0aef"
     },
     ".kilo/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "c295bf755be0113c"
-    },
-    ".kilo/skills/skills/implementer-leak-cleanup/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "bdd325c513f813da"
+      "hash": "986fdedea4e33abb"
     },
     ".kilo/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "6761f5a4814e0e89"
-    },
-    ".kilo/skills/skills/implementer-stacked-pr/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "3dddbe447c38e70b"
-    },
-    ".kilo/skills/skills/implementer-adr-gate/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "2f3513c488226fbe"
+      "hash": "f1a3aa643a2ea40b"
     },
     ".kilo/skills/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a23daf3990ae68c5"
-    },
-    ".kilo/skills/skills/implementer-resume/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "620aa317d8190596"
-    },
-    ".kilo/skills/skills/implementer-review-disputes/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "d9cb762d7f31a490"
-    },
-    ".kilo/skills/skills/implementer-verification-only/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "d2dff25f246b0719"
+      "hash": "44689622513b5086"
     },
     ".kilo/skills/skills/security-expert/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "961cf2b092f1573b"
-    },
-    ".kilo/skills/skills/implementer-subagent-steps/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "3b07425b7abc6473"
-    },
-    ".kilo/skills/skills/implementer-cli-resolution/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "7a7224d3fab54945"
-    },
-    ".kilo/skills/skills/implementer-github-outage/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "25a3ca13a39dfdb3"
+      "hash": "57e2bbeee1f19e69"
     },
     ".kilo/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "f596a959767f7a98"
+      "hash": "ac4773acc97afc2c"
     },
     ".kilo/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "d4618c89c46a46bb"
+      "hash": "b81fcc2a68dddccb"
     },
     ".kilo/reference/implementer-test-first.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "f713716cc570ff4e"
+    },
+    ".kilo/reference/implementer-github-outage.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "cc9e6d381990537b"
+    },
+    ".kilo/reference/implementer-leak-cleanup.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "815b8926c3dc2a34"
     },
     ".kilo/reference/reviewer-acceptance-edge-cases.md": {
       "pack": "core",
@@ -154,6 +119,41 @@
       "pack": "core",
       "version": "0.4.0",
       "hash": "8d9b9b2813e64482"
+    },
+    ".kilo/reference/implementer-stacked-pr.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5db487c86a496397"
+    },
+    ".kilo/reference/implementer-review-disputes.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5620cbc474b68769"
+    },
+    ".kilo/reference/implementer-adr-gate.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "41f1b983b3a8ac0e"
+    },
+    ".kilo/reference/implementer-subagent-steps.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5e2b11c14e38692c"
+    },
+    ".kilo/reference/implementer-resume.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "30664453ea514890"
+    },
+    ".kilo/reference/implementer-cli-resolution.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "4f61e6b7ef36a8dd"
+    },
+    ".kilo/reference/implementer-verification-only.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "1e3983219c1b60f2"
     },
     ".kilo/reference/reviewer-test-first.md": {
       "pack": "core",

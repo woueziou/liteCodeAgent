@@ -1,6 +1,6 @@
 ---
 name: idea-to-planned
-description: Takes a raw idea/feature/bug report and runs it all the way to a Planned ticket — orchestrator (classify/debate/plan) → tracker (draft the ticket locally) → dispatcher (Backlog→Planned) — chained with no approval pause in between. Use when a human explicitly says to just "do it and dispatch it" / "handle this end to end" for a specific idea, without wanting to confirm each step. Never triggers on its own — always requires an explicit human instruction carrying the idea itself.
+description: Runs an idea to a Planned ticket via orchestrator, tracker, dispatcher. Only on explicit human instruction.
 ---
 
 # Idea to Planned

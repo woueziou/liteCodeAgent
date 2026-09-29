@@ -11,6 +11,19 @@ import { loadPack } from "../src/packs.ts";
 const PACKS = join(import.meta.dir, "..", "packs");
 const EXAMPLE = join(import.meta.dir, "..", "examples", "ts-employee-service.litecode.config.json");
 const MAX_REVIEWER_WORDS = 1500;
+/** Ticket 0068: what used to be the implementer-* skills. */
+const IMPLEMENTER_REFS = [
+  "implementer-adr-gate",
+  "implementer-cli-resolution",
+  "implementer-github-outage",
+  "implementer-leak-cleanup",
+  "implementer-resume",
+  "implementer-review-disputes",
+  "implementer-stacked-pr",
+  "implementer-subagent-steps",
+  "implementer-test-first",
+  "implementer-verification-only",
+];
 
 async function core() {
   const pack = await loadPack(PACKS, "core");
@@ -54,7 +67,12 @@ test("reviewer.md stays within the word budget; rare cases are reference files, 
   const src = get("agents/reviewer.md");
   expect(words(body(src))).toBeLessThanOrEqual(MAX_REVIEWER_WORDS);
   const pack = await loadPack(PACKS, "core");
-  const refs = ["reviewer-acceptance-edge-cases", "reviewer-single-pass", "reviewer-test-first", "implementer-test-first"];
+  const refs = [
+    "reviewer-acceptance-edge-cases",
+    "reviewer-single-pass",
+    "reviewer-test-first",
+    ...IMPLEMENTER_REFS,
+  ];
   const shipped = pack.files.map((f) => /^reference\/([a-z-]+)\.md$/.exec(f.rel)?.[1]).filter((n): n is string => !!n).sort();
   expect(shipped).toEqual([...refs].sort());
   for (const name of refs) {

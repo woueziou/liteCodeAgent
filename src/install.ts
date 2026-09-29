@@ -1,11 +1,12 @@
 import { resolve, dirname, join, relative } from "node:path";
 import { mkdir, chmod, readdir, realpath } from "node:fs/promises";
 import type { Config, InstallTarget } from "./config.ts";
-import { selectedTargets, TARGETS } from "./config.ts";
+import { selectedTargets, TARGETS, TARGET_ROOTS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
 import { render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames } from "./delegation.ts";
+import { configSkills, skipSkill, withoutInstallKey } from "./skill-filter.ts";
 import { hash, readLockfile, writeLockfile, type Lockfile } from "./lockfile.ts";
 
 export type PlanEntry = {
@@ -127,13 +128,7 @@ async function planHook(
   return null;
 }
 
-const ROOTS: Record<InstallTarget, string> = {
-  "claude-code": ".claude",
-  codex: ".codex",
-  pi: ".pi",
-  opencode: ".opencode",
-  "kilo-code": ".kilo",
-};
+const ROOTS = TARGET_ROOTS;
 
 export const SKILL_ROOTS: Record<InstallTarget, string> = {
   "claude-code": ".claude/skills",
@@ -421,6 +416,7 @@ function outputFiles(
   config: Config,
   target: InstallTarget,
   agents: ReadonlySet<string>,
+  wantedSkills: ReadonlySet<string>,
 ): { rel: string; content: string }[] {
   const rendered = render(
     file.source,
@@ -428,7 +424,11 @@ function outputFiles(
     `${file.rel}`,
     delegationHelpers(target, agents, config.tiers, target === "claude-code" ? config.outDir : undefined),
   );
-  const { data, body } = parseFrontmatter(rendered, file.rel);
+  const parsed = parseFrontmatter(rendered, file.rel);
+  const { body } = parsed;
+  const skillName = /^skills\/([^/]+)\/SKILL\.md$/.exec(file.rel)?.[1];
+  if (skillName && skipSkill(parsed.data, skillName, wantedSkills)) return [];
+  const data = skillName ? withoutInstallKey(parsed.data) : parsed.data;
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
   const skill = /^(skills\/.+)$/.exec(file.rel);
   const workflow = file.rel === "workflows/litecodeagent.md";
@@ -517,6 +517,24 @@ async function validateSkillReferences(
   }
 }
 
+/** Skills something asks for: the config, or the `skills:` line of an agent being installed. */
+function referencedSkills(
+  packs: { pack: { files: PackFile[] } }[],
+  config: Config,
+  agents: ReadonlySet<string>,
+): Set<string> {
+  const wanted = new Set(configSkills(config.project));
+  const helpers = delegationHelpers("claude-code", agents, config.tiers, config.outDir);
+  for (const { pack } of packs) {
+    for (const file of pack.files) {
+      if (!/^agents\/[^/]+\.md$/.test(file.rel)) continue;
+      const rendered = render(file.source, { project: templateProject(config.project) }, file.rel, helpers);
+      for (const skill of parseList(parseFrontmatter(rendered, file.rel).data.skills)) wanted.add(skill);
+    }
+  }
+  return wanted;
+}
+
 export async function buildPlan(projectRoot: string, packsRoot: string, config: Config): Promise<InstallPlan> {
   const targets = selectedTargets(config);
   const lockfilePaths = Object.fromEntries(targets.map((target) => [target, lockPath(target)])) as Partial<Record<InstallTarget, string>>;
@@ -548,10 +566,11 @@ export async function buildPlan(projectRoot: string, packsRoot: string, config: 
   );
 
   const agents = packAgentNames(packs);
+  const wantedSkills = referencedSkills(packs, config, agents);
   for (const targetName of targets) {
     for (const { packName, pack } of packs) {
       for (const file of pack.files) {
-        for (const output of outputFiles(file, config, targetName, agents)) {
+        for (const output of outputFiles(file, config, targetName, agents, wantedSkills)) {
           const rel = output.rel;
           const ownerKey = `${targetName}:${rel}`;
           const owner = seen.get(ownerKey);

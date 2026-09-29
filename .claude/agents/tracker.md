@@ -1,6 +1,6 @@
 ---
 name: tracker
-description: "Drafts a ticket locally, given an already-approved title, body, label, size, and priority. ONLY invoke this after the human has explicitly said go/approved in conversation — never speculatively, never as part of exploring or planning a request. The `idea-to-planned` skill is the one sanctioned exception: a human explicitly invoking that skill with an idea in hand counts as the approval for the resulting ticket, so tracker runs inside it without a separate confirmation round-trip."
+description: Drafts a ticket locally from an already-approved title, body, label, size and priority.
 tools: Bash, Read
 skills: agent-attribution
 model: haiku

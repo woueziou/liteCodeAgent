@@ -1,6 +1,6 @@
 ---
 name: planner
-description: Turns a synthesized, non-blocked recommendation into an executable step-by-step plan plus an ADR path (created only for medium/large changes with real architectural implications). Invoked by `orchestrator` only when synthesizer reported STATUS other than unresolved-tension.
+description: Called by orchestrator: turns a synthesized recommendation into a step-by-step plan and ADR path.
 tools: Read, Grep, Glob, Skill
 skills: {{ project.agentSkills.planner | join }}
 tier: balanced

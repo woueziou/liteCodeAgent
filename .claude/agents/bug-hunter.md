@@ -1,6 +1,6 @@
 ---
 name: bug-hunter
-description: Hunts for correctness bugs in an already-implemented diff — concrete failure scenarios, confirmed by running the code wherever possible — as a second, independent pass alongside `reviewer`. Invoked by `implementer` on every PR it opens; never implements fixes itself, never judges plan fidelity or style.
+description: "Second review pass: hunts correctness bugs in an implemented diff, confirmed by running code. Called by implementer."
 tools: Read, Grep, Glob, Bash, Skill
 skills: critique-expert, security-expert
 model: opus

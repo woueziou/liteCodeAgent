@@ -1,6 +1,6 @@
 {
   "litecodeVersion": "1.3.0",
-  "installedAt": "2026-09-29T15:56:16.014Z",
+  "installedAt": "2026-09-29T16:15:46.146Z",
   "packs": {
     "core": "0.4.0"
   },
@@ -13,137 +13,102 @@
     ".claude/agents/synthesizer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "ab70fd5c5898ab84"
+      "hash": "a484b9cec2e47d35"
     },
     ".claude/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "da2b3aac8d6a6877"
+      "hash": "f2f46674329e4314"
     },
     ".claude/agents/reviewer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "40f6c8e5bd93ce31"
+      "hash": "da494899422a09be"
     },
     ".claude/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "f8502b7a3572bba8"
+      "hash": "697ed4a9ed80aed3"
     },
     ".claude/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "4f1b03d4b3a6f091"
+      "hash": "cc073b76248cab64"
     },
     ".claude/agents/debate-angle.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "04fe372eccd3cf61"
+      "hash": "96f77357b3b86f7b"
     },
     ".claude/agents/classifier.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "9000da12b9b4ffde"
+      "hash": "74b5ba21864e5194"
     },
     ".claude/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "fa32c617612fa204"
+      "hash": "8f20094644aea8b5"
     },
     ".claude/agents/planner.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "db6a19ac268aeb70"
+      "hash": "f29d087849f5f39b"
     },
     ".claude/agents/panel-selector.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "8cf106f83bed04ca"
+      "hash": "6a7eeae1b3d1613b"
     },
     ".claude/agents/bug-hunter.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "834e8fc05387666a"
+      "hash": "8ba895f36f1fd797"
     },
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "58d6148d21e8b63f"
-    },
-    ".claude/skills/implementer-leak-cleanup/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "bdd325c513f813da"
+      "hash": "5f31f3b42f2119dd"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "6761f5a4814e0e89"
-    },
-    ".claude/skills/implementer-stacked-pr/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "3dddbe447c38e70b"
-    },
-    ".claude/skills/implementer-adr-gate/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "2f3513c488226fbe"
+      "hash": "f1a3aa643a2ea40b"
     },
     ".claude/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a58a53b2091f7afa"
-    },
-    ".claude/skills/implementer-resume/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "620aa317d8190596"
-    },
-    ".claude/skills/implementer-review-disputes/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "d9cb762d7f31a490"
-    },
-    ".claude/skills/implementer-verification-only/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "d2dff25f246b0719"
+      "hash": "4c2a9a0ddae07797"
     },
     ".claude/skills/security-expert/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "961cf2b092f1573b"
-    },
-    ".claude/skills/implementer-subagent-steps/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "6535184b17bee68e"
-    },
-    ".claude/skills/implementer-cli-resolution/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "7a7224d3fab54945"
-    },
-    ".claude/skills/implementer-github-outage/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "25a3ca13a39dfdb3"
+      "hash": "57e2bbeee1f19e69"
     },
     ".claude/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e5fa733fb94af1b2"
+      "hash": "5257767406c4c255"
     },
     ".claude/skills/critique-expert/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "d4618c89c46a46bb"
+      "hash": "b81fcc2a68dddccb"
     },
     ".claude/reference/implementer-test-first.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "f713716cc570ff4e"
+    },
+    ".claude/reference/implementer-github-outage.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "cc9e6d381990537b"
+    },
+    ".claude/reference/implementer-leak-cleanup.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "815b8926c3dc2a34"
     },
     ".claude/reference/reviewer-acceptance-edge-cases.md": {
       "pack": "core",
@@ -154,6 +119,41 @@
       "pack": "core",
       "version": "0.4.0",
       "hash": "8d9b9b2813e64482"
+    },
+    ".claude/reference/implementer-stacked-pr.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5db487c86a496397"
+    },
+    ".claude/reference/implementer-review-disputes.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5620cbc474b68769"
+    },
+    ".claude/reference/implementer-adr-gate.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "41f1b983b3a8ac0e"
+    },
+    ".claude/reference/implementer-subagent-steps.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "fc3da6fd8e01f267"
+    },
+    ".claude/reference/implementer-resume.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "30664453ea514890"
+    },
+    ".claude/reference/implementer-cli-resolution.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "4f61e6b7ef36a8dd"
+    },
+    ".claude/reference/implementer-verification-only.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "1e3983219c1b60f2"
     },
     ".claude/reference/reviewer-test-first.md": {
       "pack": "core",

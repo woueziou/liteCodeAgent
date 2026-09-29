@@ -1,6 +1,6 @@
 ---
 name: panel-selector
-description: "Given a non-trivial request already classified by `classifier`, selects which debate angles are actually relevant (not every angle applies to every change) so `debate-angle` isn't run wastefully. Use only after classifier has routed to \"panel-selector\", never on trivial changes."
+description: "Called by orchestrator: picks which debate angles apply to a classified, non-trivial request."
 mode: subagent
 permission:
   read: allow

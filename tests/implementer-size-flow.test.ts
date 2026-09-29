@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ConfigSchema } from "../src/config.ts";
+import { ConfigSchema, selectedTargets } from "../src/config.ts";
 import { delegationHelpers } from "../src/delegation.ts";
 import { buildPlan } from "../src/install.ts";
 import { loadPack } from "../src/packs.ts";
@@ -29,36 +29,38 @@ async function core() {
 
 const body = (source: string) => source.split("\n---\n").slice(1).join("\n---\n");
 const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
-const skillNamesIn = (text: string) => [...new Set([...text.matchAll(/`(implementer-[a-z-]+)`/g)].map((m) => m[1]!))];
+const refNamesIn = (text: string) => [...new Set([...text.matchAll(/\{\{> reference (implementer-[a-z-]+)\}\}/g)].map((m) => m[1]!))];
 
 test("implementer.md's body stays within the word budget", async () => {
   const { get } = await core();
   expect(words(body(get("agents/implementer.md")))).toBeLessThanOrEqual(MAX_BODY_WORDS);
 });
 
-test("every implementer-* skill is referenced by the body, and every reference exists in the pack", async () => {
+test("every implementer-* reference file is referenced by the body, and every reference exists in the pack", async () => {
   const { pack, get } = await core();
-  const referenced = skillNamesIn(get("agents/implementer.md")).sort();
+  const referenced = refNamesIn(get("agents/implementer.md")).sort();
   const shipped = pack.files
-    .map((f) => /^skills\/(implementer-[a-z-]+)\/SKILL\.md$/.exec(f.rel)?.[1])
+    .map((f) => /^reference\/(implementer-[a-z-]+)\.md$/.exec(f.rel)?.[1])
     .filter((n): n is string => !!n)
     .sort();
   expect(referenced.length).toBeGreaterThanOrEqual(6);
   expect(referenced).toEqual(shipped);
-  for (const name of shipped) expect(get(`skills/${name}/SKILL.md`)).toMatch(new RegExp(`^---\\nname: ${name}\\n`));
+  expect(pack.files.some((f) => /^skills\/implementer-/.test(f.rel))).toBe(false);
+  for (const name of shipped) expect(get(`reference/${name}.md`)).toMatch(new RegExp(`^---\\nname: ${name}\\n`));
 });
 
-test("every extracted skill is installed on every target that has skills, and loads no template syntax", async () => {
+test("every implementer-* reference file is installed under each target's root, and loads no template syntax", async () => {
   const { pack } = await core();
-  const names = pack.files.map((f) => /^skills\/(implementer-[a-z-]+)\//.exec(f.rel)?.[1]).filter(Boolean) as string[];
+  const names = pack.files.map((f) => /^reference\/(implementer-[a-z-]+)\.md$/.exec(f.rel)?.[1]).filter(Boolean) as string[];
   const config = ConfigSchema.parse(await Bun.file(EXAMPLE).json());
   const root = await mkdtemp(join(tmpdir(), "litecode-"));
   await Bun.write(join(root, ".claude", "skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");
   const plan = await buildPlan(root, PACKS, config);
   for (const name of new Set(names)) {
-    const entries = plan.entries.filter((e) => e.rel.endsWith(`skills/${name}/SKILL.md`));
-    expect(entries.length).toBeGreaterThan(0);
+    const entries = plan.entries.filter((e) => e.rel.endsWith(`/reference/${name}.md`));
+    expect(entries.length).toBe(selectedTargets(config).length);
     for (const e of entries) expect(e.content).not.toContain("{{");
+    expect(plan.entries.some((e) => e.rel.includes(`skills/${name}/`))).toBe(false);
   }
 });
 
@@ -93,7 +95,7 @@ const MOVED_RULES: { skill: string; rule: RegExp }[] = [
 test("each rule moved out of implementer.md is found in its skill", async () => {
   const { get } = await core();
   for (const { skill, rule } of MOVED_RULES) {
-    expect({ skill, rule: String(rule), found: rule.test(get(`skills/${skill}/SKILL.md`)) }).toEqual({
+    expect({ skill, rule: String(rule), found: rule.test(get(`reference/${skill}.md`)) }).toEqual({
       skill,
       rule: String(rule),
       found: true,
@@ -104,7 +106,7 @@ test("each rule moved out of implementer.md is found in its skill", async () => 
 test("the body points at the skill for each rare case instead of restating it", async () => {
   const { get } = await core();
   const src = get("agents/implementer.md");
-  for (const name of new Set(MOVED_RULES.map((m) => m.skill))) expect(src).toContain(`\`${name}\``);
+  for (const name of new Set(MOVED_RULES.map((m) => m.skill))) expect(src).toContain(`{{> reference ${name}}}`);
   expect(src).not.toMatch(/`adr_posted: true` as an idempotency guard/);
 });
 

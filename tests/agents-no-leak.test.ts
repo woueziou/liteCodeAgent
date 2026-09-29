@@ -17,8 +17,8 @@ async function implementerSource(): Promise<string> {
   for (const name of await listPacks(PACKS)) {
     const pack = await loadPack(PACKS, name);
     const file = pack.files.find((f) => f.rel === "agents/implementer.md");
-    // Ticket 0061: rare-case rules moved into implementer-* skills; the rules are the union.
-    if (file) return [file, ...pack.files.filter((f) => /^skills\/implementer-/.test(f.rel))].map((f) => f.source).join("\n");
+    // Ticket 0061: rare-case rules moved into implementer-* reference files; the rules are the union.
+    if (file) return [file, ...pack.files.filter((f) => /^reference\/implementer-/.test(f.rel))].map((f) => f.source).join("\n");
   }
   throw new Error("agents/implementer.md not found in any pack");
 }

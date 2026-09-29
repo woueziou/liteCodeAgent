@@ -1,6 +1,7 @@
 ---
 name: security-expert
-description: Application security review expertise — auth/authz correctness, injection, secrets handling, OWASP top 10, and this project's specific trust boundaries. Use for any change touching auth, user input handling, or external integrations, and before treating a security-sensitive change as done.
+description: Security review: authz, injection, secrets, OWASP. Use for auth, user input or external integrations.
+install: referenced
 ---
 
 # Security expert

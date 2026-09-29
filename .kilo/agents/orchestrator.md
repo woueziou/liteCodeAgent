@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: "Turns a raised idea, feature request, bug report, or doc need into a classified, deliberated, planned recommendation — WITHOUT creating any ticket file. Use this whenever the user proposes something actionable in conversation. Coordinates classifier, panel-selector/debate-panel, synthesizer and planner, then returns the result as text for the calling session to present to the human. Never creates tracked work itself — that is the `tracker` agent's job, invoked only after the human has explicitly approved in conversation."
+description: "Turns an idea into a classified, deliberated plan as text, creating no ticket. Use on any actionable proposal."
 mode: primary
 permission:
   read: allow
