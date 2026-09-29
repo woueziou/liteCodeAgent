@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0061-perf-agents-proportionner-le-flux-d-implementati
 title: "perf(agents): proportionner le flux d'implémentation à la taille du ticket et alléger implementer.md"
 label: feature
-status: readyToMerge
+status: done
 priority: high
 size: medium
 assignedAgent: human
