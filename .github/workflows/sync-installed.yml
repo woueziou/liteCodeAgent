@@ -1,0 +1,39 @@
+name: Sync installed agents
+
+# ADR 0022: PRs change packs/ only. The installed copies (.claude/, .kilo/, .pi/ and their
+# lockfiles) are regenerated here, once, after merge, so they never conflict between PRs.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-installed
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    # The commit this job pushes must not trigger another run (GITHUB_TOKEN pushes don't, but be explicit).
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run src/cli.ts install --apply --force
+      - name: Commit regenerated files
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "Installed files already match packs/."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- .claude .kilo .pi .githooks
+          git commit -m "chore(install): regenerate installed agents from packs/"
+          git push origin HEAD:main
