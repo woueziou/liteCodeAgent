@@ -64,12 +64,16 @@ test("a real change still refreshes installedAt", async () => {
   expect((await readLockfile(root))!.installedAt).not.toBe(before.installedAt);
 });
 
-test("the sync workflow regenerates installed files on main only and cannot loop", async () => {
+test("the sync workflow proposes a bot PR on main pushes and never pushes to main", async () => {
   const wf = await Bun.file(join(import.meta.dir, "..", ".github", "workflows", "sync-installed.yml")).text();
   expect(wf).toContain("branches: [main]");
   expect(wf).toContain("install --apply --force");
   expect(wf).toContain("github.actor != 'github-actions[bot]'");
-  expect(wf).not.toContain("pull_request");
+  expect(wf).toContain("pull-requests: write");
+  expect(wf).toContain("chore/sync-installed");
+  expect(wf).toContain("gh pr create");
+  expect(wf).not.toContain("HEAD:main");
+  expect(wf).not.toContain("pull_request:");
 });
 
 test("implementer.md tells the agent to leave installed copies to CI", async () => {

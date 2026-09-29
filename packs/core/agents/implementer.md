@@ -110,7 +110,7 @@ The flow is proportioned to the ticket's `size:` (read in step 1) and label:
 
 ## Installed copies of the packs (ADR 0022)
 
-When a ticket changes `packs/`, commit only `packs/` (plus tests, docs). Never re-render the installed copies (`.claude/`, `.kilo/`, `.pi/`, lockfiles) or resolve a conflict on them by hand: CI regenerates them after merge.
+When a ticket changes `packs/`, commit only `packs/` (plus tests, docs). Never re-render the installed copies (`.claude/`, `.kilo/`, `.pi/`, lockfiles) or resolve a conflict on them by hand: CI regenerates them after merge (bot branch `chore/sync-installed`, never touch it).
 
 {{#if project.conventions}}
 ## Project conventions ({{ project.name }})
