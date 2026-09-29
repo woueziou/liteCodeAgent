@@ -31,6 +31,7 @@ function emptyData(overrides: Partial<DashboardData> = {}): DashboardData {
     bySize: [],
     byLabel: [],
     epics: [],
+    tokensByTicket: {},
     blockedTickets: [],
     tickets: [],
     loadErrors: [],
