@@ -839,10 +839,10 @@ async function activateGitHooksPath(projectRoot: string, kitVersion: string): Pr
   }
 
   console.log(`\nSetting core.hooksPath to .githooks so the branch guard runs.`);
-  await Bun.spawn(["git", "config", "core.hooksPath", ".githooks"], {
+  const setHooksPath = await Bun.spawn(["git", "config", "core.hooksPath", ".githooks"], {
     cwd: projectRoot,
     stdout: "ignore",
     stderr: "ignore",
   }).exited;
-  return true;
+  return setHooksPath === 0;
 }

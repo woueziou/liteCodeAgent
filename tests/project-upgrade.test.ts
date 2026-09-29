@@ -443,6 +443,37 @@ test("a data folder symlinked within the project: the file is deleted, the link 
   expect(await Bun.file(join(root, "cache/data/board.json")).exists()).toBe(false);
 });
 
+test("ticket 0055: upgrade activating the hook for the first time warns using the project's own defaultBranch/allowDefaultBranchCommits, not the applyPlan defaults", async () => {
+  const root = await tempDir("litecode-upgrade-hook-");
+  await Bun.write(join(root, ".claude/skills/orpc-expert/SKILL.md"), "---\nname: orpc-expert\n---\n");
+  const raw = await Bun.file(EXAMPLE).json();
+  raw.project.defaultBranch = "master";
+  await Bun.write(join(root, "litecode.config.json"), `${JSON.stringify(raw, null, 2)}\n`);
+  await Bun.spawn(["git", "init", "-q", "-b", "master"], { cwd: root }).exited;
+
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+  try {
+    await applyUpgrade(await plan(root), () => {});
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  // Before the fix, `renderPacks.apply` called `applyPlan` without `defaultBranch`/
+  // `allowDefaultBranchCommits`, so it silently fell back to "main"/false regardless of
+  // this project's actual config — missing the warning entirely on a project whose
+  // default branch isn't "main" (bug-hunter round 1, finding 1, case B).
+  const combined = warnings.join("\n");
+  expect(combined).toMatch(/branch guard is now active/i);
+  expect(combined).toContain("'master'");
+
+  const configured = await new Response(
+    Bun.spawn(["git", "config", "--get", "core.hooksPath"], { cwd: root, stdout: "pipe" }).stdout,
+  ).text();
+  expect(configured.trim()).toBe(".githooks");
+});
+
 test("the config rewrite follows the file's dominant indent, and its missing trailing newline", async () => {
   const { formatLike } = await import("../src/project-upgrade-config.ts");
   const value = { a: { b: 1 }, c: 2 };
