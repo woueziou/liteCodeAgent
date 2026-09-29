@@ -405,6 +405,15 @@ bunx litecodeagent dashboard --serve   # live, read-only view of tickets and ADR
 bunx litecodeagent dashboard --build   # or a static snapshot, docs/dashboard.html
 ```
 
+Claude Code creates each implementer's isolated worktree under `.claude/worktrees/agent-<id>/`
+(git-ignored; `verify-report` skips it). Once an agent's PR is merged or abandoned, clean up:
+
+```bash
+git worktree list                        # spot the finished agent-<id> entries
+git worktree remove .claude/worktrees/agent-<id>
+git worktree prune                       # drop records of directories already deleted
+```
+
 `doctor` and `verify-report` only read. When GitHub is unreachable they mark its checks
 "non vérifié" instead of failing.
 

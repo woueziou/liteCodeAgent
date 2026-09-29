@@ -41,6 +41,8 @@ async function primaryCheckoutRoot(root: string): Promise<string> {
  */
 const PR_NOT_FOUND = /no pull requests? found|could not resolve to a pullrequest/i;
 
+const AGENT_WORKTREES_PREFIX = ".claude/worktrees/";
+
 export type ProbeContext = {
   root: string;
   repo: string;
@@ -77,6 +79,7 @@ export function realProbes(ctx: ProbeContext): Probes {
     // shows up only as that directory, which never matches the branch's file paths.
     // Ticket files are left out: step 2 of the implementer's flow writes the ticket's
     // status in the primary checkout on purpose, before its worktree exists.
+    // `.claude/worktrees/` is left out too (also in .gitignore, for checkouts predating it).
     async dirtyFiles() {
       const entries = (await git(root, ["status", "--porcelain", "-z", "--untracked-files=all"])).stdout.split("\0");
       const paths: string[] = [];
@@ -88,7 +91,8 @@ export function realProbes(ctx: ProbeContext): Probes {
         if (entry[0] === "R" || entry[0] === "C") i++;
       }
       const ticketsPrefix = `${ticketsDir.replace(/\/+$/, "")}/`;
-      return paths.filter((p) => !p.startsWith(ticketsPrefix));
+      // Agents' isolated worktrees live in the repo (ADR 0020); they are not the human's edits.
+      return paths.filter((p) => !p.startsWith(ticketsPrefix) && !p.startsWith(AGENT_WORKTREES_PREFIX));
     },
 
     /**
