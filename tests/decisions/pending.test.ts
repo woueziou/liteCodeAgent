@@ -268,3 +268,17 @@ test("a heading with the suffix glued to the number is accepted, and the ADR tex
     expect(pending[0]!.text).toContain("Use X.");
   }
 });
+
+test("CRLF line endings and trailing space after the fence tag still render the ADR text", async () => {
+  const root = await tmpRoot();
+  const body = draftWithHeading("## ADR à valider : 0018").replace(/\n/g, "\r\n").replace("resume-manifest", "resume-manifest ");
+  const pending = await listPendingAdrs(root, [ticket("0047-feat-x", body)]);
+  expect(pending[0]!.text).toContain("Use X.");
+});
+
+test("one ticket with an unclosed trailing journal block does not make listing throw", async () => {
+  const root = await tmpRoot();
+  const bad = ticket("0001-bad", "```progress-journal\nstep: x\n");
+  const good = ticket("0047-feat-x", draftWithHeading("## ADR à valider : 0018"));
+  expect(await listPendingAdrs(root, [bad, good])).toHaveLength(1);
+});

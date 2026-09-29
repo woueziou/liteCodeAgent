@@ -8,7 +8,7 @@
  */
 
 import { basename, resolve } from "node:path";
-import { parseJournalEntries } from "../report/journal.ts";
+import { parseJournal } from "../report/journal.ts";
 import type { Ticket } from "../tickets/spec.ts";
 
 export type PendingAdr = {
@@ -53,8 +53,8 @@ function escapeRegExp(s: string): string {
 function draftTextFor(rawBody: string, adrNumber: string, adrPath: string): string | null {
   // Normalize composed vs. decomposed accents (NFC vs. NFD "à") so a heading typed either
   // way still matches — bug-hunter found an NFD "à" otherwise silently produced `text: null`.
-  const body = rawBody.normalize("NFC");
-  const fenceRe = /```resume-manifest\n([\s\S]*?)```/g;
+  const body = rawBody.normalize("NFC").replace(/\r\n?/g, "\n");
+  const fenceRe = /```resume-manifest[^\S\n]*\n([\s\S]*?)```/g;
   // `adr_path:` may be indented (the gate's template shows the fence nested inside a
   // numbered list) — anchoring to column 0 missed that case, so allow leading whitespace.
   const adrPathLine = new RegExp(`^\\s*adr_path:\\s*${escapeRegExp(adrPath)}\\s*$`, "m");
@@ -96,7 +96,7 @@ function draftTextFor(rawBody: string, adrNumber: string, adrPath: string): stri
 export async function listPendingAdrs(root: string, tickets: Ticket[]): Promise<PendingAdr[]> {
   const pending: PendingAdr[] = [];
   for (const t of tickets) {
-    const entries = parseJournalEntries(t.body);
+    const { entries } = parseJournal(t.body);
     const latest = entries[entries.length - 1];
     if (!latest?.adrPath) continue;
     if (await fileExists(resolve(root, latest.adrPath))) continue;

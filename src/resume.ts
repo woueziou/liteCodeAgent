@@ -11,7 +11,7 @@
  */
 
 import type { Finding, PrLookup, Probes } from "./report/verify.ts";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { parseJournal, type JournalEntry } from "./report/journal.ts";
 
 export type ResumeProbes = Probes & {
@@ -69,13 +69,16 @@ function nextStep(entry: JournalEntry, findings: Finding[]): string {
  */
 export async function primaryCheckoutRoot(root: string): Promise<string> {
   try {
-    const proc = Bun.spawn(["git", "-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"], {
+    const proc = Bun.spawn(["git", "-C", root, "rev-parse", "--git-common-dir"], {
       stdout: "pipe",
       stderr: "ignore",
     });
-    const out = (await new Response(proc.stdout).text()).trim();
+    const lines = (await new Response(proc.stdout).text()).trim().split("\n");
+    const out = lines[lines.length - 1]!.trim();
     if ((await proc.exited) !== 0 || !out) return root;
-    return out.endsWith("/.git") ? dirname(out) : root;
+    // The common dir may be relative to `root` (older git has no --path-format=absolute).
+    const abs = resolve(root, out);
+    return abs.endsWith("/.git") ? dirname(abs) : root;
   } catch {
     return root;
   }
