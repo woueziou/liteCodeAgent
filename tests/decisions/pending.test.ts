@@ -228,3 +228,43 @@ test("an NFD-encoded 'à' in the heading is still matched (NFC-normalized before
   expect(pending).toHaveLength(1);
   expect(pending[0]!.text).toContain("Some decision");
 });
+
+function draftWithHeading(heading: string): string {
+  return `## Notes
+
+${heading}
+
+Draft awaiting human approval, not committed.
+
+# 0018. Some decision
+
+## Decision
+Use X.
+
+\`\`\`resume-manifest
+worktree: ../worktrees/0047
+branch: feat/x/0047
+commit: none
+adr_path: docs/decisions/0018-example.md
+board_status: In Progress
+checks_passed: not yet run
+adr_posted: true
+\`\`\`
+`;
+}
+
+test("a heading whose number sits on the next line is not recognized (suffix cannot cross a newline)", async () => {
+  const root = await tmpRoot();
+  const t = ticket("0047-feat-x", draftWithHeading("## ADR à valider :\n0018 stray line"));
+  const pending = await listPendingAdrs(root, [t]);
+  expect(pending).toHaveLength(1);
+  expect(pending[0]!.text).toBeNull();
+});
+
+test("a heading with the suffix glued to the number is accepted, and the ADR text is rendered", async () => {
+  for (const heading of ["## ADR à valider : 0018: Use X", "## ADR à valider : 0018— Use X", "## ADR à valider : 0018—Use X"]) {
+    const root = await tmpRoot();
+    const pending = await listPendingAdrs(root, [ticket("0047-feat-x", draftWithHeading(heading))]);
+    expect(pending[0]!.text).toContain("Use X.");
+  }
+});

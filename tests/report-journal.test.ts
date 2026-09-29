@@ -172,3 +172,36 @@ test("isValidPrValue accepts bare numbers, #-prefixed numbers and URLs, rejects 
   expect(isValidPrValue("https://github.com/o/r/pull/42")).toBe(true);
   expect(isValidPrValue("$(rm -rf /)")).toBe(false);
 });
+
+import * as journalMod from "../src/report/journal.ts";
+const parseJournal = (b: string) => (journalMod as any).parseJournal(b) as { entries: unknown[]; warnings: string[] };
+
+test("a block opened at 2 spaces and closed more indented is one coherent block, not 'unclosed'", () => {
+  const body = "  ```progress-journal\n  step: step 4\n  branch: feat/x/0053\n      ```\n";
+  expect(latestJournalEntry(body)?.branch).toBe("feat/x/0053");
+});
+
+test("a block indented 4+ spaces or with a tab yields an explicit warning, not silence", () => {
+  for (const open of ["    ```progress-journal", "\t```progress-journal"]) {
+    const { entries, warnings } = parseJournal(`${open}\nstep: x\n\`\`\`\n`);
+    expect(entries).toEqual([]);
+    expect(warnings.some((w) => /indent/i.test(w))).toBe(true);
+  }
+});
+
+test("an old unclosed block does not stop a newer valid block from being read", () => {
+  const body = "```progress-journal\nstep: old\nbranch: a\n\n```progress-journal\nstep: new\nbranch: b\n```\n";
+  expect(latestJournalEntry(body)?.step).toBe("new");
+  const { warnings } = parseJournal(body);
+  expect(warnings.some((w) => /unclosed/.test(w))).toBe(true);
+});
+
+test("invalid commit/pr values are recorded on the entry, not only dropped", () => {
+  const body = "```progress-journal\nstep: x\ncommit: not a sha!\npr: whatever\n```\n";
+  const entry = latestJournalEntry(body)!;
+  expect(entry.commit).toBeUndefined();
+  expect(entry.invalid).toEqual([
+    { field: "commit", value: "not a sha!" },
+    { field: "pr", value: "whatever" },
+  ]);
+});

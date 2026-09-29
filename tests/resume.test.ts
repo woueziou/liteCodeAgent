@@ -1,4 +1,8 @@
 import { expect, test } from "bun:test";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import * as resumeMod from "../src/resume.ts";
 import { resumeState, type ResumeProbes } from "../src/resume.ts";
 
 const JOURNAL_BODY = `
@@ -28,6 +32,7 @@ function probes(overrides: Partial<ResumeProbes> = {}): ResumeProbes {
     commitInBranch: async (b, c) => b === "feat/x/0034" && c === "abc123",
     headCommit: async (b) => (b === "feat/x/0034" ? "abc123" : null),
     openPrForBranch: async () => null,
+    closedPrForBranch: async () => null,
     ...overrides,
   };
 }
@@ -122,4 +127,67 @@ pr: https://github.com/o/r/pull/9
   );
   if (result.kind !== "resolved") throw new Error("expected resolved");
   expect(result.findings.some((f) => f.severity === "error" && f.message.includes("not the journal's branch"))).toBe(true);
+});
+
+test("an invalid commit value is reported in the findings, not silently ignored", async () => {
+  const body = "```progress-journal\nstep: x\nbranch: feat/x/0034\ncommit: zz-not-a-sha\n```\n";
+  const result = await resumeState(body, probes());
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.findings.some((f) => f.severity === "warn" && f.message.includes("commit") && f.message.includes("zz-not-a-sha"))).toBe(true);
+});
+
+test("an invalid pr value is reported in the findings", async () => {
+  const body = "```progress-journal\nstep: x\nbranch: feat/x/0034\npr: nope\n```\n";
+  const result = await resumeState(body, probes());
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.findings.some((f) => f.severity === "warn" && f.message.includes("pr") && f.message.includes("nope"))).toBe(true);
+});
+
+test("an old malformed block does not block resume when a newer one is valid", async () => {
+  const body = "```progress-journal\nstep: old\n\n" + JOURNAL_BODY;
+  const result = await resumeState(body, probes());
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.entry.step).toBe("step 4: implement");
+  expect(result.findings.some((f) => f.severity === "error")).toBe(false);
+  expect(result.findings.some((f) => f.message.includes("unclosed"))).toBe(true);
+});
+
+test("an indented (4+ spaces) journal block yields an explicit warning instead of a silent no-journal", async () => {
+  const result = await resumeState("    ```progress-journal\n    step: x\n    ```\n", probes());
+  expect(result.kind).toBe("no-journal");
+  if (result.kind !== "no-journal") return;
+  expect(result.findings.some((f) => /indent/i.test(f.message))).toBe(true);
+});
+
+test("a merged PR for the journal's branch (never recorded) is flagged", async () => {
+  const result = await resumeState(
+    JOURNAL_BODY,
+    probes({ closedPrForBranch: async () => ({ url: "https://github.com/o/r/pull/9", state: "MERGED" }) }),
+  );
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.findings.some((f) => f.message.includes("MERGED") && f.message.includes("pull/9"))).toBe(true);
+});
+
+test("a recorded PR that is merged or closed is flagged", async () => {
+  const body = "```progress-journal\nstep: x\nbranch: feat/x/0034\npr: 42\n```\n";
+  const result = await resumeState(body, probes({ prView: async () => ({ kind: "found", headRefName: "feat/x/0034", state: "MERGED" }) }));
+  if (result.kind !== "resolved") throw new Error("expected resolved");
+  expect(result.findings.some((f) => f.message.includes("MERGED"))).toBe(true);
+});
+
+test("primaryCheckoutRoot resolves a linked worktree back to the primary checkout", async () => {
+  const dir = await realpath(await mkdtemp(join(tmpdir(), "litecode-primary-")));
+  try {
+    const run = async (...args: string[]) => {
+      const p = Bun.spawn(["git", ...args], { cwd: dir, stdout: "pipe", stderr: "pipe" });
+      await p.exited;
+    };
+    await run("init", "-q", "-b", "main");
+    await run("-c", "user.email=a@b.c", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "i");
+    await run("worktree", "add", "-q", join(dir, "wt"), "-b", "x");
+    expect(await (resumeMod as any).primaryCheckoutRoot(join(dir, "wt"))).toBe(dir);
+    expect(await (resumeMod as any).primaryCheckoutRoot(dir)).toBe(dir);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
