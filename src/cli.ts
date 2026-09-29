@@ -88,7 +88,7 @@ function usage(): void {
   ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
                                      run a pack agent through the configured API provider
                                      ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>; --ticket <id> (journal tokens)")}
-  ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--force]
+  ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--epic <name>] [--force]
                                      draft a ticket file; blocks if its title reads like an existing
                                      ticket's — pass --force to create anyway
   ${c.bold("bunx litecodeagent ticket list")}              list ticket files with their status, priority and size
@@ -624,7 +624,18 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       }
     }
     const body = arg(argv, "--body") ?? `${title}\n`;
-    const ticket = await createTicket(root, dir, { title, label, body, priority, size });
+    const epic = arg(argv, "--epic");
+    if (argv.includes("--epic") && (!epic || epic.startsWith("--"))) {
+      console.log(c.red("--epic requires a name"));
+      return 1;
+    }
+    let ticket;
+    try {
+      ticket = await createTicket(root, dir, { title, label, body, priority, size, epic });
+    } catch (e) {
+      console.log(c.red((e as Error).message));
+      return 1;
+    }
     console.log(`${c.green("created")} ${ticket.path}`);
     return 0;
   }

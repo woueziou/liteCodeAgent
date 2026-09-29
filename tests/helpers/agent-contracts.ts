@@ -10,7 +10,7 @@
 
 export const REVIEWER_KEYS = ["VERDICT", "CHECK_OUTPUT", "ACCEPTANCE", "TEST_FIRST", "FINDINGS", "PLAN_FIDELITY", "REENTRY"] as const;
 export const BUG_HUNTER_KEYS = ["HUNT", "CHECK_OUTPUT", "FINDINGS", "REENTRY"] as const;
-export const ORCHESTRATOR_KEYS = ["SIZE", "PANEL", "BLOCKING_TENSION", "PLAN", "ADR", "OPEN_QUESTIONS", "RECOMMENDATION"] as const;
+export const ORCHESTRATOR_KEYS = ["SIZE", "PANEL", "BLOCKING_TENSION", "PLAN", "ADR", "OPEN_QUESTIONS", "EPIC", "RECOMMENDATION"] as const;
 
 const LINE = /^\s*(?:[-*>]\s+)?(?:\*\*|`)?([A-Z_]+):(?:\*\*|`)?\s?(.*)$/;
 

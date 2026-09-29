@@ -426,3 +426,15 @@ test("`--project=<dir>` is refused rather than silently ignored", async () => {
   expect(exitCode).toBe(1);
   expect(output).toMatch(/separate argument/);
 });
+
+test("`ticket new --epic` files under a numbered epic dir and reuses it; bare --epic fails", async () => {
+  const root = await project();
+  const first = await runCliWithExit(root, ["ticket", "new", "--title", "Alpha thing", "--label", "feature", "--epic", "demo-epic"]);
+  expect(first.exitCode).toBe(0);
+  expect(first.output).toContain("docs/tickets/01-demo-epic/0001-alpha-thing.md");
+  const second = await runCliWithExit(root, ["ticket", "new", "--title", "Zeta widget", "--label", "feature", "--epic", "demo-epic"]);
+  expect(second.output).toContain("docs/tickets/01-demo-epic/0002-zeta-widget.md");
+  const bad = await runCliWithExit(root, ["ticket", "new", "--title", "Other unrelated", "--label", "feature", "--epic", "--force"]);
+  expect(bad.exitCode).toBe(1);
+  expect(bad.output).toContain("--epic requires a name");
+});
