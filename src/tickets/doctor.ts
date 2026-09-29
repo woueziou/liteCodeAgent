@@ -9,6 +9,7 @@
 
 import { relative } from "node:path";
 import { listTicketsDetailed, type TicketLoadError } from "./store.ts";
+import { listEpicDirs } from "./epics.ts";
 import { CURRENT_SCHEMA_VERSION, ticketSection, type Ticket } from "./spec.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
@@ -88,6 +89,20 @@ function checkAcceptanceCriteria(ticket: Ticket): Finding | null {
   return null;
 }
 
+/**
+ * Ticket 0040: once epic directories exist, a ticket left at the root is probably an
+ * oversight. Warn only; the flat layout stays valid.
+ */
+function checkRootTickets(tickets: Ticket[], dir: string, epicDirs: string[]): Finding[] {
+  if (epicDirs.length === 0) return [];
+  return tickets
+    .filter((t) => relative(dir, t.path).split("/").length === 1)
+    .map((t) => ({
+      severity: "warn" as const,
+      message: `${t.path}: at the root of ${dir} while epics exist (${epicDirs.join(", ")}) — consider moving it into an epic`,
+    }));
+}
+
 function reportLoadError(e: TicketLoadError): Finding {
   // `e.error` already carries the actionable, file-naming message produced by
   // `parseFrontmatter` (delimiter integrity) or `TicketSchema.safeParse` (frontmatter
@@ -113,6 +128,7 @@ export async function doctor(root: string, dir: string): Promise<Finding[]> {
     if (placement) findings.push(placement);
   }
   findings.push(...checkDuplicateNumbers(tickets));
+  findings.push(...checkRootTickets(tickets, dir, await listEpicDirs(root, dir)));
   for (const t of tickets) {
     const acceptance = checkAcceptanceCriteria(t);
     if (acceptance) findings.push(acceptance);

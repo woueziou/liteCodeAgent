@@ -4,6 +4,7 @@ import { readdir, mkdir, open } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import { CURRENT_SCHEMA_VERSION, parseTicket, serializeTicket, slugify, type Ticket, type TicketMeta } from "./spec.ts";
 import { assertContained } from "../fs-safety.ts";
+import { chooseEpicDir, listEpicDirs } from "./epics.ts";
 
 export function ticketsDir(root: string, dir: string): string {
   return resolve(root, dir);
@@ -126,6 +127,8 @@ export type NewTicket = Omit<Partial<TicketMeta>, "id" | "schemaVersion"> & {
   title: string;
   label: TicketMeta["label"];
   body: string;
+  /** Epic to file under (`docs/tickets/NN-name/`); reused if it exists, created otherwise. */
+  epic?: string;
 };
 
 const MAX_CREATE_ATTEMPTS = 8;
@@ -140,6 +143,7 @@ const MAX_CREATE_ATTEMPTS = 8;
  * 0001 for why a full lock/sequence-counter was not built for this.
  */
 export async function createTicket(root: string, dir: string, input: NewTicket): Promise<Ticket> {
+  const targetDir = input.epic ? join(dir, chooseEpicDir(await listEpicDirs(root, dir), input.epic)) : dir;
   for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
     const existing = await listTickets(root, dir);
     const id = `${String(nextNumber(existing)).padStart(4, "0")}-${slugify(input.title)}`;
@@ -154,7 +158,7 @@ export async function createTicket(root: string, dir: string, input: NewTicket):
       assignedAgent: input.assignedAgent ?? "human",
       dueDate: input.dueDate,
       importedFrom: input.importedFrom,
-      path: join(dir, `${id}.md`),
+      path: join(targetDir, `${id}.md`),
       body: input.body.trimEnd() + "\n",
       extraFrontmatter: {},
     };
