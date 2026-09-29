@@ -180,7 +180,13 @@ function stripFlag(argv: string[], name: string): string[] {
 function repeatedArg(argv: string[], name: string): string[] {
   const values: string[] = [];
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === name && argv[i + 1] !== undefined) values.push(argv[i + 1]!);
+    if (argv[i] !== name) continue;
+    const value = argv[i + 1];
+    // A missing value, or the next option taken as the value, is a usage error: never
+    // silently swallow a following `--flag` (ticket 0058).
+    if (value === undefined || value.startsWith("--")) throw new Error(`${name} requires a value`);
+    values.push(value);
+    i++;
   }
   return values;
 }
@@ -901,7 +907,13 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
     }
 
     const configAllowHosts = config.project.dashboard?.allowedHosts ?? [];
-    const cliAllowHosts = repeatedArg(argv, "--allow-host");
+    let cliAllowHosts: string[];
+    try {
+      cliAllowHosts = repeatedArg(argv, "--allow-host");
+    } catch (e) {
+      console.log(c.red(`dashboard: ${(e as Error).message}`));
+      return 1;
+    }
     const allowHosts = [...configAllowHosts, ...cliAllowHosts];
     const wildcard = allowHosts.find((h) => h.includes("*"));
     if (wildcard) {

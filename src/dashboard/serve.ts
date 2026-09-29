@@ -145,9 +145,10 @@ export function buildAllowedHosts(port: number, boundHost: string, additionalHos
  * `0.0.0.0`), not just the two literal strings the original check compared against
  * (bug-hunter finding on this PR: `--host ::0` bound every interface but printed no warning).
  */
-function isWildcardBindHost(host: string): boolean {
+export function isWildcardBindHost(host: string): boolean {
   const stripped = host.replace(/^\[/, "").replace(/\]$/, "").toLowerCase();
-  if (stripped === "0.0.0.0") return true;
+  // `0` is the shorthand inet_aton accepts for 0.0.0.0; `::ffff:0.0.0.0` is its IPv4-mapped form.
+  if (stripped === "0.0.0.0" || stripped === "0" || stripped === "::ffff:0.0.0.0") return true;
   if (!stripped.includes(":")) return false;
   const groups = stripped.split(":");
   return groups.every((g) => g === "" || /^0+$/.test(g));
@@ -251,6 +252,7 @@ export async function startDashboardServer(root: string, dir: string, options: S
   const url = `http://${boundHost}:${server.port}`;
   allowedHosts = buildAllowedHosts(server.port ?? port, host, allowHosts);
   console.log(`dashboard listening on ${url}`);
+  console.log(`dashboard allowed hosts: ${[...allowedHosts].join(", ")}`);
 
   const onSigint = () => {
     console.log("stopping dashboard server");

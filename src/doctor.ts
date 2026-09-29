@@ -34,7 +34,7 @@ function ticketNumber(id: string): string {
   return id.slice(0, 4);
 }
 
-type WorktreeEntry = { path: string; branch: string | null; prunable: boolean };
+type WorktreeEntry = { path: string; branch: string | null; prunable: boolean; bare?: boolean };
 
 /**
  * Parses `git worktree list --porcelain` into path + branch (null when detached) + whether
@@ -50,16 +50,18 @@ async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
   let current: Partial<WorktreeEntry> | null = null;
   for (const line of stdout.split("\n")) {
     if (line.startsWith("worktree ")) {
-      if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null, prunable: current.prunable ?? false });
+      if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null, prunable: current.prunable ?? false, bare: current.bare ?? false });
       current = { path: line.slice("worktree ".length) };
     } else if (line.startsWith("branch ")) {
       const ref = line.slice("branch ".length);
       if (current) current.branch = ref.replace(/^refs\/heads\//, "");
+    } else if (line === "bare") {
+      if (current) current.bare = true;
     } else if (line.startsWith("prunable")) {
       if (current) current.prunable = true;
     }
   }
-  if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null, prunable: current.prunable ?? false });
+  if (current?.path) entries.push({ path: current.path, branch: current.branch ?? null, prunable: current.prunable ?? false, bare: current.bare ?? false });
   return entries;
 }
 
@@ -70,8 +72,11 @@ async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
  * `project.worktreeRoot` — `doctor` run from inside one must still resolve
  * `project.worktreeRoot` relative to the primary checkout, not to itself.
  */
-function primaryCheckoutRoot(root: string, worktrees: WorktreeEntry[]): string {
-  return worktrees[0]?.path ?? root;
+export function primaryCheckoutRoot(root: string, worktrees: WorktreeEntry[]): string {
+  // A bare repository can be the "main worktree" git lists first, but it has no checkout to
+  // resolve `project.worktreeRoot` against: fall back to `root` (ticket 0058).
+  const first = worktrees[0];
+  return first && !first.bare ? first.path : root;
 }
 
 /** Local or remote branch (short name) ending in `/<number>`, litecodeagent's naming convention. */
