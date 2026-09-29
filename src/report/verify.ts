@@ -35,12 +35,27 @@ export type Report = {
   branch: string | undefined;
   pr: string | undefined;
   checkOutput: string | undefined;
+  /**
+   * The implementer's own claim about the PR's CI state (ticket 0054) — informational
+   * only; `verifyReport` never trusts it, it re-queries `probes.prChecks` itself the same
+   * way it re-queries `prView` instead of trusting `PR:`.
+   */
+  ci: "pass" | "fail" | "pending" | "none" | undefined;
 };
 
 export type Finding = { severity: "error" | "warn"; message: string };
 
 /** `ISSUE` is the pre-ADR-0015 name of `TICKET`, still read from older installed prompts. */
-const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT"] as const;
+const KEYS = ["STATUS", "TICKET", "ISSUE", "BRANCH", "PR", "BLOCKER", "CHECK_OUTPUT", "CI"] as const;
+
+const CI_VALUES = ["pass", "fail", "pending", "none"] as const;
+
+/** `CI:` names a fixed enum; anything else (missing, freeform prose) parses as "no claim". */
+function ciClaim(value: string | undefined): Report["ci"] {
+  if (value === undefined) return undefined;
+  const v = unwrap(value).toLowerCase();
+  return (CI_VALUES as readonly string[]).includes(v) ? (v as Report["ci"]) : undefined;
+}
 
 /** Strips the wrapping an agent tends to add around a value: quotes, backticks, bold. */
 function unwrap(value: string): string {
@@ -93,6 +108,7 @@ export function parseReport(text: string): { report: Report } | { error: Finding
       branch: claimed(fields.get("BRANCH")),
       pr: claimed(fields.get("PR")),
       checkOutput: claimed(fields.get("CHECK_OUTPUT")),
+      ci: ciClaim(fields.get("CI")),
     },
   };
 }
@@ -110,9 +126,22 @@ export type PrLookup =
   | { kind: "missing" }
   | { kind: "unknown"; reason: string };
 
+/**
+ * The PR's CI check state (ticket 0054), collapsed to what `readyToMerge` actually cares
+ * about: any failing check beats everything else, then any still running, then a clean
+ * pass; `none` means the repo has no checks configured at all — not itself a problem.
+ */
+export type PrChecksLookup =
+  | { kind: "pass" }
+  | { kind: "fail" }
+  | { kind: "pending" }
+  | { kind: "none" }
+  | { kind: "unknown"; reason: string };
+
 export type Probes = {
   branchExists(branch: string): Promise<boolean>;
   prView(pr: string): Promise<PrLookup>;
+  prChecks(pr: string): Promise<PrChecksLookup>;
   /** Uncommitted paths in the primary checkout (not the worktree). */
   dirtyFiles(): Promise<string[]>;
   /** Paths changed by commits only this branch has; `null` when git couldn't tell. */
@@ -203,6 +232,20 @@ export async function verifyReport(report: Report, probes: Probes, options: Veri
       warn(`no ticket file found for TICKET ${report.ticket} — its status could not be checked`);
     } else if (expected && !expected.includes(actual)) {
       error(`ticket ${report.ticket} has status '${actual}', expected ${expected.join(" or ")} after ${report.status}`);
+    }
+
+    // A ticket only reaches readyToMerge through this same report's PR — so its CI has to
+    // have actually gone green, not just have been claimed green (ticket 0054, PR #93).
+    if (actual === "readyToMerge" && report.pr) {
+      const checks = await probes.prChecks(report.pr);
+      if (checks.kind === "fail") {
+        error(`PR '${report.pr}' has a failing check, but the ticket is readyToMerge`);
+      } else if (checks.kind === "pending") {
+        warn(`PR '${report.pr}' still has checks running while the ticket is readyToMerge`);
+      } else if (checks.kind === "unknown") {
+        warn(`could not check CI status for PR '${report.pr}': ${checks.reason} — unverified`);
+      }
+      // "pass" and "none" (no CI configured on the repo) need no finding.
     }
   }
 

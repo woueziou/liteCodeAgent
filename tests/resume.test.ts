@@ -19,6 +19,7 @@ function probes(overrides: Partial<ResumeProbes> = {}): ResumeProbes {
   return {
     branchExists: async (b) => b === "feat/x/0034",
     prView: async () => ({ kind: "missing" }),
+    prChecks: async () => ({ kind: "none" }),
     dirtyFiles: async () => [],
     branchFiles: async () => [],
     ticketStatus: async () => "inProgress",
