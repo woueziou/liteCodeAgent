@@ -114,23 +114,32 @@ export function realProbes(ctx: ProbeContext): Probes {
     async prChecks(pr): Promise<PrChecksLookup> {
       const args = ["pr", "checks", pr, "--json", "bucket"];
       if (!/^https?:\/\//.test(pr)) args.push("--repo", repo);
-      const proc = Bun.spawn([process.env.LITECODE_GH_BIN || "gh", ...args], {
-        env: process.env,
-        stdin: "ignore",
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-      await proc.exited;
+      // The whole call — including `Bun.spawn` itself — is inside this try: `Bun.spawn`
+      // throws synchronously (e.g. ENOENT when `gh`/`LITECODE_GH_BIN` doesn't exist), and
+      // that must land in `unknown` like every other probe failure here, not escape as an
+      // uncaught exception (bug-hunter, ticket 0054's own review — `prView`'s equivalent
+      // call was already inside its try for the same reason).
       try {
-        const rows = JSON.parse(stdout) as { bucket: string }[];
-        if (rows.length === 0) return { kind: "none" };
-        if (rows.some((r) => r.bucket === "fail" || r.bucket === "cancel")) return { kind: "fail" };
-        if (rows.some((r) => r.bucket === "pending")) return { kind: "pending" };
-        return { kind: "pass" };
-      } catch {
-        if (PR_NO_CHECKS.test(stderr)) return { kind: "none" };
-        return { kind: "unknown", reason: (stderr || `gh pr checks exited with no parseable output`).trim().split("\n")[0]! };
+        const proc = Bun.spawn([process.env.LITECODE_GH_BIN || "gh", ...args], {
+          env: process.env,
+          stdin: "ignore",
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+        await proc.exited;
+        try {
+          const rows = JSON.parse(stdout) as { bucket: string }[];
+          if (rows.length === 0) return { kind: "none" };
+          if (rows.some((r) => r.bucket === "fail" || r.bucket === "cancel")) return { kind: "fail" };
+          if (rows.some((r) => r.bucket === "pending")) return { kind: "pending" };
+          return { kind: "pass" };
+        } catch {
+          if (PR_NO_CHECKS.test(stderr)) return { kind: "none" };
+          return { kind: "unknown", reason: (stderr || `gh pr checks exited with no parseable output`).trim().split("\n")[0]! };
+        }
+      } catch (e) {
+        return { kind: "unknown", reason: (e as Error).message.split("\n")[0]! };
       }
     },
 

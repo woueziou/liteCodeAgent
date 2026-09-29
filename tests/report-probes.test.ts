@@ -157,6 +157,13 @@ test("prChecks reports fail, pending (exit 8 with JSON still on stdout), pass, n
   expect(await p.prChecks("7")).toEqual({ kind: "unknown", reason: "gh: some other failure" });
 });
 
+test("prChecks reports unknown, not an uncaught throw, when the gh binary itself doesn't exist", async () => {
+  const root = await repo();
+  process.env.LITECODE_GH_BIN = "/does/not/exist/gh";
+  const result = await realProbes(ctx(root)).prChecks("7");
+  expect(result.kind).toBe("unknown");
+});
+
 test("ticketStatus reads only the primary checkout, never a stale copy committed on a branch", async () => {
   const root = await repo();
   await sh(root, "git", "switch", "-q", "feat/x/issue-7");
