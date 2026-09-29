@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0067-perf-pipeline-rediger-et-valider-l-adr-avant-de
 title: "perf(pipeline): rédiger et valider l'ADR avant de lancer l'implémentation"
 label: feature
-status: review
+status: done
 priority: medium
 size: medium
 assignedAgent: human

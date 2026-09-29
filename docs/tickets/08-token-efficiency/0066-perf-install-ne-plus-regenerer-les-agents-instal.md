@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0066-perf-install-ne-plus-regenerer-les-agents-instal
 title: "perf(install): ne plus régénérer les agents installés dans chaque PR"
 label: feature
-status: review
+status: done
 priority: medium
 size: medium
 assignedAgent: human
