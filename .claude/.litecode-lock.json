@@ -1,74 +1,144 @@
 {
   "litecodeVersion": "1.3.0",
-  "installedAt": "2026-09-29T16:36:03.469Z",
+  "installedAt": "2026-09-29T17:04:15.719Z",
   "packs": {
     "core": "0.4.0"
   },
   "files": {
-    ".claude/commands/litecodeagent.md": {
+    ".claude/reference/implementer-github-outage.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "eb9c3cda16f5ad91"
+      "hash": "cc9e6d381990537b"
     },
-    ".claude/agents/synthesizer.md": {
+    ".claude/reference/implementer-review-disputes.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "a484b9cec2e47d35"
+      "hash": "5620cbc474b68769"
     },
-    ".claude/agents/orchestrator.md": {
+    ".claude/reference/implementer-verification-only.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "e76385900bd54535"
+      "hash": "1e3983219c1b60f2"
     },
-    ".claude/agents/reviewer.md": {
+    ".claude/reference/implementer-subagent-steps.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "da494899422a09be"
+      "hash": "fc3da6fd8e01f267"
     },
-    ".claude/agents/tracker.md": {
+    ".claude/reference/implementer-adr-gate.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "4e2db72f9eabc529"
+      "hash": "ba86a1e39e94545f"
+    },
+    ".claude/reference/reviewer-test-first.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "71a73e03a2bc7a0d"
+    },
+    ".claude/reference/implementer-cli-resolution.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "4f61e6b7ef36a8dd"
+    },
+    ".claude/reference/implementer-stacked-pr.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5db487c86a496397"
+    },
+    ".claude/reference/implementer-test-first.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "f713716cc570ff4e"
+    },
+    ".claude/reference/implementer-resume.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "30664453ea514890"
+    },
+    ".claude/reference/reviewer-acceptance-edge-cases.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "448a777d74d34a35"
+    },
+    ".claude/reference/implementer-leak-cleanup.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "815b8926c3dc2a34"
+    },
+    ".claude/reference/reviewer-single-pass.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "8d9b9b2813e64482"
     },
     ".claude/agents/triage.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "cc073b76248cab64"
     },
-    ".claude/agents/debate-angle.md": {
+    ".claude/agents/tracker.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "96f77357b3b86f7b"
+      "hash": "4e2db72f9eabc529"
     },
-    ".claude/agents/classifier.md": {
+    ".claude/agents/orchestrator.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "74b5ba21864e5194"
-    },
-    ".claude/agents/dispatcher.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "d046939a87696690"
-    },
-    ".claude/agents/planner.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "79590db42924e1a2"
-    },
-    ".claude/agents/panel-selector.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "6a7eeae1b3d1613b"
+      "hash": "e76385900bd54535"
     },
     ".claude/agents/bug-hunter.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "8ba895f36f1fd797"
     },
+    ".claude/agents/debate-angle.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "96f77357b3b86f7b"
+    },
+    ".claude/agents/planner.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "79590db42924e1a2"
+    },
+    ".claude/agents/dispatcher.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "d046939a87696690"
+    },
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "64a1eb52bc8544b0"
+      "hash": "c7d623ac1f151e4f"
+    },
+    ".claude/agents/panel-selector.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "6a7eeae1b3d1613b"
+    },
+    ".claude/agents/classifier.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "74b5ba21864e5194"
+    },
+    ".claude/agents/synthesizer.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "a484b9cec2e47d35"
+    },
+    ".claude/agents/reviewer.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "da494899422a09be"
+    },
+    ".claude/skills/critique-expert/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "b81fcc2a68dddccb"
+    },
+    ".claude/skills/idea-to-planned/SKILL.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "1df748adc408739d"
     },
     ".claude/skills/agent-attribution/SKILL.md": {
       "pack": "core",
@@ -85,80 +155,10 @@
       "version": "0.4.0",
       "hash": "57e2bbeee1f19e69"
     },
-    ".claude/skills/idea-to-planned/SKILL.md": {
+    ".claude/commands/litecodeagent.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "1df748adc408739d"
-    },
-    ".claude/skills/critique-expert/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "b81fcc2a68dddccb"
-    },
-    ".claude/reference/implementer-test-first.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "f713716cc570ff4e"
-    },
-    ".claude/reference/implementer-github-outage.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "cc9e6d381990537b"
-    },
-    ".claude/reference/implementer-leak-cleanup.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "815b8926c3dc2a34"
-    },
-    ".claude/reference/reviewer-acceptance-edge-cases.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "448a777d74d34a35"
-    },
-    ".claude/reference/reviewer-single-pass.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "8d9b9b2813e64482"
-    },
-    ".claude/reference/implementer-stacked-pr.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "5db487c86a496397"
-    },
-    ".claude/reference/implementer-review-disputes.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "5620cbc474b68769"
-    },
-    ".claude/reference/implementer-adr-gate.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "ba86a1e39e94545f"
-    },
-    ".claude/reference/implementer-subagent-steps.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "fc3da6fd8e01f267"
-    },
-    ".claude/reference/implementer-resume.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "30664453ea514890"
-    },
-    ".claude/reference/implementer-cli-resolution.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "4f61e6b7ef36a8dd"
-    },
-    ".claude/reference/implementer-verification-only.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "1e3983219c1b60f2"
-    },
-    ".claude/reference/reviewer-test-first.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "71a73e03a2bc7a0d"
+      "hash": "eb9c3cda16f5ad91"
     }
   }
 }
