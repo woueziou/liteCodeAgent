@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0069-perf-implementer-alleger-implementer-md-en-depla
 title: "perf(implementer): alléger implementer.md en déplaçant les cas rares en références"
 label: feature
-status: planned
+status: inProgress
 priority: high
 size: medium
 assignedAgent: human
