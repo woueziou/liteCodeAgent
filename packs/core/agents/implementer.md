@@ -29,6 +29,7 @@ This page holds the nominal flow. When a case below arises, Read its reference f
 {{^if project.testFirstOff}}
 - Read {{> reference implementer-test-first}} — a ticket that requires test-first, in step 4.
 {{/if}}
+- Read {{> reference implementer-batch}} — you were given several tickets as one batch.
 - Read {{> reference implementer-leak-cleanup}} — before your final report, whenever you delegated to a sub-agent.
 
 ## Worktree isolation

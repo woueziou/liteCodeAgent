@@ -15,7 +15,8 @@ import { loadPack } from "../src/packs.ts";
 const PACKS = join(import.meta.dir, "..", "packs");
 const EXAMPLE = join(import.meta.dir, "..", "examples", "ts-employee-service.litecode.config.json");
 // 3150: ticket 0064 put the ticket-commit rules back inline (they run on every ticket move, not a rare case).
-const MAX_BODY_WORDS = 3150;
+// 3170: ticket 0065 added one line pointing at implementer-batch.
+const MAX_BODY_WORDS = 3170;
 
 async function core() {
   const pack = await loadPack(PACKS, "core");
