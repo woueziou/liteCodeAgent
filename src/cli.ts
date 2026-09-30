@@ -1043,13 +1043,17 @@ async function findTicketByRef(root: string, dir: string, ref: string) {
 async function cmdTokenReport(root: string, argv: string[]): Promise<number> {
   const dir = transcriptsDir(root);
   const wanted = arg(argv, "--session");
+  if (argv.some((a) => a.startsWith("--session="))) {
+    console.log(c.red("--session takes its value as a separate argument: --session <id>"));
+    return 1;
+  }
   if (argv.includes("--session") && (!wanted || wanted.startsWith("--"))) {
     console.log(c.red("--session requires a session id"));
     return 1;
   }
   const session = wanted ?? (await latestSession(dir));
   if (!session) {
-    console.log(c.yellow(`No Claude Code transcripts found in ${dir}`));
+    console.log(c.yellow(`No Claude Code transcripts found in ${dir} (run from, or pass --project, the checkout Claude Code was started in)`));
     return 1;
   }
   try {
