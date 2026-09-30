@@ -1,94 +1,19 @@
 {
   "litecodeVersion": "1.4.0",
-  "installedAt": "2026-09-30T06:28:28.589Z",
+  "installedAt": "2026-09-30T06:39:20.610Z",
   "packs": {
     "core": "0.4.0"
   },
   "files": {
-    ".pi/reference/implementer-github-outage.md": {
+    ".pi/prompts/litecodeagent.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "cc9e6d381990537b"
+      "hash": "798e3123bcb833cb"
     },
-    ".pi/reference/implementer-review-disputes.md": {
+    ".pi/extensions/litecodeagent.ts": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "5620cbc474b68769"
-    },
-    ".pi/reference/implementer-verification-only.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "1e3983219c1b60f2"
-    },
-    ".pi/reference/reviewer-batch.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "83f05eca827655e2"
-    },
-    ".pi/reference/implementer-batch.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "bd5b6b48e0c29b03"
-    },
-    ".pi/reference/implementer-subagent-steps.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "35db3d56466d424d"
-    },
-    ".pi/reference/implementer-adr-gate.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "ba86a1e39e94545f"
-    },
-    ".pi/reference/reviewer-test-first.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "71a73e03a2bc7a0d"
-    },
-    ".pi/reference/implementer-cli-resolution.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "4f61e6b7ef36a8dd"
-    },
-    ".pi/reference/implementer-stacked-pr.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "5db487c86a496397"
-    },
-    ".pi/reference/implementer-test-first.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "f713716cc570ff4e"
-    },
-    ".pi/reference/implementer-resume.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "30664453ea514890"
-    },
-    ".pi/reference/reviewer-acceptance-edge-cases.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "448a777d74d34a35"
-    },
-    ".pi/reference/implementer-leak-cleanup.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "815b8926c3dc2a34"
-    },
-    ".pi/reference/reviewer-single-pass.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "8d9b9b2813e64482"
-    },
-    ".pi/skills/skills/critique-expert/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "b81fcc2a68dddccb"
-    },
-    ".pi/skills/skills/idea-to-planned/SKILL.md": {
-      "pack": "core",
-      "version": "0.4.0",
-      "hash": "ba9d32eef7c69e6f"
+      "hash": "c8c6d26409b2de50"
     },
     ".pi/skills/skills/agent-attribution/SKILL.md": {
       "pack": "core",
@@ -105,15 +30,90 @@
       "version": "0.4.0",
       "hash": "57e2bbeee1f19e69"
     },
-    ".pi/prompts/litecodeagent.md": {
+    ".pi/skills/skills/idea-to-planned/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "798e3123bcb833cb"
+      "hash": "ba9d32eef7c69e6f"
     },
-    ".pi/extensions/litecodeagent.ts": {
+    ".pi/skills/skills/critique-expert/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "c8c6d26409b2de50"
+      "hash": "b81fcc2a68dddccb"
+    },
+    ".pi/reference/implementer-test-first.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "f713716cc570ff4e"
+    },
+    ".pi/reference/implementer-github-outage.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "cc9e6d381990537b"
+    },
+    ".pi/reference/implementer-leak-cleanup.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "815b8926c3dc2a34"
+    },
+    ".pi/reference/reviewer-acceptance-edge-cases.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "448a777d74d34a35"
+    },
+    ".pi/reference/reviewer-single-pass.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "8d9b9b2813e64482"
+    },
+    ".pi/reference/implementer-stacked-pr.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5db487c86a496397"
+    },
+    ".pi/reference/implementer-review-disputes.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5620cbc474b68769"
+    },
+    ".pi/reference/implementer-adr-gate.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "ba86a1e39e94545f"
+    },
+    ".pi/reference/implementer-subagent-steps.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "35db3d56466d424d"
+    },
+    ".pi/reference/implementer-resume.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "30664453ea514890"
+    },
+    ".pi/reference/reviewer-batch.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "83f05eca827655e2"
+    },
+    ".pi/reference/implementer-cli-resolution.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "4f61e6b7ef36a8dd"
+    },
+    ".pi/reference/implementer-batch.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "bd5b6b48e0c29b03"
+    },
+    ".pi/reference/implementer-verification-only.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "1e3983219c1b60f2"
+    },
+    ".pi/reference/reviewer-test-first.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "71a73e03a2bc7a0d"
     }
   }
 }
