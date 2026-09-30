@@ -28,6 +28,7 @@ This page holds the nominal flow. When a case below arises, Read its reference f
 - Read `.kilo/reference/implementer-cli-resolution.md` (relative to the primary checkout) — `ticket note --help` shows the installed CLI lacks `ticket note`.
 - Read `.kilo/reference/implementer-verification-only.md` (relative to the primary checkout) — the ticket needs no code change.
 - Read `.kilo/reference/implementer-test-first.md` (relative to the primary checkout) — a ticket that requires test-first, in step 4.
+- Read `.kilo/reference/implementer-batch.md` (relative to the primary checkout) — you were given several tickets as one batch.
 - Read `.kilo/reference/implementer-leak-cleanup.md` (relative to the primary checkout) — before your final report, whenever you delegated to a sub-agent.
 
 ## Worktree isolation
