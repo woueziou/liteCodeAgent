@@ -79,7 +79,9 @@ test("the sync workflow proposes a bot PR on main pushes and never pushes to mai
 });
 
 test("implementer.md tells the agent to leave installed copies to CI", async () => {
-  const md = await Bun.file(join(PACKS, "core", "agents", "implementer.md")).text();
+  // Ticket 0069: the rule moved out of implementer.md into a reference it points at.
+  expect(await Bun.file(join(PACKS, "core", "agents", "implementer.md")).text()).toContain("{{> reference implementer-packs-edit}}");
+  const md = await Bun.file(join(PACKS, "core", "reference", "implementer-packs-edit.md")).text();
   expect(md).toContain("commit only `packs/`");
   expect(md).toContain("or resolve a conflict on them by hand");
 });

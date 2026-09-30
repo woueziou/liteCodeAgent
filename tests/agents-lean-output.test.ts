@@ -15,15 +15,22 @@ const MAX_REVIEWER_WORDS = 1500;
 const IMPLEMENTER_REFS = [
   "implementer-adr-gate",
   "implementer-batch",
+  "implementer-ci-red",
   "implementer-cli-resolution",
   "implementer-github-outage",
+  "implementer-language",
   "implementer-leak-cleanup",
+  "implementer-packs-edit",
+  "implementer-progress-journal",
+  "implementer-rehunt",
   "implementer-resume",
+  "implementer-review-handoff",
   "implementer-review-disputes",
   "implementer-stacked-pr",
   "implementer-subagent-steps",
   "implementer-test-first",
   "implementer-verification-only",
+  "implementer-worktree-fallback",
 ];
 
 async function core() {

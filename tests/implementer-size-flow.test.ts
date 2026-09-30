@@ -157,3 +157,11 @@ test("chained-implementation tells the caller to pass only the ticket and the la
   expect(src).toMatch(/Pass only the ticket id and the specifics of this launch/);
   expect(src).toMatch(/Do not restate what `implementer` already carries/);
 });
+
+// Ticket 0069: implementer.md is reloaded at every launch; keep the fixed cost bounded.
+const MAX_IMPLEMENTER_BYTES = 12_000;
+
+test("implementer.md stays within the byte budget; the rare cases live in reference files", async () => {
+  const { get } = await core();
+  expect(new TextEncoder().encode(get("agents/implementer.md")).length).toBeLessThanOrEqual(MAX_IMPLEMENTER_BYTES);
+});
