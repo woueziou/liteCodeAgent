@@ -83,6 +83,15 @@ test("no structured sentinel line interpolates {{ project.language }}", async ()
   }
 });
 
+test("dispatcher runs at the fast tier: its work is mechanical ordering, like tracker's (ticket 0071)", async () => {
+  const pack = await loadPack(PACKS, "core");
+  for (const name of ["dispatcher", "tracker"]) {
+    const file = pack.files.find((f) => f.rel === `agents/${name}.md`);
+    expect(file).toBeDefined();
+    expect(parseFrontmatter(file!.source, file!.rel).data.tier).toBe("fast");
+  }
+});
+
 test("packs declare a capability tier, never a concrete model", async () => {
   for (const name of await listPacks(PACKS)) {
     const pack = await loadPack(PACKS, name);

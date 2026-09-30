@@ -76,6 +76,7 @@ test("reviewer.md stays within the word budget; rare cases are reference files, 
   expect(words(body(src))).toBeLessThanOrEqual(MAX_REVIEWER_WORDS);
   const pack = await loadPack(PACKS, "core");
   const refs = [
+    "chained-implementation-no-report",
     "reviewer-acceptance-edge-cases",
     "reviewer-batch",
     "reviewer-single-pass",
@@ -86,7 +87,7 @@ test("reviewer.md stays within the word budget; rare cases are reference files, 
   expect(shipped).toEqual([...refs].sort());
   for (const name of refs) {
     expect(pack.files.some((f) => f.rel === `skills/${name}/SKILL.md`)).toBe(false);
-    const referrer = get(name.startsWith("reviewer") ? "agents/reviewer.md" : "agents/implementer.md");
+    const referrer = get(name.startsWith("reviewer") ? "agents/reviewer.md" : name.startsWith("chained") ? "skills/chained-implementation/SKILL.md" : "agents/implementer.md");
     expect(referrer).toContain(`{{> reference ${name}}}`);
   }
 });
