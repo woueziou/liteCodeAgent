@@ -464,6 +464,23 @@ test("nothing is written when pre-flight config validation fails", async () => {
   expect(await Bun.file(join(root, ".claude", "agents", "tracker.md")).exists()).toBe(false);
 });
 
+test("hides the five orchestrator-internal agents on opencode only", async () => {
+  const config = await exampleConfig();
+  config.targets = ["claude-code", "codex", "pi", "opencode", "kilo-code"];
+  const plan = await buildPlan(await targetRepo(), PACKS, config);
+  const content = (rel: string) => plan.entries.find((entry) => entry.rel === rel)?.content ?? "";
+
+  for (const name of ["classifier", "panel-selector", "debate-angle", "synthesizer", "planner"]) {
+    expect(content(`.opencode/agents/${name}.md`)).toContain("hidden: true");
+    expect(content(`.kilo/agents/${name}.md`)).not.toContain("hidden");
+    expect(content(`.claude/agents/${name}.md`)).not.toContain("hidden");
+    expect(content(`.codex/agents/${name}.toml`)).not.toContain("hidden");
+  }
+  for (const name of ["orchestrator", "implementer", "reviewer"]) {
+    expect(content(`.opencode/agents/${name}.md`)).not.toContain("hidden");
+  }
+});
+
 test("renders native agents and the discussion-to-plan command for every configured harness", async () => {
   const config = await exampleConfig();
   config.targets = ["claude-code", "codex", "pi", "opencode", "kilo-code"];
