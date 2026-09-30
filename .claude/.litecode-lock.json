@@ -1,10 +1,15 @@
 {
-  "litecodeVersion": "1.4.0",
-  "installedAt": "2026-09-30T06:54:44.741Z",
+  "litecodeVersion": "1.4.1",
+  "installedAt": "2026-09-30T08:36:58.238Z",
   "packs": {
     "core": "0.4.0"
   },
   "files": {
+    ".claude/reference/implementer-progress-journal.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "9b561565a43875a6"
+    },
     ".claude/reference/implementer-github-outage.md": {
       "pack": "core",
       "version": "0.4.0",
@@ -25,6 +30,11 @@
       "version": "0.4.0",
       "hash": "83f05eca827655e2"
     },
+    ".claude/reference/implementer-language.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "4d7964f14ea818af"
+    },
     ".claude/reference/implementer-batch.md": {
       "pack": "core",
       "version": "0.4.0",
@@ -35,15 +45,40 @@
       "version": "0.4.0",
       "hash": "fc3da6fd8e01f267"
     },
+    ".claude/reference/implementer-review-handoff.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "95686b0f5fb20829"
+    },
+    ".claude/reference/implementer-rehunt.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "9f5e0ab96da93dbc"
+    },
+    ".claude/reference/implementer-worktree-fallback.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "e710d8c9ae2b3490"
+    },
     ".claude/reference/implementer-adr-gate.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "ba86a1e39e94545f"
     },
+    ".claude/reference/chained-implementation-no-report.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "6037d0e1155e320e"
+    },
     ".claude/reference/reviewer-test-first.md": {
       "pack": "core",
       "version": "0.4.0",
       "hash": "71a73e03a2bc7a0d"
+    },
+    ".claude/reference/implementer-ci-red.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "5d60a6c3d00c0e5f"
     },
     ".claude/reference/implementer-cli-resolution.md": {
       "pack": "core",
@@ -74,6 +109,11 @@
       "pack": "core",
       "version": "0.4.0",
       "hash": "815b8926c3dc2a34"
+    },
+    ".claude/reference/implementer-packs-edit.md": {
+      "pack": "core",
+      "version": "0.4.0",
+      "hash": "7cd1ba3836cb741e"
     },
     ".claude/reference/reviewer-single-pass.md": {
       "pack": "core",
@@ -113,12 +153,12 @@
     ".claude/agents/dispatcher.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "50df9eae75bbaae9"
+      "hash": "76664882f7b60413"
     },
     ".claude/agents/implementer.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "b946ee7029e29fe6"
+      "hash": "6a4a41a31596ac4f"
     },
     ".claude/agents/panel-selector.md": {
       "pack": "core",
@@ -158,7 +198,7 @@
     ".claude/skills/chained-implementation/SKILL.md": {
       "pack": "core",
       "version": "0.4.0",
-      "hash": "ef6eafda83ec3bed"
+      "hash": "9f7a0a951e398774"
     },
     ".claude/skills/security-expert/SKILL.md": {
       "pack": "core",
