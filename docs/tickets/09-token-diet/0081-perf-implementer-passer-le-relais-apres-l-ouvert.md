@@ -1,0 +1,33 @@
+---
+schemaVersion: 2
+id: 0081-perf-implementer-passer-le-relais-apres-l-ouvert
+title: "perf(implementer): passer le relais après l'ouverture de la PR à un agent au contexte vierge"
+label: feature
+status: backlog
+priority: high
+size: medium
+assignedAgent: human
+dueDate: 
+importedFrom: 
+---
+
+## Contexte
+Mesuré : dans le run du ticket 0069, l'implementer garde tout son contexte de code (jusqu'à 174 000 tokens) pendant toute la fin du run — attente de la CI, lancement et postage des relectures, déplacements de statut, notes — alors que cette partie n'a plus besoin de ce contexte. Chaque appel de cette fin de run relit ce contexte inutilement : c'est le plus gros poste de consommation de l'implementer. La règle « une PR par ticket, un rapport final » ne doit pas changer.
+
+## Critères d'acceptation
+- Un ADR (`docs/decisions/`) décrit la décision et est validé par l'humain avant l'implémentation (marqueur `## ADR à valider` dans le ticket, comme le flux existant) : ce qui est transmis (ticket, PR, branche, chemin du worktree, verdicts), ce qui reste chez l'implementer, et le comportement en cas d'échec.
+- Après le push de la PR, l'implementer lance un agent au tier `fast` qui gère : attente de la CI, `reviewer`/`bug-hunter`, postage des rapports, déplacement de statut, note de ticket, et renvoie le rapport final.
+- Si les relectures demandent des corrections, l'agent relais le remonte à l'implementer, qui corrige puis relance le relais : jamais deux agents qui écrivent dans le même worktree en même temps.
+- Le rapport final vu par l'humain garde le même format ; `litecode verify-report` passe inchangé.
+- `implementer.md` reste sous son budget de taille ; le nouvel agent ou la nouvelle référence respecte le budget de mots des descriptions.
+- Mesure avant/après avec `litecode token-report` sur un ticket de taille comparable, consignée dans le ticket.
+- `bun run check` et `bun test` passent.
+
+## Plan
+1. Écrire l'ADR et le soumettre à l'humain.
+2. Après validation : créer l'agent relais (ou une référence lue par un agent générique au tier fast) et brancher l'étape 8 à 10 de l'implementer dessus.
+3. Adapter les tests du flux de relecture et de `verify-report`.
+4. Mesurer avant/après et consigner.
+
+## Hors périmètre
+Modifier le contenu des relectures ; fusionner `reviewer` et `bug-hunter`.
