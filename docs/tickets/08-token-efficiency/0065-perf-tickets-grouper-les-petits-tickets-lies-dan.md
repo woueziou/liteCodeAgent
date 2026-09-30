@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0065-perf-tickets-grouper-les-petits-tickets-lies-dan
 title: "perf(tickets): grouper les petits tickets liés dans une seule PR"
 label: feature
-status: backlog
+status: planned
 priority: medium
 size: small
 assignedAgent: human
