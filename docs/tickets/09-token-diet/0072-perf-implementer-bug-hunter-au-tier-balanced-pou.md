@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0072-perf-implementer-bug-hunter-au-tier-balanced-pou
 title: "perf(implementer): bug-hunter au tier balanced pour les tickets small"
 label: feature
-status: backlog
+status: planned
 priority: medium
 size: small
 assignedAgent: human
