@@ -39,8 +39,10 @@ test("implementer.md no longer tells an agent to never end its turn while waitin
   expect(source).toMatch(/can only reach you after the current turn/);
 });
 
-test("chained-implementation's SKILL.md tells the caller what to do when implementer never sends a final report", async () => {
-  const source = await coreSource("skills/chained-implementation/SKILL.md");
+test("chained-implementation's SKILL.md points to the no-report reference, which tells the caller what to do when implementer never sends a final report", async () => {
+  const skill = await coreSource("skills/chained-implementation/SKILL.md");
+  expect(skill).toContain("{{> reference chained-implementation-no-report}}");
+  const source = await coreSource("reference/chained-implementation-no-report.md");
   expect(source).toMatch(/no final report/);
   expect(source).toMatch(/check yourself/);
   expect(source).toMatch(/PR/);
