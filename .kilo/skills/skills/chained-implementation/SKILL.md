@@ -1,6 +1,6 @@
 ---
 name: chained-implementation
-description: Chains dispatcher then implementer on one ticket in a single run. Only on explicit human instruction.
+description: Chains dispatcher then implementer on one ticket or a batch in a single run. Only on explicit human instruction.
 ---
 
 # Chained implementation
@@ -14,7 +14,7 @@ The human says something like "enchaîne sur 0010", "chain dispatcher and implem
 ## What you do
 
 1. Invoke `dispatcher` (via the `task` tool, targeting the `dispatcher` subagent) scoped to the named ticket only — tell it explicitly which ticket to plan, not to run its normal full-backlog ranking pass, so it doesn't pull in unrelated items.
-2. Read `dispatcher`'s output. If it reports a `CONFLICTS` entry for the named ticket (e.g. a Due Date/Priority tension it wouldn't resolve on its own), stop and surface that to the human before continuing — do not proceed past a flagged conflict without human input.
+2. Read `dispatcher`'s output. If its `BATCHES` line is not `none` and groups the named ticket with others, tell the human and offer to run that group as one batch (see "Running a batch") instead of one ticket at a time; wait for their answer. If it reports a `CONFLICTS` entry for the named ticket (e.g. a Due Date/Priority tension it wouldn't resolve on its own), stop and surface that to the human before continuing — do not proceed past a flagged conflict without human input.
 3. If the ticket was successfully moved to `Planned` (or was already there), invoke `implementer` (via the `task` tool, targeting the `implementer` subagent) on that ticket. This target has no per-call worktree isolation for a delegated `implementer` — it starts in the caller's existing working directory, same as any other delegation. `implementer` creates its own worktree with `git worktree add` as step 3 always did; nothing to state differently in the prompt. Pass only the ticket id and the specifics of this launch (e.g. "no isolation, worktree at X from origin/main", "the ticket requires an ADR, number N", "a sibling ticket runs in parallel"). Do not restate what `implementer` already carries: the worktree and branch rules, committing ticket files on the default branch, waiting for CI, no forced push, the review passes, one final report. Repeating them only costs tokens and risks contradicting the agent's own page.
 4. Verify `implementer`'s report before relaying it — its own account of the run is not evidence. Write its final output verbatim to a temporary file and run `litecode verify-report --file <path>` via `Bash`. That command checks the report's `STATUS`/`TICKET`/`BRANCH`/`PR`/`CHECK_OUTPUT` against the real branch, the real PR, the ticket file's `status`, and the primary checkout (for changes written outside the worktree). Do not re-derive or soften its findings yourself.
 5. Relay `implementer`'s full output back to the human — including any `blocked` status, since a blocker escalated to `triage` inside `implementer` still needs the human to know about it, not just get silently absorbed — together with `verify-report`'s output, verbatim. If `verify-report` exited non-zero, lead with its errors and say plainly that the report contradicts the repo: never present that run as a success. Warnings are relayed as-is, without being upgraded or dismissed.

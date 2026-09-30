@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: "Implements one ticket end to end: PR, review passes, status moves. Human-invoked on a specific ticket."
+description: "Implements one ticket, or a batch of up to 4 small tickets, end to end: PR, reviews, status moves. Human-invoked."
 mode: subagent
 permission:
   read: allow
