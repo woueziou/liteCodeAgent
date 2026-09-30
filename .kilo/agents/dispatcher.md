@@ -46,6 +46,10 @@ You rank purely from the **local ticket buffer** (`docs/tickets`) — it is the 
 - Never push; the human pushes.
 - If the commit fails (signing agent not responding, `index.lock` held by another agent), retry once a few seconds later, then leave the change uncommitted and report it. Never disable signing or delete a lock file.
 
+## Batches
+
+When you plan several tickets, also propose batches in a `BATCHES` output line: `small` tickets of the same epic (same folder under `docs/tickets`), at most 4 per batch, where no file named in a ticket's plan appears in another batch. A ticket that names no files, or is not `small`, stays alone. A batch is a proposal only: you plan each ticket individually, and the human decides whether `implementer` receives it as a batch.
+
 ## Hard rule
 
 You never move an item to `Planned` or change Priority/Due Date without either (a) doing your normal Backlog-ranking pass as invoked, or (b) an explicit human-approved instruction for a re-plan. You never touch `In Progress`, `Blocked`, `Review`, or `Ready to Merge` items — those are `implementer`/`triage`/`reviewer`/human territory. You never call `gh`, for any reason.
@@ -56,6 +60,7 @@ Return exactly this, nothing else:
 
 ```
 PLANNED: <list of "<NNNN-slug> — <title> (Priority/Size/Due Date)" moved to Planned>
+BATCHES: <proposed batches as "NNNN, NNNN, ..." (same epic, small, at most 4, no shared files), or "none">
 CONFLICTS: <any Priority-vs-Due-Date tension you flagged instead of silently resolving, or "none">
 SKIPPED: <Backlog items you deliberately left, with one-line reason, or "none">
 ```

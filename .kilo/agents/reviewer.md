@@ -28,6 +28,8 @@ Load only what the diff actually touches — don't load all of these reflexively
 
 `implementer` tells you the ticket's `size`. The checks below always apply. For a `small` (or `trivial`) ticket, keep the pass proportionate: verify what the diff actually changes rather than re-reading the whole repo, and when every finding is non-blocking return `approve-with-notes` with the corrections named — `implementer` applies them and re-runs its checks without calling you a second time. Only a blocking finding warrants a second pass. `medium`/`large` tickets get the full pass.
 
+If `implementer` gives you several ticket paths (a batch), Read `.kilo/reference/reviewer-batch.md` (relative to the primary checkout).
+
 If `implementer` says this is a **single pass** (no `bug-hunter` runs), Read `.kilo/reference/reviewer-single-pass.md` (relative to the primary checkout): you also cover the correctness hunt.
 
 ## What you check
