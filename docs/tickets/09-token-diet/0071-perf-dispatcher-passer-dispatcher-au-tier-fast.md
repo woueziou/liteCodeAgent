@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0071-perf-dispatcher-passer-dispatcher-au-tier-fast
 title: "perf(dispatcher): passer dispatcher au tier fast"
 label: chore
-status: backlog
+status: planned
 priority: medium
 size: small
 assignedAgent: human
