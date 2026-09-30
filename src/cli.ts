@@ -19,6 +19,8 @@ import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.t
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 import { primaryCheckoutRoot, resumeState } from "./resume.ts";
+import { renderReport } from "./token-report/aggregate.ts";
+import { latestSession, reportForSession, transcriptsDir } from "./token-report/transcripts.ts";
 import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, setTicketStatus, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
@@ -128,6 +130,9 @@ function usage(): void {
                                      check an implementer's final report (STATUS/TICKET/BRANCH/PR/CHECK_OUTPUT)
                                      against git, gh and the ticket buffer; exits 1 on any contradiction
                                      ${c.dim("reads the report from stdin when --file is omitted")}
+  ${c.bold("bunx litecodeagent token-report")} [--session <id>] [--project <path>]
+                                     tokens per agent (main session and each sub-agent type) from the Claude Code
+                                     transcripts in ~/.claude/projects, sorted by total; latest session by default
   ${c.bold("bunx litecodeagent resume")} <ticket> [--json]
                                      reconstruct where an implementer run left off, from the ticket's progress
                                      journal note, cross-checked against the worktree/branch/PR; prints the
@@ -1035,6 +1040,31 @@ async function findTicketByRef(root: string, dir: string, ref: string) {
   return tickets.find((t) => t.id === key || t.id.startsWith(`${key}-`));
 }
 
+async function cmdTokenReport(root: string, argv: string[]): Promise<number> {
+  const dir = transcriptsDir(root);
+  const wanted = arg(argv, "--session");
+  if (argv.some((a) => a.startsWith("--session="))) {
+    console.log(c.red("--session takes its value as a separate argument: --session <id>"));
+    return 1;
+  }
+  if (argv.includes("--session") && (!wanted || wanted.startsWith("--"))) {
+    console.log(c.red("--session requires a session id"));
+    return 1;
+  }
+  const session = wanted ?? (await latestSession(dir));
+  if (!session) {
+    console.log(c.yellow(`No Claude Code transcripts found in ${dir} (run from, or pass --project, the checkout Claude Code was started in)`));
+    return 1;
+  }
+  try {
+    console.log(renderReport(session, await reportForSession(dir, session)));
+    return 0;
+  } catch (err) {
+    console.log(c.red((err as Error).message));
+    return 1;
+  }
+}
+
 async function cmdResume(root: string, argv: string[]): Promise<number> {
   const ref = argv[1];
   if (!ref) {
@@ -1213,6 +1243,7 @@ try {
       case "verify-report": return cmdVerifyReport(root, argv);
       case "doctor": return cmdDoctor(root);
       case "resume": return cmdResume(root, argv);
+      case "token-report": return cmdTokenReport(root, argv);
       default: usage(); return argv[0] ? 1 : 0;
     }
   })();
