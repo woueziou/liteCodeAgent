@@ -14,6 +14,7 @@ const MAX_REVIEWER_WORDS = 1500;
 /** Ticket 0068: what used to be the implementer-* skills. */
 const IMPLEMENTER_REFS = [
   "implementer-adr-gate",
+  "implementer-batch",
   "implementer-cli-resolution",
   "implementer-github-outage",
   "implementer-leak-cleanup",
@@ -69,6 +70,7 @@ test("reviewer.md stays within the word budget; rare cases are reference files, 
   const pack = await loadPack(PACKS, "core");
   const refs = [
     "reviewer-acceptance-edge-cases",
+    "reviewer-batch",
     "reviewer-single-pass",
     "reviewer-test-first",
     ...IMPLEMENTER_REFS,
