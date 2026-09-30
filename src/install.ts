@@ -1,7 +1,6 @@
 import { resolve, dirname, join, relative } from "node:path";
 import { mkdir, chmod, readdir, realpath } from "node:fs/promises";
 import type { Config, InstallTarget } from "./config.ts";
-import { shouldHideAgent } from "./internal-agents.ts";
 import { selectedTargets, TARGETS, TARGET_ROOTS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
@@ -202,7 +201,6 @@ function renderOpenCodeAgent(data: Frontmatter, body: string): string {
     "---",
     `description: ${yamlScalar(data.description ?? "")}`,
     `mode: ${mode}`,
-    ...(shouldHideAgent("opencode", name) ? ["hidden: true"] : []),
     "tools:",
     ...Object.entries(tools).map(([tool, enabled]) => `  ${tool}: ${enabled}`),
     "---",
