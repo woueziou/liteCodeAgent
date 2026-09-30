@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0073-perf-install-ne-plus-annoncer-les-agents-interne
 title: "perf(install): ne plus annoncer les agents internes de l'orchestrator dans chaque session"
 label: feature
-status: planned
+status: readyToMerge
 priority: low
 size: medium
 assignedAgent: human
@@ -28,3 +28,9 @@ importedFrom:
 
 ## Hors périmètre
 Fusionner les agents internes dans orchestrator.
+
+### 2026-09-30 — implementer: PR opened and reviewed
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/128
+reviewer: approve-with-notes. bug-hunter pass 1: blocking finding (opencode `hidden` is UI-only), fixed in 4916797. Re-hunt: HUNT complete, no findings.
+Outcome: no target can hide the five agents via frontmatter; docs/agent-visibility.md records this per target with sources. No render change. Follow-up idea (unverified): opencode `permission.task.<name>: deny` on primary agents.

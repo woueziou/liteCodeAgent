@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0069-perf-implementer-alleger-implementer-md-en-depla
 title: "perf(implementer): alléger implementer.md en déplaçant les cas rares en références"
 label: feature
-status: inProgress
+status: readyToMerge
 priority: high
 size: medium
 assignedAgent: human
@@ -29,3 +29,13 @@ importedFrom:
 
 ## Hors périmètre
 Changer le comportement d'implementer ; les autres agents.
+
+### 2026-09-30 — implementer: PR opened, reviewed, ready to merge
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/126 (branch perf/implementer-slim/0069).
+
+- implementer.md 21162 -> 11998 bytes; seven new references (language, ci-red, rehunt, worktree-fallback, review-handoff, progress-journal, packs-edit); byte test added.
+- Deviation from criterion 4: installed copies were NOT regenerated. ADR 0022 says CI regenerates them on chore/sync-installed; hand re-rendering is forbidden. `bun run check` and `bun test` pass (604).
+- reviewer: VERDICT approve-with-notes (no blocking). bug-hunter: first hunt had one blocking finding (dropped no-simulated-review rule), fixed in d99a106; re-hunt HUNT: complete, no findings.
+- CI: test pass.
+- Byte headroom is 2 bytes: the next edit to implementer.md (ticket 0072) must move text into a reference or deliberately raise the byte test.

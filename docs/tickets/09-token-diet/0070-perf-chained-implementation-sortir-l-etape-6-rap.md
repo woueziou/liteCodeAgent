@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0070-perf-chained-implementation-sortir-l-etape-6-rap
 title: "perf(chained-implementation): sortir l'étape 6 (rapport absent) en référence"
 label: chore
-status: planned
+status: readyToMerge
 priority: medium
 size: small
 assignedAgent: human
@@ -25,3 +25,7 @@ importedFrom:
 
 ## Hors périmètre
 Les autres étapes du skill.
+
+### 2026-09-30 — implementer: PR opened and reviewed
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/129 (batch 0070, 0071, 0072). CI: test pass. Reviewer: VERDICT approve; ACCEPTANCE 0070 all satisfied. Installed copies not re-rendered per ADR 0022 (CI regenerates).

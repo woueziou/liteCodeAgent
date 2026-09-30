@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0074-perf-packs-garantir-des-prompts-stables-pour-le
 title: "perf(packs): garantir des prompts stables pour le cache"
 label: chore
-status: inProgress
+status: readyToMerge
 priority: low
 size: small
 assignedAgent: human
@@ -25,3 +25,8 @@ Le cache de prompts ne fonctionne que si le texte des agents et skills installé
 
 ## Hors périmètre
 Le contenu du lockfile.
+
+### 2026-09-30 — implementer: PR opened and reviewed
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/124
+reviewer (single pass): VERDICT approve, FINDINGS none. CI: test pass. No volatile value found; test only.

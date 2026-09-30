@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0071-perf-dispatcher-passer-dispatcher-au-tier-fast
 title: "perf(dispatcher): passer dispatcher au tier fast"
 label: chore
-status: planned
+status: readyToMerge
 priority: medium
 size: small
 assignedAgent: human
@@ -26,3 +26,7 @@ importedFrom:
 
 ## Hors périmètre
 Les autres agents.
+
+### 2026-09-30 — implementer: PR opened and reviewed
+
+PR: https://github.com/woueziou/liteCodeAgent/pull/129 (batch 0071, 0071, 0072). CI: test pass. Reviewer: VERDICT approve; ACCEPTANCE 0070 all satisfied. Installed copies not re-rendered per ADR 0022 (CI regenerates).
