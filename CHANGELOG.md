@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/woueziou/liteCodeAgent/compare/v1.3.1...v1.4.0) (2026-09-30)
+
+
+### Features
+
+* **packs:** batch small related tickets into one PR ([81cde12](https://github.com/woueziou/liteCodeAgent/commit/81cde126aeeded29adc47759b2dfe6ea3a08070b))
+
 ## [1.3.1](https://github.com/woueziou/liteCodeAgent/compare/v1.3.0...v1.3.1) (2026-09-29)
 
 
