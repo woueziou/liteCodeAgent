@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0075-feat-cli-litecode-token-report-consommation-de-t
 title: "feat(cli): litecode token-report, consommation de tokens par agent"
 label: feature
-status: backlog
+status: planned
 priority: high
 size: medium
 assignedAgent: human
