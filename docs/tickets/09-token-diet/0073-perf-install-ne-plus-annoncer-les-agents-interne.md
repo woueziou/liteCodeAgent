@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0073-perf-install-ne-plus-annoncer-les-agents-interne
 title: "perf(install): ne plus annoncer les agents internes de l'orchestrator dans chaque session"
 label: feature
-status: backlog
+status: planned
 priority: low
 size: medium
 assignedAgent: human
