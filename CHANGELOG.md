@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/woueziou/liteCodeAgent/compare/v1.4.0...v1.4.1) (2026-09-30)
+
+
+### Performance Improvements
+
+* **agents:** announce batch mode in implementer and chained-implementation descriptions ([8301f37](https://github.com/woueziou/liteCodeAgent/commit/8301f3746d4891c4e6eecb2540150b66fda70424))
+
 # [1.4.0](https://github.com/woueziou/liteCodeAgent/compare/v1.3.1...v1.4.0) (2026-09-30)
 
 
