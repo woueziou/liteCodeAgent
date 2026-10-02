@@ -7,7 +7,7 @@ updated_task: "0052"
 
 # 0017. A read-only local server shows the dashboard live
 
-Status: proposed
+Status: accepted
 Date: 2026-09-27
 
 ## Context

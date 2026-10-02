@@ -5,7 +5,7 @@ task: "#16"
 
 # 0011. Optional `project.language` for agent prose
 
-Status: proposed
+Status: accepted
 Date: 2026-09-21
 
 ## Context

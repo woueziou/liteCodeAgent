@@ -5,7 +5,7 @@ task: "#17"
 
 # 0006. Pre-flight validate required config paths, scoped to `agentSkills`
 
-Status: proposed
+Status: accepted
 Date: 2026-09-18
 
 ## Context

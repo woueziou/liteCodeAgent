@@ -5,7 +5,7 @@ task: "0019 (#48)"
 
 # 0013. The correctness pass is a dedicated pack agent, invoked by `implementer`
 
-Status: proposed
+Status: accepted
 Date: 2026-09-23
 
 ## Context

@@ -5,7 +5,7 @@ task: "0020 (#49)"
 
 # 0014. Pack prompts delegate through a per-target helper, with the runner as fallback
 
-Status: proposed
+Status: accepted
 Date: 2026-09-23
 
 ## Context

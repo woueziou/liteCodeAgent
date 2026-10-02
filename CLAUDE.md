@@ -24,3 +24,17 @@ git config core.hooksPath .githooks
 ## Checks
 
 Run `bun run check` (tsc) and `bun test` before proposing a change.
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown tickets in `docs/tickets/` (local buffer is the source of truth, ADR 0012). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` and ADRs in `docs/decisions/`. See `docs/agents/domain.md`.

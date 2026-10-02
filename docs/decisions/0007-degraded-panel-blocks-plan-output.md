@@ -5,7 +5,7 @@ task: "#29"
 
 # 0007. A degraded debate panel blocks `orchestrator`'s plan output, structurally
 
-Status: proposed
+Status: accepted
 Date: 2026-09-19
 
 ## Context

@@ -5,7 +5,7 @@ task: "0030"
 
 # 0015. Tickets are purely local: no GitHub issues, pull requests only
 
-Status: proposed
+Status: accepted
 Date: 2026-09-23
 
 ## Context

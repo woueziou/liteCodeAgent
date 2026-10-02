@@ -5,7 +5,7 @@ task: "0031"
 
 # 0016. `litecode upgrade` brings a project up to date in one command
 
-Status: proposed
+Status: accepted
 Date: 2026-09-23
 
 ## Context

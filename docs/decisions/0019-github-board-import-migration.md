@@ -5,7 +5,7 @@ task: "0050"
 
 # 0019. `ticket import-board`: a one-time exit from the GitHub Project board
 
-Status: proposed
+Status: accepted
 Date: 2026-09-28
 
 ## Context
