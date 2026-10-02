@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0074-perf-packs-garantir-des-prompts-stables-pour-le
 title: "perf(packs): garantir des prompts stables pour le cache"
 label: chore
-status: readyToMerge
+status: done
 priority: low
 size: small
 assignedAgent: human

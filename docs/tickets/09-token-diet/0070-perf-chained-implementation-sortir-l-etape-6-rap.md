@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0070-perf-chained-implementation-sortir-l-etape-6-rap
 title: "perf(chained-implementation): sortir l'étape 6 (rapport absent) en référence"
 label: chore
-status: readyToMerge
+status: done
 priority: medium
 size: small
 assignedAgent: human
