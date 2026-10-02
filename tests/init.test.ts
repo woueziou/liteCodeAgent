@@ -68,15 +68,13 @@ test("non-interactive init produces a config that validates and renders", async 
   const config = ConfigSchema.parse(raw);
 
   expect(config.packs).toEqual(["core", "web"]);
-  expect(config.targets).toEqual(["claude-code", "codex", "pi", "opencode", "kilo-code"]);
-  expect(config.project.repo).toBe("TODO-owner/TODO-repo");
-  expect(config.project.angles.map((a) => a.name)).toEqual([
-    "correctness", "schema", "contract", "auth", "operability",
-  ]);
+  // The fixture's `.claude/` directory is the tool found on disk (more may be on the PATH).
+  expect(config.targets).toContain("claude-code");
+  expect(config.project.repo).toBe("");
+  expect(config.project.angles.map((a) => a.name)).toEqual(["correctness"]);
 
-  // The local overlay skill is wired in automatically wherever the stack calls for it.
-  expect(config.project.angles.find((a) => a.name === "contract")!.skills).toContain("orpc-expert");
-  expect(config.project.agentSkills.implementer).toContain("orpc-expert");
+  // The local overlay skill is wired into the proposed routing rules.
+  expect(config.project.domains.flatMap((d) => d.skills)).toContain("orpc-expert");
 
   // Every derived skill reference resolves — that is what buildPlan enforces.
   config.project.repo = "demo/demo";
@@ -127,10 +125,7 @@ test("a project with no web framework gets core only and no web block", async ()
   expect(config.packs).toEqual(["core"]);
   expect(config.project.web).toBeUndefined();
   expect(config.project.checkCommand).toBe("npm run test");
-  expect(config.project.repo).toMatch(/^TODO/);
-  // No TypeScript and no API framework detected, so `contract` is not proposed by default —
-  // the interactive wizard still offers it.
-  expect(config.project.angles.map((a) => a.name)).toEqual(["correctness", "operability"]);
-  // `security-expert` ships in core, so its domain applies to any project.
-  expect(config.project.domains.map((d) => d.skills)).toEqual([["security-expert"]]);
+  expect(config.project.repo).toBe("");
+  // Nothing in the stack calls for a routing rule, so none is proposed.
+  expect(config.project.domains).toEqual([]);
 });

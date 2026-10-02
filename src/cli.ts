@@ -74,10 +74,10 @@ function usage(): void {
 
   ${c.bold("bunx litecodeagent setup")} [--apply] [--yes]
                                      initialize the project if needed, then render its packs
-                                     ${c.dim("--targets claude-code,codex,pi,opencode,kilo-code (defaults to all)")}
+                                     ${c.dim("--targets claude-code,codex,pi,opencode,kilo-code (defaults to the tools found)")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("bunx litecodeagent init")} [--yes] [--targets …] interactive setup: detects your repo, asks, writes the config
-                                     ${c.dim("--yes skips the questions and uses only what it detects")}
+  ${c.bold("bunx litecodeagent init")} [--yes] [--targets …] detects your repo and tools, asks one question (routing rules), writes a minimal config
+                                     ${c.dim("--yes skips the question and writes the rules deduced from your stack")}
   ${c.bold("bunx litecodeagent targets")}                  list the coding tools you can install into
   ${c.bold("bunx litecodeagent packs")}                    list available packs
   ${c.bold("bunx litecodeagent install")} [--apply] [--force] [--check]

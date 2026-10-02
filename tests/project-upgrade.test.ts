@@ -97,9 +97,10 @@ test("a 0.x project gets one plan covering every migration, and planning writes 
   expect(plans.find((p) => p.id === "config")!.changes[0]!.details).toEqual([
     "project.tickets.autoStateFile",
     "project.tickets.autoMinIntervalMs",
-    "project.agentSkills.sync",
     "project.board",
-    "github-project-sync from project.agentSkills.reviewer",
+    "target",
+    "outDir",
+    "project.agentSkills",
   ]);
   expect(summaries(plans, "orphans")).toEqual(["delete .claude/agents/sync.md"]);
   expect(plans.find((p) => p.id === "orphans")!.skipped.map((s) => s.summary)).toEqual([
@@ -118,8 +119,9 @@ test("applying the plan brings the project fully up to date, and a second run ha
 
   const config = await Bun.file(join(root, "litecode.config.json")).json();
   expect(config.project.board).toBeUndefined();
-  expect(config.project.agentSkills.sync).toBeUndefined();
-  expect(config.project.agentSkills.reviewer).not.toContain("github-project-sync");
+  expect(config.project.agentSkills).toBeUndefined();
+  expect(config.target).toBeUndefined();
+  expect(config.outDir).toBeUndefined();
   expect(config.project.tickets).toEqual({ enabled: true, dir: "docs/tickets" });
 
   expect(await Bun.file(join(root, ".claude/agents/sync.md")).exists()).toBe(false);

@@ -88,8 +88,7 @@ Nothing gets installed globally, and nothing is written until you say so.
 cd /path/to/your/project
 ```
 
-**2. Run setup.** It asks a handful of questions, having already guessed most of the
-answers from your repo.
+**2. Run setup.** It asks one question, having already guessed everything else from your repo.
 
 ```bash
 bunx litecodeagent setup
@@ -170,7 +169,7 @@ The quick start above runs these steps for you. Here they are individually, in c
 want more control — or want to understand what just happened. Run them from the root of
 the repo you want the agents in.
 
-### 1. Answer a few questions
+### 1. Answer one question
 
 ```bash
 cd /path/to/your/project
@@ -189,26 +188,32 @@ up, across a monorepo (not just the root manifest):
 | skills you already own | `.claude/skills`, `.agents/skills`, `.pi/skills`, `.opencode/skills`, `.kilo/skills` |
 | house rules | the bullet list under a "Conventions" heading in your `CLAUDE.md`/`AGENTS.md` |
 
-You confirm or correct each one. Two things are derived rather than asked, because they're
-mechanical and drift the moment a human maintains them by hand:
+The only question is *when a ticket touches…, which guides should the agent read?* The rules
+are proposed from your detected stack: Enter accepts them, or type `N: when => guide, guide` to
+edit rule N, `when => guide, guide` to add one, `-N` to remove one, `skip` to keep none. When
+nothing is detected, it asks for at least one rule; `skip` still lets the install finish. A
+summary of the tools, check command and rules is printed before the file is written.
 
-- **`domains`** — which expert skill loads for which kind of change, from your detected stack.
-- **`agentSkills`** — what each agent preloads, from the angles and domains you just chose.
-  A stack-specific skill you already own locally (say `orpc-expert`) gets wired in wherever
-  it applies.
+Prefer no question at all? `bunx litecodeagent init --yes` writes the deduced rules as they are.
+A check command or GitHub repository it couldn't find is left out of the file: the install still
+succeeds, and the agents that need it refuse with the exact `litecode config set project.checkCommand
+"<command>"` or `litecode config set project.repo <owner/name>` to run.
 
-Prefer no questions at all? `bunx litecodeagent init --yes` writes a config from detection alone and
-marks anything it couldn't determine as `TODO`.
+The generated file holds only the tools, packs, project name, default branch, `checkCommand`,
+`typecheckCommands` and the routing rules (`project.domains`). Everything else (`tiers`,
+`worktreeRoot`, `adrDir`, `language`, `conventions`, `trustBoundaries`, angles) takes its default,
+and `litecode config set` changes it. `bunx litecodeagent upgrade` removes the obsolete `target`,
+`outDir`, `lessons` and `agentSkills` keys from an older config.
 
-Setup installs into all five supported coding tools by default. To see what they are, and
-which ones you have on:
+Setup installs into the coding tools it finds on your machine (their directory in the project, or
+their binary on the PATH), and Claude Code when it finds none. To see what they are, and which
+ones you have on:
 
 ```bash
 bunx litecodeagent targets
 ```
 
-To pick a subset during setup, the questions let you choose from that same list. Skipping
-the questions? Name them directly: `bunx litecodeagent init --yes --targets codex,opencode`.
+To override the detection, name them directly: `bunx litecodeagent init --yes --targets codex,opencode`.
 Configs written before this option existed keep their older single `target` setting.
 
 ### 2. Skim the result
@@ -225,7 +230,8 @@ look:
 | `project.allowDefaultBranchCommits` | `false` by default. Set it to `true` only if this project really commits straight to its default branch (see step 4) |
 
 `bunx litecodeagent install` refuses to run while any `TODO` remains, because a `TODO` left in an
-agent prompt reads to the model as an instruction rather than as something you forgot.
+agent prompt reads to the model as an instruction rather than as something you forgot (a hand-written one;
+`init` no longer writes any).
 `examples/ts-employee-service.litecode.config.json` is a complete, real, filled-in config.
 
 ### 3. Render the packs

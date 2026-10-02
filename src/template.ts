@@ -181,11 +181,13 @@ export function render(tpl: string, ctx: Ctx, where = "template", helpers: Helpe
  * undefined path is falsy in `{{#if}}`/`{{^if}}` the same way `off`'s gate would need it
  * to be true.
  */
-export function templateProject<P extends { testFirst: "bugs" | "all" | "off" }>(
+export function templateProject<P extends { testFirst: "bugs" | "all" | "off"; repo: string; checkCommand: string }>(
   project: P,
 ): P & { testFirstOff: boolean; testFirstAll: boolean } {
   return {
     ...project,
+    repo: project.repo || "(repo not set)",
+    checkCommand: project.checkCommand || "(check command not set)",
     testFirstOff: project.testFirst === "off",
     testFirstAll: project.testFirst === "all",
   };
@@ -263,4 +265,27 @@ export function referencedPaths(tpl: string): string[] {
   const out = new Set<string>();
   collectPaths(tpl, false, out);
   return [...out];
+}
+
+const NEEDS_CHECK_COMMAND = new Set(["implementer", "reviewer", "bug-hunter"]);
+const NEEDS_REPO = new Set(["implementer", "triage"]);
+
+/**
+ * A project installed without a detected check command or GitHub repository still installs
+ * (ticket 0083). The agents that cannot work without one open with a refusal naming the
+ * exact `config set` command that fixes it. Empty when nothing is missing for that agent.
+ */
+export function preflightRefusal(agent: string, project: { repo: string; checkCommand: string }): string {
+  const lines: string[] = [];
+  if (!project.checkCommand && NEEDS_CHECK_COMMAND.has(agent)) {
+    lines.push(
+      '**Refuse to start**: no check command is configured. Do no work; tell the human to run `litecode config set project.checkCommand "<command>"`.',
+    );
+  }
+  if (!project.repo && NEEDS_REPO.has(agent)) {
+    lines.push(
+      "**Refuse to start**: no GitHub repository is configured. Do no work; tell the human to run `litecode config set project.repo <owner/name>`.",
+    );
+  }
+  return lines.length > 0 ? `${lines.join("\n\n")}\n\n` : "";
 }

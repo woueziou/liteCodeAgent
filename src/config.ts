@@ -84,10 +84,22 @@ const CiSchema = z.object({
   testChecks: z.array(z.string()).default(["test"]),
 });
 
+/** The one angle every project gets unless it configures its own. */
+const DEFAULT_ANGLE: z.infer<typeof AngleSchema> = {
+  name: "correctness",
+  covers: "Does the change actually solve the stated problem, and what edge cases does it miss.",
+  triggeredBy: "always: every non-trivial change gets this angle",
+  skills: [],
+  always: true,
+};
+
 export const ProjectSchema = z.object({
   name: z.string(),
-  /** owner/repo */
-  repo: z.string().regex(/^[^/]+\/[^/]+$/, "expected owner/repo"),
+  /**
+   * owner/repo. Empty when no GitHub repository was found at install time: the install
+   * still succeeds and the agents that need it refuse, naming `litecode config set project.repo`.
+   */
+  repo: z.union([z.literal(""), z.string().regex(/^[^/]+\/[^/]+$/, "expected owner/repo")]).default(""),
   defaultBranch: z.string().default("main"),
   /**
    * Escape hatch for the `pre-commit` branch guard (ticket 0033): when true, a commit on
@@ -101,8 +113,11 @@ export const ProjectSchema = z.object({
   /** CI expectations for verifying a PR's checks (ticket 0059). */
   ci: CiSchema.default({ testChecks: ["test"] }),
 
-  /** The command that must pass before any agent calls work done. */
-  checkCommand: z.string(),
+  /**
+   * The command that must pass before any agent calls work done. Empty when none was
+   * detected: the agents that run it refuse, naming `litecode config set project.checkCommand`.
+   */
+  checkCommand: z.string().default(""),
   /** Extra verification commands (type-checks etc.), run when types moved. */
   typecheckCommands: z.array(z.string()).default([]),
 
@@ -129,7 +144,7 @@ export const ProjectSchema = z.object({
   agentSkills: z.record(z.string(), z.array(z.string())).default({}),
 
   /** Which debate angles exist for this project. */
-  angles: z.array(AngleSchema).min(1),
+  angles: z.array(AngleSchema).min(1).default([DEFAULT_ANGLE]),
   /** Path/domain -> expert skill routing for implementer and reviewer. */
   domains: z.array(DomainSchema).default([]),
   /** Project-specific classifier signals per size bucket. */

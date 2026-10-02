@@ -4,7 +4,7 @@ import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS, TARGET_ROOTS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
-import { render, referencedPaths, templateProject } from "./template.ts";
+import { preflightRefusal, render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames } from "./delegation.ts";
 import { configSkills, skipSkill, withoutInstallKey } from "./skill-filter.ts";
 import { hash, readLockfile, writeLockfile, writeLockfileStable, type Lockfile } from "./lockfile.ts";
@@ -350,6 +350,9 @@ export function missingAgentSkillPaths(
   files: { rel: string; source: string; packName: string }[],
   agentSkills: Record<string, string[]>,
 ): MissingConfigPath[] {
+  // A config with no `agentSkills` at all is the minimal form (nothing preloaded), not an
+  // incomplete one: `withDefaultAgentSkills` renders it with an empty list per agent.
+  if (Object.keys(agentSkills).length === 0) return [];
   const sourcesByPath = new Map<string, string[]>();
   for (const file of files) {
     for (const path of referencedPaths(file.source)) {
@@ -363,6 +366,22 @@ export function missingAgentSkillPaths(
     if (agentSkills[key] === undefined) missing.push({ path, sources: [...new Set(sources)] });
   }
   return missing.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** Gives a config with no `agentSkills` an empty list for every agent key the packs read. */
+export function withDefaultAgentSkills(
+  config: Config,
+  files: { source: string }[],
+): Config {
+  if (Object.keys(config.project.agentSkills).length > 0) return config;
+  const agentSkills: Record<string, string[]> = {};
+  for (const file of files) {
+    for (const path of referencedPaths(file.source)) {
+      const m = /^project\.agentSkills\.([^.]+)$/.exec(path);
+      if (m?.[1]) agentSkills[m[1]] = [];
+    }
+  }
+  return { ...config, project: { ...config.project, agentSkills } };
 }
 
 /**
@@ -425,11 +444,11 @@ function outputFiles(
     delegationHelpers(target, agents, config.tiers, target === "claude-code" ? config.outDir : undefined),
   );
   const parsed = parseFrontmatter(rendered, file.rel);
-  const { body } = parsed;
   const skillName = /^skills\/([^/]+)\/SKILL\.md$/.exec(file.rel)?.[1];
   if (skillName && skipSkill(parsed.data, skillName, wantedSkills)) return [];
   const data = skillName ? withoutInstallKey(parsed.data) : parsed.data;
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
+  const body = agent ? preflightRefusal(agent[1]!, config.project) + parsed.body : parsed.body;
   const skill = /^(skills\/.+)$/.exec(file.rel);
   const workflow = file.rel === "workflows/litecodeagent.md";
 
@@ -535,7 +554,8 @@ function referencedSkills(
   return wanted;
 }
 
-export async function buildPlan(projectRoot: string, packsRoot: string, config: Config): Promise<InstallPlan> {
+export async function buildPlan(projectRoot: string, packsRoot: string, given: Config): Promise<InstallPlan> {
+  let config = given;
   const targets = selectedTargets(config);
   const lockfilePaths = Object.fromEntries(targets.map((target) => [target, lockPath(target)])) as Partial<Record<InstallTarget, string>>;
   const previous = new Map<InstallTarget, Lockfile | null>();
@@ -560,10 +580,9 @@ export async function buildPlan(projectRoot: string, packsRoot: string, config: 
     }
   }
 
-  validateRequiredConfigPaths(
-    config,
-    packs.flatMap(({ packName, pack }) => pack.files.map((file) => ({ ...file, packName }))),
-  );
+  const packFiles = packs.flatMap(({ packName, pack }) => pack.files.map((file) => ({ ...file, packName })));
+  validateRequiredConfigPaths(config, packFiles);
+  config = withDefaultAgentSkills(config, packFiles);
 
   const agents = packAgentNames(packs);
   const wantedSkills = referencedSkills(packs, config, agents);
