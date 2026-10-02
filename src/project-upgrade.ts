@@ -241,7 +241,7 @@ const migrateTickets: Migration = {
     const changes: Change[] = [];
     const skipped: Skip[] = errors.map((e) => ({
       summary: `leave ${e.path} as it is`,
-      reason: `it isn't a valid ticket — run \`litecode ticket doctor\` for details, fix it, then run \`upgrade\` again`,
+      reason: `it isn't a valid ticket — run \`litecode doctor\` for details, fix it, then run \`upgrade\` again`,
     }));
     // `ticket move` now carries an unknown key through unconditionally (ticket 0042) — a
     // strict improvement over dropping it outright, though not a full round-trip guarantee

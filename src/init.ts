@@ -116,7 +116,7 @@ async function askRulesOnTerminal({ question, proposed }: RulesQuestion): Promis
 
 /**
  * Per-agent skill lists derived from angles and domains. No longer written by `init`
- * (skills load on demand through the routing rules); kept for `config doctor --fix`.
+ * (skills load on demand through the routing rules); kept for `doctor --fix`.
  */
 export function deriveAgentSkills(
   angles: Angle[],

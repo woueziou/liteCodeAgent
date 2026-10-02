@@ -445,7 +445,7 @@ test("a config missing an agentSkills key a pack requires fails pre-flight with 
   expect(error.message).not.toMatch(/is not defined in the project config/);
   expect(error.message).toMatch(/project\.agentSkills\.tracker/);
   expect(error.message).toMatch(/agents\/tracker\.md/);
-  expect(error.message).toMatch(/config doctor --fix/);
+  expect(error.message).toMatch(/doctor --fix/);
 });
 
 test("a typo'd agentSkills key does not mask the real missing key", async () => {

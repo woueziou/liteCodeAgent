@@ -353,7 +353,7 @@ litecode ticket new --title "Fix the flaky install test" --label bug \
   --priority medium --size small --body "Body goes here."
 litecode ticket list
 litecode ticket move 0042 planned
-litecode ticket doctor
+litecode doctor
 litecode ticket migrate --apply   # once, if your tickets predate schema v2
 litecode ticket import-board      # once, if you still used the old GitHub board
 ```
@@ -406,8 +406,7 @@ with the subject in hand:
 litecode status          # installed packs, versions, files the kit owns
 litecode doctor          # orphaned work: stranded worktrees and branches, PR-less
                                    # branches, stale review tickets, pending ADRs, leaked writes,
-                                   # lockfile drift; plus ticket doctor and config doctor
-litecode ticket doctor   # local ticket buffer: malformed/misplaced/duplicate files
+                                   # lockfile drift; plus ticket files, config and routing rules (--fix repairs config)
 litecode resume 0042     # where an interrupted implementer run left off, checked
                                    # against the worktree, branch and PR
 litecode verify-report --file report.txt  # implementer report vs. git, gh, ticket status
@@ -687,7 +686,7 @@ ADR 0019.
 
 ```bash
 litecode ticket list
-litecode ticket doctor
+litecode doctor
 ```
 
 Each imported ticket carrying `[À CLARIFIER]` needs a decision from you: fix the status, write

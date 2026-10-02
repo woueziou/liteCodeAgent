@@ -9,13 +9,12 @@ import { listPacks, loadPack } from "./packs.ts";
 import { readLockfile } from "./lockfile.ts";
 import { RateLimitError, readBoardItems } from "./gh.ts";
 import { runImportBoard } from "./tickets/import-board.ts";
-import { doctor as ticketDoctor } from "./tickets/doctor.ts";
 import { buildDashboard } from "./dashboard/build.ts";
 import { renderDashboard } from "./dashboard/render.ts";
 import { startDashboardServer, DEFAULT_PORT, DEFAULT_HOST } from "./dashboard/serve.ts";
 import { parseReport, verifyReport, type Finding as ReportFinding } from "./report/verify.ts";
 import { realProbes, realResumeProbes } from "./report/probes.ts";
-import { doctor as configDoctor, computeAgentSkillsFix } from "./config-doctor.ts";
+import { computeAgentSkillsFix } from "./config-doctor.ts";
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 import { primaryCheckoutRoot, resumeState } from "./resume.ts";
@@ -139,13 +138,11 @@ ${c.bold("Implement")}
                                      ${c.dim("called from .githooks/pre-commit; not meant to be run by a human")}
 
 ${c.bold("Diagnose")}
-  ${c.bold("litecode doctor")}                     detect orphaned work: stranded worktrees/branches, PR-less
-                                     branches, stale review/readyToMerge tickets, lockfile drift
-                                     ${c.dim("(read-only; GitHub checks report 'non vérifié' when gh is unavailable)")}
+  ${c.bold("litecode doctor")} [--fix]             the single diagnostic: config, routing rules (skills exist, stack covered),
+                                     ticket files, stranded worktrees/branches, PR-less branches, stale
+                                     review/readyToMerge tickets, lockfile drift
+                                     ${c.dim("--fix fills in missing agentSkills keys and writes the config; GitHub checks report 'non vérifié' without gh")}
   ${c.bold("litecode status")}                     show installed packs + drift
-  ${c.bold("litecode config doctor")} [--fix]      report config paths the installed packs require but are missing
-                                     ${c.dim("--fix fills in missing agentSkills keys and writes the config")}
-  ${c.bold("litecode ticket doctor")}              check the ticket directory for malformed/misplaced/duplicate/outdated files
   ${c.bold("litecode token-report")} [--session <id>] [--project <path>]
                                      tokens per agent (main session and each sub-agent type) from the Claude Code
                                      transcripts in ~/.claude/projects, sorted by total; latest session by default
@@ -332,15 +329,26 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
   return 0;
 }
 
-async function cmdDoctor(root: string): Promise<number> {
-  const { config } = await loadConfig(root);
+async function cmdDoctor(root: string, argv: string[]): Promise<number> {
+  let { config } = await loadConfig(root);
+  if (argv.includes("--fix")) {
+    const fill = await computeAgentSkillsFix(PACKS_ROOT, config);
+    if (Object.keys(fill).length > 0) {
+      const { path, changed } = await applyConfigMutation(root, PACKS_ROOT, { kind: "fix-agent-skills", fill });
+      if (changed) console.log(`${c.green("Fixed")} ${path}\n`);
+      config = (await loadConfig(root)).config;
+    }
+  }
   const findings = await fullDoctor({ root, packsRoot: PACKS_ROOT, config });
   if (findings.length === 0) {
-    console.log(c.green("No orphaned work found: tickets, worktrees, branches, PRs and install files are all consistent."));
+    console.log(c.green("Nothing to report: config, routing rules, tickets, worktrees, branches, PRs and install files are all consistent."));
     return 0;
   }
   for (const f of findings) {
     console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
+  }
+  if (!argv.includes("--fix") && findings.some((f) => f.message.startsWith("project.agentSkills."))) {
+    console.log(c.dim("\nRun `litecode doctor --fix` to fill in missing agentSkills keys."));
   }
   return findings.some((f) => f.severity === "error") ? 1 : 0;
 }
@@ -502,24 +510,6 @@ async function chooseInteractively(
 async function cmdConfig(root: string, argv: string[]): Promise<number> {
   const sub = argv[1];
   const apply = argv.includes("--apply");
-
-  if (sub === "doctor") {
-    const { config } = await loadConfig(root);
-    const findings = await configDoctor(PACKS_ROOT, config);
-    if (findings.length === 0) {
-      console.log(c.green(`${CONFIG_FILENAME} has every config path the installed packs require.`));
-      return 0;
-    }
-    for (const f of findings) console.log(`  ${c.red("error")} ${f.message}`);
-    if (!argv.includes("--fix")) {
-      console.log(c.dim("\nRun `litecode config doctor --fix` to fill in missing agentSkills keys."));
-      return 1;
-    }
-    const fill = await computeAgentSkillsFix(PACKS_ROOT, config);
-    const { path, changed } = await applyConfigMutation(root, PACKS_ROOT, { kind: "fix-agent-skills", fill });
-    if (changed) console.log(`\n${c.green("Fixed")} ${path}`);
-    return 0;
-  }
 
   // An empty `config targets` used to be an error; now it opens the picker.
   if ((sub === "targets" || sub === "packs") && !argv[2]) {
@@ -691,18 +681,6 @@ async function cmdTicket(root: string, argv: string[]): Promise<number> {
       console.log(c.dim(`No tickets in ${dir}. Create one with \`litecode ticket new\`.`));
     }
     return errors.length > 0 ? 1 : 0;
-  }
-
-  if (sub === "doctor") {
-    const findings = await ticketDoctor(root, dir);
-    if (findings.length === 0) {
-      console.log(c.green(`${dir} is consistent — no malformed, misplaced, or duplicate ticket files.`));
-      return 0;
-    }
-    for (const f of findings) {
-      console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
-    }
-    return findings.some((f) => f.severity === "error") ? 1 : 0;
   }
 
   if (sub === "migrate") {
@@ -993,7 +971,7 @@ async function cmdDashboard(root: string, argv: string[]): Promise<number> {
 
   console.log(`${c.green("built")} ${outPath} (${data.total} ticket(s), ${data.blockedTickets.length} bloqué(s))`);
   if (data.loadErrors.length > 0) {
-    console.log(c.yellow(`  ${data.loadErrors.length} fichier(s) en échec de lecture — voir \`litecode ticket doctor\`.`));
+    console.log(c.yellow(`  ${data.loadErrors.length} fichier(s) en échec de lecture — voir \`litecode doctor\`.`));
   }
   if (data.adrLoadErrors.length > 0) {
     console.log(c.yellow(`  ${data.adrLoadErrors.length} ADR(s) en échec de lecture.`));
@@ -1259,7 +1237,7 @@ try {
       case "guard-branch": return cmdGuardBranch(root, argv);
       case "dashboard": return cmdDashboard(root, argv);
       case "verify-report": return cmdVerifyReport(root, argv);
-      case "doctor": return cmdDoctor(root);
+      case "doctor": return cmdDoctor(root, argv);
       case "resume": return cmdResume(root, argv);
       case "token-report": return cmdTokenReport(root, argv);
       default: usage(); return argv[0] ? 1 : 0;

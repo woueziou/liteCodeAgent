@@ -48,7 +48,7 @@ Tickets are now purely local files (ADR 0015). Schema v1 tickets carried `issue`
 `synced` and `syncedAt`, and kept unposted comments in `<!-- litecode:comment -->` blocks.
 
 ```bash
-bunx litecodeagent@latest ticket doctor            # lists v1 tickets
+bunx litecodeagent@latest doctor            # lists v1 tickets
 bunx litecodeagent@latest ticket migrate           # dry run
 bunx litecodeagent@latest ticket migrate --apply
 ```

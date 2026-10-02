@@ -424,7 +424,7 @@ function validateRequiredConfigPaths(
   throw new Error(
     "litecode.config.json is missing config path(s) the installed packs require:\n" +
       missing.map((m) => `  - ${m.path} (referenced by ${m.sources.join(", ")})`).join("\n") +
-      "\n\nRun `litecode config doctor --fix` to fill in missing agentSkills keys, or add the" +
+      "\n\nRun `litecode doctor --fix` to fill in missing agentSkills keys, or add the" +
       " missing `project.web` block by hand (required when the `web` pack is installed).",
   );
 }

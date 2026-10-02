@@ -16,7 +16,8 @@ import type { Config } from "./config.ts";
 import { buildPlan } from "./install.ts";
 import { staleFindings } from "./install-stale.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
-import { doctor as configDoctor } from "./config-doctor.ts";
+import { doctor as configDoctor, routingFindings } from "./config-doctor.ts";
+import { detect } from "./detect.ts";
 import { listTickets } from "./tickets/store.ts";
 import type { Ticket } from "./tickets/spec.ts";
 import { gh } from "./gh.ts";
@@ -429,6 +430,7 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   findings.push(...ticketFindings);
   const configFindings = await configDoctor(packsRoot, config);
   for (const f of configFindings) findings.push(f);
+  findings.push(...(await routingFindings(packsRoot, config, await detect(primaryRoot))));
 
   const tickets = await listTickets(primaryRoot, config.project.tickets.dir);
 
