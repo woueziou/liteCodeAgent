@@ -47,7 +47,7 @@ export type DashboardData = {
   blockedTickets: Ticket[];
   /** Every parsed ticket, for the full per-ticket listing. */
   tickets: Ticket[];
-  /** Tickets `ticket doctor` would also flag: malformed files that didn't parse. */
+  /** Tickets `doctor` would also flag: malformed files that didn't parse. */
   loadErrors: TicketLoadError[];
   /** Every parsed ADR from `docs/decisions/`, newest first (ticket 0032's ADR screen). */
   adrs: AdrSummary[];

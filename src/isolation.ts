@@ -71,7 +71,7 @@ export async function startInline(root: string, ticket: string, pid: number): Pr
   }
   const path = await lockPath(root);
   const held = await readLock(path);
-  if (held && held.ticket !== ticket) {
+  if (held) {
     return `inline refused: another implementer is already running (ticket ${held.ticket}, pid ${held.pid})`;
   }
   await Bun.write(path, JSON.stringify({ ticket, pid }));

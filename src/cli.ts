@@ -591,8 +591,20 @@ async function cmdIsolation(root: string, argv: string[]): Promise<number> {
     return 1;
   }
   const { config } = await loadConfig(root);
-  const target = (arg(argv, "--target") ?? selectedTargets(config)[0]) as IsolationTarget;
-  const resolved = resolveIsolationMode(config.project, target, mode);
+  const known: readonly string[] = [...TARGETS, "runner"];
+  let target: string | undefined = arg(argv, "--target");
+  if (target === undefined) {
+    const configured = selectedTargets(config);
+    if (configured.length > 1) {
+      console.log(c.red(`this project has several install targets (${configured.join(", ")}): pass --target <name>`));
+      return 1;
+    }
+    target = configured[0];
+  } else if (!known.includes(target)) {
+    console.log(c.red(`--target must be one of ${known.join(", ")}, got '${target}'`));
+    return 1;
+  }
+  const resolved = resolveIsolationMode(config.project, target as IsolationTarget, mode);
   if (resolved === "inline") {
     const refusal = await startInline(root, ticket, process.ppid);
     if (refusal) {

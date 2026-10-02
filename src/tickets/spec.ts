@@ -88,7 +88,7 @@ export type Size = (typeof SIZES)[number];
  *   them.
  * - `2` — purely local tickets (ADR 0015): those three keys are gone and a comment is just
  *   text in the body. A v1 file still parses (the stale keys are ignored);
- *   `litecode ticket migrate` rewrites it as v2, and `ticket doctor` flags it until then.
+ *   `litecode ticket migrate` rewrites it as v2, and `doctor` flags it until then.
  */
 export const CURRENT_SCHEMA_VERSION = 2;
 
@@ -295,7 +295,7 @@ export function serializeTicket(ticket: Ticket): string {
 /**
  * The ticket body's contract (ticket 0035): a ticket file is more than a title and free
  * text — `tracker` writes a new ticket's body under these four headings, in this order,
- * so `implementer`, `ticket doctor`, and a future `reviewer` acceptance-criteria check
+ * so `implementer`, `doctor`, and a future `reviewer` acceptance-criteria check
  * (ticket 0036) can all find the same sections by name instead of parsing free-form prose.
  * Section names are load-bearing: `docs/tickets/README.md` documents them, and renaming one
  * here is a breaking change to that contract, not a cosmetic edit.
@@ -323,7 +323,7 @@ function normalizeHeading(heading: string): string {
  * Returns the text of a `## <heading>` section (everything up to the next `##` heading, or
  * the end of the body), trimmed — or `null` if that heading isn't present at all. An empty
  * string means the heading exists but has no content under it; callers that care about
- * "did the author actually fill this in" (e.g. `ticket doctor`'s acceptance-criteria check)
+ * "did the author actually fill this in" (e.g. `doctor`'s acceptance-criteria check)
  * must check for that themselves rather than treating `null` and `""` as the same thing.
  *
  * Heading comparison is Unicode-normalization-insensitive (see `normalizeHeading`): a
