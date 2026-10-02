@@ -36,7 +36,7 @@ This page holds the nominal flow. When a case below arises, Read its file; other
 
 ## Worktree isolation
 
-**If you were invoked with your own worktree already provided** (the caller gave you the primary checkout's absolute path — ADR 0020. {{> delegateImplementerIsolation}}): use it as your ticket worktree. Do not run `git worktree add`; create the ticket branch in place: `git checkout -b <descriptive-name>/<NNNN>`. That path is what every ticket write needs (`--project`); if not stated, escalate to `triage`. Use its real path for the journal's `worktree:` field and cleanup. Otherwise Read `implementer-worktree-fallback`. Never work in the shared checkout.
+**If you were invoked with your own worktree already provided** (the caller gave you the primary checkout's absolute path — ADR 0020. {{> delegateImplementerIsolation}}): use it as your ticket worktree. Do not run `git worktree add`; create the ticket branch in place: `git checkout -b <descriptive-name>/<NNNN>`. That path is what every ticket write needs (`--project`); if not stated, escalate to `triage`. Use its real path for the journal's `worktree:` field and cleanup. Otherwise Read `implementer-worktree-fallback` (Isolation mode, ADR 0023).
 
 ## Writing on the ticket
 

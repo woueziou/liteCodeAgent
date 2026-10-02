@@ -123,6 +123,14 @@ export const ProjectSchema = z.object({
 
   /** Where implementer puts per-ticket worktrees, relative to the repo checkout. */
   worktreeRoot: z.string().default("../worktrees"),
+  /**
+   * Isolation mode of `implementer` (ADR 0023): `auto` reads the capability table
+   * (`WORKTREE_SUPPORT`, overridable by `worktreeSupport`), `worktree` and `inline` force it.
+   * Optional with a default, so an older config parses unchanged.
+   */
+  isolation: z.enum(["auto", "worktree", "inline"]).default("auto"),
+  /** Overrides of the built-in worktree capability table, per target (ADR 0023). */
+  worktreeSupport: z.partialRecord(z.enum(["claude-code", "codex", "pi", "opencode", "kilo-code", "runner"]), z.boolean()).default({}),
   /** Where ADRs live, or null if this project does not use ADRs. */
   adrDir: z.string().nullable().default("docs/decisions"),
 
@@ -335,6 +343,20 @@ export const TARGET_INFO: Record<InstallTarget, { label: string; description: st
     description: "The Kilo Code VS Code extension",
     directory: ".kilo/",
   },
+};
+
+/**
+ * Whether each tool natively gives a delegated implementer its own git worktree (ADR 0023).
+ * Only Claude Code documents it; the API runner has none. A user overrides it with
+ * `project.worktreeSupport`.
+ */
+export const WORKTREE_SUPPORT: Record<InstallTarget | "runner", boolean> = {
+  "claude-code": true,
+  codex: false,
+  pi: false,
+  opencode: false,
+  "kilo-code": false,
+  runner: false,
 };
 
 export function selectedTargets(config: Config): InstallTarget[] {

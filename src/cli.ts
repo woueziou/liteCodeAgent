@@ -38,6 +38,7 @@ import {
   type StatusRole,
 } from "./tickets/spec.ts";
 import { checkBranchGuard } from "./guard-branch.ts";
+import { endInline, resolveIsolationMode, startInline, type IsolationTarget } from "./isolation.ts";
 import { findDuplicate, localDedupeCandidates } from "./tickets/dedupe.ts";
 import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
@@ -566,6 +567,40 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
   if (changed && !apply) {
     console.log(c.dim("\nRe-run with --apply to render packs for the new settings."));
   }
+  return 0;
+}
+
+/**
+ * `isolation start <ticket> [--mode auto|worktree|inline] [--target <t>]` prints the
+ * resolved Isolation mode (ADR 0023); for inline it also refuses on a dirty tree or a
+ * running implementer, and takes the lock. `isolation end <ticket>` releases it.
+ */
+async function cmdIsolation(root: string, argv: string[]): Promise<number> {
+  const [, sub, ticket] = argv;
+  if ((sub !== "start" && sub !== "end") || !ticket || ticket.startsWith("--")) {
+    console.log(c.red("usage: litecode isolation start|end <ticket> [--mode auto|worktree|inline] [--target <target>]"));
+    return 1;
+  }
+  if (sub === "end") {
+    await endInline(root, ticket);
+    return 0;
+  }
+  const mode = arg(argv, "--mode") ?? "auto";
+  if (mode !== "auto" && mode !== "worktree" && mode !== "inline") {
+    console.log(c.red(`--mode must be auto, worktree or inline, got '${mode}'`));
+    return 1;
+  }
+  const { config } = await loadConfig(root);
+  const target = (arg(argv, "--target") ?? selectedTargets(config)[0]) as IsolationTarget;
+  const resolved = resolveIsolationMode(config.project, target, mode);
+  if (resolved === "inline") {
+    const refusal = await startInline(root, ticket, process.ppid);
+    if (refusal) {
+      console.log(c.red(refusal));
+      return 1;
+    }
+  }
+  console.log(resolved);
   return 0;
 }
 
@@ -1235,6 +1270,7 @@ try {
       case "run": return cmdRun(root, argv);
       case "ticket": return cmdTicket(root, stripFlag(argv, "--project"));
       case "guard-branch": return cmdGuardBranch(root, argv);
+      case "isolation": return cmdIsolation(root, argv);
       case "dashboard": return cmdDashboard(root, argv);
       case "verify-report": return cmdVerifyReport(root, argv);
       case "doctor": return cmdDoctor(root, argv);
