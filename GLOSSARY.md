@@ -15,6 +15,14 @@ Le dossier `docs/tickets/`, qui contient tous les tickets du projet.
 Groupe de tickets rangés dans un sous-dossier numéroté du ticket directory.
 _Avoid_: lot
 
+**Spec**:
+Document de cadrage d'un chantier (problème, solution, user stories, décisions), rangé dans le dossier `docs/specs/`. Un spec n'est pas un ticket : il se découpe en tranches, chacune devenant un ticket.
+_Avoid_: ticket de spec
+
+**Slice**:
+Ticket vertical issu d'un spec, livrable et vérifiable seul, qui déclare les tickets qui le bloquent.
+_Avoid_: lot
+
 **Pack**:
 Ensemble installable d'agents, de prompts et de références, décrit par un manifest.
 
@@ -44,6 +52,12 @@ Panel dont au moins un membre n'a pas répondu de façon lisible, ce qui bloque 
 
 **Implementer**:
 Agent qui réalise un ticket dans un worktree isolé et ouvre une pull request.
+
+**Isolation mode**:
+Manière dont l'implementer travaille par rapport au checkout principal : `worktree` (copie isolée) ou `inline` (même checkout, même session). Le mode `auto` choisit selon les capacités de l'install target.
+
+**Domain**:
+Règle qui associe un motif de ticket (par exemple « interaction tactile ») aux skills que l'agent doit lire pour ce ticket.
 
 **Reviewer**:
 Agent qui relit la pull request d'un ticket et la renvoie à l'implementer en cas de rework.
