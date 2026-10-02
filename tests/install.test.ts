@@ -445,7 +445,7 @@ test("a config missing an agentSkills key a pack requires fails pre-flight with 
   expect(error.message).not.toMatch(/is not defined in the project config/);
   expect(error.message).toMatch(/project\.agentSkills\.tracker/);
   expect(error.message).toMatch(/agents\/tracker\.md/);
-  expect(error.message).toMatch(/config doctor --fix/);
+  expect(error.message).toMatch(/doctor --fix/);
 });
 
 test("a typo'd agentSkills key does not mask the real missing key", async () => {
@@ -471,19 +471,19 @@ test("renders native agents and the discussion-to-plan command for every configu
   const plan = await buildPlan(root, PACKS, config);
   const content = (rel: string) => plan.entries.find((entry) => entry.rel === rel)?.content;
 
-  expect(content(".claude/commands/litecodeagent.md")).toContain("$ARGUMENTS");
+  expect(content(".claude/commands/litecode.md")).toContain("$ARGUMENTS");
   expect(content(".codex/agents/orchestrator.toml")).toContain('sandbox_mode = "read-only"');
   expect(content(".codex/agents/orchestrator.toml")).not.toContain('model = "opus"');
-  expect(content(".agents/skills/litecodeagent/SKILL.md")).toContain("/litecodeagent");
-  expect(content(".agents/skills/litecodeagent/SKILL.md")).toContain("$litecodeagent");
+  expect(content(".agents/skills/litecode/SKILL.md")).toContain("/litecode");
+  expect(content(".agents/skills/litecode/SKILL.md")).toContain("$litecode");
   expect(content(".opencode/agents/orchestrator.md")).toContain("mode: primary");
   expect(content(".opencode/agents/orchestrator.md")).toContain("task: true");
-  expect(content(".opencode/commands/litecodeagent.md")).toContain("agent: orchestrator");
+  expect(content(".opencode/commands/litecode.md")).toContain("agent: orchestrator");
   expect(content(".kilo/agents/orchestrator.md")).toContain("mode: primary");
   expect(content(".kilo/agents/orchestrator.md")).toContain("task: allow");
-  expect(content(".kilo/commands/litecodeagent.md")).toContain("$ARGUMENTS");
-  expect(content(".pi/prompts/litecodeagent.md")).toContain("litecode_run");
-  expect(content(".pi/extensions/litecodeagent.ts")).toContain('"orchestrator"');
+  expect(content(".kilo/commands/litecode.md")).toContain("$ARGUMENTS");
+  expect(content(".pi/prompts/litecode.md")).toContain("litecode_run");
+  expect(content(".pi/extensions/litecode.ts")).toContain('"orchestrator"');
   expect(plan.entries.some((entry) => entry.rel === ".pi/agents/orchestrator.md")).toBe(false);
 
   await applyPlan(root, plan, "0.0.0-test", { force: false });
@@ -495,7 +495,7 @@ test("renders native agents and the discussion-to-plan command for every configu
   config.targets = ["codex"];
   const reduced = await buildPlan(root, PACKS, config);
   expect(reduced.orphans).toContain(".claude/agents/planner.md");
-  expect(reduced.orphans).toContain(".pi/extensions/litecodeagent.ts");
+  expect(reduced.orphans).toContain(".pi/extensions/litecode.ts");
 });
 
 test("dropping the web pack surfaces the now-dangling skill references", async () => {

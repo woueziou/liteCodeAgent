@@ -5,8 +5,10 @@ task: "0057"
 
 # 0020. Implementer in an isolated worktree, ticket writes rooted explicitly
 
-Status: accepted
+Status: accepted, partly superseded by ADR 0023
 Date: 2026-09-29
+
+> **Partly superseded (2026-10-02)**: decision 1 (non-claude-code targets always run `git worktree add` themselves) is replaced by ADR 0023, which chooses an Isolation mode (`auto`, `worktree`, `inline`) from the install target. Decisions 2 to 5 stand.
 
 ## Context
 

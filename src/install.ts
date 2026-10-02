@@ -4,7 +4,7 @@ import type { Config, InstallTarget } from "./config.ts";
 import { selectedTargets, TARGETS, TARGET_ROOTS } from "./config.ts";
 import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
-import { render, referencedPaths, templateProject } from "./template.ts";
+import { preflightRefusal, render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames } from "./delegation.ts";
 import { configSkills, skipSkill, withoutInstallKey } from "./skill-filter.ts";
 import { hash, readLockfile, writeLockfile, writeLockfileStable, type Lockfile } from "./lockfile.ts";
@@ -268,7 +268,7 @@ export default function (pi: ExtensionAPI) {
 `;
 
 function renderWorkflow(source: string, target: InstallTarget): string {
-  const { data, body } = parseFrontmatter(source, "core/workflows/litecodeagent.md");
+  const { data, body } = parseFrontmatter(source, "core/workflows/litecode.md");
   const description = data.description ?? "Discuss an idea and produce a plan without creating work items or implementing it.";
   const workflow = body.trim();
   if (target === "claude-code") {
@@ -290,9 +290,9 @@ function renderWorkflow(source: string, target: InstallTarget): string {
   }
   if (target === "codex") {
     return serializeFrontmatter({
-      name: "litecodeagent",
-      description: "Run the LiteCodeAgent discussion and planning workflow for an idea, feature, bug, or documentation request. Invoke when the user types /litecodeagent <request> or $litecodeagent <request>.",
-    }, `${workflow}\n\nWhen invoked, treat the text following /litecodeagent or $litecodeagent as the raw request. Delegate to the installed \`orchestrator\` Codex subagent and wait for its result; if you can't spawn it, run \`litecode run orchestrator --prompt-file <file>\` via the shell instead (ADR 0014) — never improvise the orchestrator's sequence yourself. Stop after presenting the plan. Never create an issue, update a board, or implement the work.\n`);
+      name: "litecode",
+      description: "Run the LiteCodeAgent discussion and planning workflow for an idea, feature, bug, or documentation request. Invoke when the user types /litecode <request> or $litecode <request>.",
+    }, `${workflow}\n\nWhen invoked, treat the text following /litecode or $litecode as the raw request. Delegate to the installed \`orchestrator\` Codex subagent and wait for its result; if you can't spawn it, run \`litecode run orchestrator --prompt-file <file>\` via the shell instead (ADR 0014) — never improvise the orchestrator's sequence yourself. Stop after presenting the plan. Never create an issue, update a board, or implement the work.\n`);
   }
   if (target === "opencode" || target === "kilo-code") {
     return [
@@ -350,6 +350,9 @@ export function missingAgentSkillPaths(
   files: { rel: string; source: string; packName: string }[],
   agentSkills: Record<string, string[]>,
 ): MissingConfigPath[] {
+  // A config with no `agentSkills` at all is the minimal form (nothing preloaded), not an
+  // incomplete one: `withDefaultAgentSkills` renders it with an empty list per agent.
+  if (Object.keys(agentSkills).length === 0) return [];
   const sourcesByPath = new Map<string, string[]>();
   for (const file of files) {
     for (const path of referencedPaths(file.source)) {
@@ -363,6 +366,22 @@ export function missingAgentSkillPaths(
     if (agentSkills[key] === undefined) missing.push({ path, sources: [...new Set(sources)] });
   }
   return missing.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** Gives a config with no `agentSkills` an empty list for every agent key the packs read. */
+export function withDefaultAgentSkills(
+  config: Config,
+  files: { source: string }[],
+): Config {
+  if (Object.keys(config.project.agentSkills).length > 0) return config;
+  const agentSkills: Record<string, string[]> = {};
+  for (const file of files) {
+    for (const path of referencedPaths(file.source)) {
+      const m = /^project\.agentSkills\.([^.]+)$/.exec(path);
+      if (m?.[1]) agentSkills[m[1]] = [];
+    }
+  }
+  return { ...config, project: { ...config.project, agentSkills } };
 }
 
 /**
@@ -405,7 +424,7 @@ function validateRequiredConfigPaths(
   throw new Error(
     "litecode.config.json is missing config path(s) the installed packs require:\n" +
       missing.map((m) => `  - ${m.path} (referenced by ${m.sources.join(", ")})`).join("\n") +
-      "\n\nRun `litecode config doctor --fix` to fill in missing agentSkills keys, or add the" +
+      "\n\nRun `litecode doctor --fix` to fill in missing agentSkills keys, or add the" +
       " missing `project.web` block by hand (required when the `web` pack is installed).",
   );
 }
@@ -425,19 +444,19 @@ function outputFiles(
     delegationHelpers(target, agents, config.tiers, target === "claude-code" ? config.outDir : undefined),
   );
   const parsed = parseFrontmatter(rendered, file.rel);
-  const { body } = parsed;
   const skillName = /^skills\/([^/]+)\/SKILL\.md$/.exec(file.rel)?.[1];
   if (skillName && skipSkill(parsed.data, skillName, wantedSkills)) return [];
   const data = skillName ? withoutInstallKey(parsed.data) : parsed.data;
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
+  const body = agent ? preflightRefusal(agent[1]!, config.project) + parsed.body : parsed.body;
   const skill = /^(skills\/.+)$/.exec(file.rel);
-  const workflow = file.rel === "workflows/litecodeagent.md";
+  const workflow = file.rel === "workflows/litecode.md";
 
   if (target === "claude-code") {
     if (agent) {
       return [{ rel: join(config.outDir, file.rel), content: renderClaudeAgent(data, body, config, file.rel) }];
     }
-    if (workflow) return [{ rel: ".claude/commands/litecodeagent.md", content: renderWorkflow(rendered, target) }];
+    if (workflow) return [{ rel: ".claude/commands/litecode.md", content: renderWorkflow(rendered, target) }];
     return [{ rel: join(config.outDir, file.rel), content: serializeFrontmatter(data, body) }];
   }
 
@@ -461,15 +480,15 @@ function outputFiles(
 
   if (workflow) {
     if (target === "codex") {
-      return [{ rel: ".agents/skills/litecodeagent/SKILL.md", content: renderWorkflow(rendered, target) }];
+      return [{ rel: ".agents/skills/litecode/SKILL.md", content: renderWorkflow(rendered, target) }];
     }
     if (target === "pi") {
       return [
-        { rel: ".pi/prompts/litecodeagent.md", content: renderWorkflow(rendered, target) },
-        { rel: ".pi/extensions/litecodeagent.ts", content: PI_EXTENSION },
+        { rel: ".pi/prompts/litecode.md", content: renderWorkflow(rendered, target) },
+        { rel: ".pi/extensions/litecode.ts", content: PI_EXTENSION },
       ];
     }
-    return [{ rel: `${ROOTS[target]}/commands/litecodeagent.md`, content: renderWorkflow(rendered, target) }];
+    return [{ rel: `${ROOTS[target]}/commands/litecode.md`, content: renderWorkflow(rendered, target) }];
   }
 
   return [{ rel: join(ROOTS[target], file.rel), content: serializeFrontmatter(data, body) }];
@@ -535,7 +554,8 @@ function referencedSkills(
   return wanted;
 }
 
-export async function buildPlan(projectRoot: string, packsRoot: string, config: Config): Promise<InstallPlan> {
+export async function buildPlan(projectRoot: string, packsRoot: string, given: Config): Promise<InstallPlan> {
+  let config = given;
   const targets = selectedTargets(config);
   const lockfilePaths = Object.fromEntries(targets.map((target) => [target, lockPath(target)])) as Partial<Record<InstallTarget, string>>;
   const previous = new Map<InstallTarget, Lockfile | null>();
@@ -560,10 +580,9 @@ export async function buildPlan(projectRoot: string, packsRoot: string, config: 
     }
   }
 
-  validateRequiredConfigPaths(
-    config,
-    packs.flatMap(({ packName, pack }) => pack.files.map((file) => ({ ...file, packName }))),
-  );
+  const packFiles = packs.flatMap(({ packName, pack }) => pack.files.map((file) => ({ ...file, packName })));
+  validateRequiredConfigPaths(config, packFiles);
+  config = withDefaultAgentSkills(config, packFiles);
 
   const agents = packAgentNames(packs);
   const wantedSkills = referencedSkills(packs, config, agents);
@@ -663,7 +682,7 @@ export async function applyPlan(
   if (plan.hook?.status === "preexisting") {
     const guardLine = await guardBranchLine(projectRoot, plan.hook.kitVersion);
     console.log(
-      `\nSkipping ${plan.hook.rel}: it already exists and wasn't installed by litecodeagent, so it's left untouched.\n` +
+      `\nSkipping ${plan.hook.rel}: it already exists and wasn't installed by litecode, so it's left untouched.\n` +
         `To enable the branch guard, add this line to your existing ${plan.hook.rel}:\n\n` +
         `  ${guardLine}\n`,
     );
@@ -813,7 +832,7 @@ async function activateGitHooksPath(projectRoot: string, kitVersion: string): Pr
     // refuses every commit in the whole repo) instead of doing anything useful.
     console.warn(
       `\nWarning: ${projectRoot} is a subdirectory of the git repo at ${gitRoot}. ` +
-        "core.hooksPath is repo-wide, so litecodeagent won't change it from here.\n" + manualNotice,
+        "core.hooksPath is repo-wide, so litecode won't change it from here.\n" + manualNotice,
     );
     return false;
   }

@@ -7,8 +7,11 @@ description: Reference for implementer (not a skill; read on demand when the cas
 
 Loaded by `implementer` at step 3 when the caller did not hand you a worktree, and when you are done with yours. Step numbers refer to `implementer`'s numbered flow.
 
-You never work directly in the shared repo checkout; every ticket gets its own git worktree.
+**Isolation mode** (ADR 0023): run `bunx litecodeagent isolation start <NNNN>` (add `--mode worktree|inline` when the caller's prompt says `isolation mode: <mode>`: the call wins over the project's `{{ project.isolation }}` setting; ticket size never matters). It prints `worktree` or `inline`.
 
-**No worktree provided**: `git worktree add {{ project.worktreeRoot }}/<NNNN> -b <descriptive-name>/<NNNN> {{ project.defaultBranch }}`, and do all work inside it. `"Your worktree"` and `{{ project.worktreeRoot }}/<NNNN>` elsewhere mean this one. Never rename or touch `{{ project.defaultBranch }}` or any pre-existing branch (`git branch -M`/`-m` are off limits).
+- `inline`: work in the primary checkout on `git checkout -b <descriptive-name>/<NNNN>` off `{{ project.defaultBranch }}`, with `--project` set to that checkout. Run `bunx litecodeagent isolation end <NNNN>` when done or handed to `triage`. It refuses inline on a dirty working tree or while another implementer runs: stop and escalate to `triage`, never force it or clean the tree yourself.
+- `worktree`: every ticket gets its own git worktree, never the shared checkout, as below.
+
+**No worktree provided** (mode `worktree`): `git worktree add {{ project.worktreeRoot }}/<NNNN> -b <descriptive-name>/<NNNN> {{ project.defaultBranch }}`, and do all work inside it. `"Your worktree"` and `{{ project.worktreeRoot }}/<NNNN>` elsewhere mean this one. Never rename or touch `{{ project.defaultBranch }}` or any pre-existing branch (`git branch -M`/`-m` are off limits).
 
 **When done**, once the ticket is in `Review`/`Ready to Merge`/`Done` (or handed to `triage`), run `git worktree remove {{ project.worktreeRoot }}/<NNNN>`; the branch stays. Keep the worktree if you may need to resume. This applies to a worktree the caller provided too.

@@ -84,10 +84,22 @@ const CiSchema = z.object({
   testChecks: z.array(z.string()).default(["test"]),
 });
 
+/** The one angle every project gets unless it configures its own. */
+const DEFAULT_ANGLE: z.infer<typeof AngleSchema> = {
+  name: "correctness",
+  covers: "Does the change actually solve the stated problem, and what edge cases does it miss.",
+  triggeredBy: "always: every non-trivial change gets this angle",
+  skills: [],
+  always: true,
+};
+
 export const ProjectSchema = z.object({
   name: z.string(),
-  /** owner/repo */
-  repo: z.string().regex(/^[^/]+\/[^/]+$/, "expected owner/repo"),
+  /**
+   * owner/repo. Empty when no GitHub repository was found at install time: the install
+   * still succeeds and the agents that need it refuse, naming `litecode config set project.repo`.
+   */
+  repo: z.union([z.literal(""), z.string().regex(/^[^/]+\/[^/]+$/, "expected owner/repo")]).default(""),
   defaultBranch: z.string().default("main"),
   /**
    * Escape hatch for the `pre-commit` branch guard (ticket 0033): when true, a commit on
@@ -101,13 +113,24 @@ export const ProjectSchema = z.object({
   /** CI expectations for verifying a PR's checks (ticket 0059). */
   ci: CiSchema.default({ testChecks: ["test"] }),
 
-  /** The command that must pass before any agent calls work done. */
-  checkCommand: z.string(),
+  /**
+   * The command that must pass before any agent calls work done. Empty when none was
+   * detected: the agents that run it refuse, naming `litecode config set project.checkCommand`.
+   */
+  checkCommand: z.string().default(""),
   /** Extra verification commands (type-checks etc.), run when types moved. */
   typecheckCommands: z.array(z.string()).default([]),
 
   /** Where implementer puts per-ticket worktrees, relative to the repo checkout. */
   worktreeRoot: z.string().default("../worktrees"),
+  /**
+   * Isolation mode of `implementer` (ADR 0023): `auto` reads the capability table
+   * (`WORKTREE_SUPPORT`, overridable by `worktreeSupport`), `worktree` and `inline` force it.
+   * Optional with a default, so an older config parses unchanged.
+   */
+  isolation: z.enum(["auto", "worktree", "inline"]).default("auto"),
+  /** Overrides of the built-in worktree capability table, per target (ADR 0023). */
+  worktreeSupport: z.partialRecord(z.enum(["claude-code", "codex", "pi", "opencode", "kilo-code", "runner"]), z.boolean()).default({}),
   /** Where ADRs live, or null if this project does not use ADRs. */
   adrDir: z.string().nullable().default("docs/decisions"),
 
@@ -129,7 +152,7 @@ export const ProjectSchema = z.object({
   agentSkills: z.record(z.string(), z.array(z.string())).default({}),
 
   /** Which debate angles exist for this project. */
-  angles: z.array(AngleSchema).min(1),
+  angles: z.array(AngleSchema).min(1).default([DEFAULT_ANGLE]),
   /** Path/domain -> expert skill routing for implementer and reviewer. */
   domains: z.array(DomainSchema).default([]),
   /** Project-specific classifier signals per size bucket. */
@@ -322,6 +345,20 @@ export const TARGET_INFO: Record<InstallTarget, { label: string; description: st
   },
 };
 
+/**
+ * Whether each tool natively gives a delegated implementer its own git worktree (ADR 0023).
+ * Only Claude Code documents it; the API runner has none. A user overrides it with
+ * `project.worktreeSupport`.
+ */
+export const WORKTREE_SUPPORT: Record<InstallTarget | "runner", boolean> = {
+  "claude-code": true,
+  codex: false,
+  pi: false,
+  opencode: false,
+  "kilo-code": false,
+  runner: false,
+};
+
 export function selectedTargets(config: Config): InstallTarget[] {
   return [...new Set(config.targets ?? [config.target])];
 }
@@ -333,7 +370,7 @@ export async function loadConfig(projectRoot: string): Promise<{ config: Config;
   const file = Bun.file(path);
   if (!(await file.exists())) {
     throw new Error(
-      `No ${CONFIG_FILENAME} at ${path}. Run \`bunx litecodeagent init\` in the target repo first.`,
+      `No ${CONFIG_FILENAME} at ${path}. Run \`litecode init\` in the target repo first.`,
     );
   }
   const raw = await file.text();

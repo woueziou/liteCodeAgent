@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0084-feat-cli-single-litecode-name-grouped-help-and-u
 title: "feat(cli): Single litecode name, grouped help and upgrade announcement"
 label: feature
-status: backlog
+status: inProgress
 priority: high
 size: medium
 assignedAgent: human
@@ -21,7 +21,7 @@ La commande s'appelle `litecode` dans tous les messages, prompts et exemples du 
 
 ## Critères d'acceptation
 
-- [ ] Plus aucun message, prompt ni exemple du README n'emploie `litecodeagent` hors de la première installation avec `bunx`.
+- [ ] Les messages de la CLI et l'aide emploient `litecode`. Décision (2026-10-02) : les prompts d'agents gardent `bunx litecodeagent`, car `litecode` n'est pas dans le PATH sous `bunx`. Reste à trancher pour les exemples `bunx` du README (lignes 94, 102, 131, 179, 200, 216, 219) et `src/init.ts:268`.
 - [ ] La commande dans l'outil est `/litecode` sur chaque install target, et le plugin suit.
 - [ ] `--help` est groupé par étape (installer, planifier, implémenter, diagnostiquer).
 - [ ] `install` n'apparaît plus comme commande destinée à l'utilisateur, et `--check` reste disponible pour la CI.
@@ -33,3 +33,8 @@ La commande s'appelle `litecode` dans tous les messages, prompts et exemples du 
 ## Bloqué par
 
 - 0083
+
+## Reste à faire
+
+- Exemples `bunx litecodeagent` du README et message de `src/init.ts` : à aligner ou à garder, selon la décision sur les prompts.
+- Plugin : `bin/` et `.claude-plugin/` sont absents du dépôt, donc « le plugin suit » ne peut pas être vérifié.

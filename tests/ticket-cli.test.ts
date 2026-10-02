@@ -279,12 +279,12 @@ A comment sync never got to post.
 <!-- /litecode:comment -->
 `;
 
-test("`ticket doctor` flags a v1 ticket, and `ticket migrate --apply` rewrites it as v2", async () => {
+test("`doctor` flags a v1 ticket, and `ticket migrate --apply` rewrites it as v2", async () => {
   const root = await project();
   const path = join(root, "docs/tickets/0007-old-synced-ticket.md");
   await Bun.write(path, V1_TICKET);
 
-  const doctor = await runCliWithExit(root, ["ticket", "doctor"]);
+  const doctor = await runCliWithExit(root, ["doctor"]);
   expect(doctor.output).toContain("schema v1");
   expect(doctor.output).toContain("ticket migrate");
 
@@ -304,7 +304,7 @@ test("`ticket doctor` flags a v1 ticket, and `ticket migrate --apply` rewrites i
   expect(migrated).toContain("A comment sync never got to post.");
 
   expect((await runCli(root, ["ticket", "migrate"]))).toContain("already schema v2");
-  expect((await runCliWithExit(root, ["ticket", "doctor"])).output).not.toContain("schema v1");
+  expect((await runCliWithExit(root, ["doctor"])).output).not.toContain("schema v1");
 });
 
 test("`ticket sync` no longer exists: it prints usage instead of planning a push", async () => {
@@ -335,13 +335,13 @@ test("`ticket migrate` refuses to migrate an unknown frontmatter key unless --fo
   expect(migrated).toMatch(/^epic: payments$/m);
 });
 
-test("`ticket doctor` warns about a ticket from a newer schema", async () => {
+test("`doctor` warns about a ticket from a newer schema", async () => {
   const root = await project();
   await Bun.write(
     join(root, "docs/tickets/0008-from-the-future.md"),
     V1_TICKET.replace("schemaVersion: 1", "schemaVersion: 3").replace("0007-old-synced-ticket", "0008-from-the-future"),
   );
-  expect((await runCliWithExit(root, ["ticket", "doctor"])).output).toContain("newer than this CLI understands");
+  expect((await runCliWithExit(root, ["doctor"])).output).toContain("newer than this CLI understands");
 });
 
 // Ticket 0057 / ADR 0020: `ticket note` is the one sanctioned way to append a note to a

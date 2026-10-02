@@ -101,7 +101,10 @@ async function fakeGh(root: string, script: string): Promise<string> {
 
 test("a clean repo with no in-flight tickets has no findings", async () => {
   const root = await tmpRepo();
-  const config = await exampleConfig({ worktreeRoot: "../worktrees" });
+  const config = await exampleConfig({
+    worktreeRoot: "../worktrees",
+    domains: [{ match: "auth or input validation", skills: ["security-expert"] }],
+  });
   const findings = await doctor({ root, packsRoot: PACKS, config });
   expect(findings).toEqual([]);
 });

@@ -3,8 +3,9 @@ import { realpath } from "node:fs/promises";
 import { selectedTargets, type Config } from "../config.ts";
 import { parseFrontmatter, parseList } from "../frontmatter.ts";
 import { loadPack, TIERS, type Tier } from "../packs.ts";
-import { render, templateProject } from "../template.ts";
+import { preflightRefusal, render, templateProject } from "../template.ts";
 import { delegationHelpers, packAgentNames, REFERENCE_ROOTS } from "../delegation.ts";
+import { withDefaultAgentSkills } from "../install.ts";
 
 /** Where the installed `reference/*.md` files live for the runner: outDir if claude-code is installed, else the first installed target's root. */
 function runnerReferenceRoot(config: Config): string {
@@ -61,10 +62,11 @@ export class AgentCatalog {
     const catalog = new AgentCatalog(projectRoot, config.outDir, runnerSkillRoots);
     const packs = await Promise.all(config.packs.map(async (packName) => ({ packName, pack: await loadPack(packsRoot, packName) })));
     const helpers = delegationHelpers("runner", packAgentNames(packs), config.tiers, runnerReferenceRoot(config));
+    const withSkills = withDefaultAgentSkills(config, packs.flatMap(({ pack }) => pack.files));
     for (const { packName, pack } of packs) {
       for (const file of pack.files) {
         const where = `${packName}/${file.rel}`;
-        const rendered = render(file.source, { project: templateProject(config.project) }, where, helpers);
+        const rendered = render(file.source, { project: templateProject(withSkills.project) }, where, helpers);
         const { data, body } = parseFrontmatter(rendered, where);
         if (file.rel.startsWith("agents/")) {
           const name = data.name;
@@ -77,7 +79,7 @@ export class AgentCatalog {
             tier,
             tools: parseList(data.tools),
             skills: parseList(data.skills),
-            prompt: body.trim(),
+            prompt: (preflightRefusal(name, config.project) + body).trim(),
           });
         } else if (/^skills\/[^/]+\/SKILL\.md$/.test(file.rel)) {
           const name = data.name ?? basename(resolve(file.rel, ".."));

@@ -130,8 +130,9 @@ function delegateImplementerIsolation(target: RenderTarget): string {
     case "pi":
       return (
         "This target has no per-call worktree isolation for a delegated `implementer` — it starts in the " +
-        "caller's existing working directory, same as any other delegation. `implementer` creates its own " +
-        "worktree with `git worktree add` as step 3 always did; nothing to state differently in the prompt."
+        "caller's existing working directory, same as any other delegation. `implementer` picks its Isolation mode " +
+        "itself with `litecode isolation start <NNNN>` (ADR 0023; `auto` is `inline` here); to force one for this " +
+        "call, say `isolation mode: worktree` or `isolation mode: inline` in the prompt."
       );
   }
 }

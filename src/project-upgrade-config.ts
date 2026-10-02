@@ -11,8 +11,13 @@ export type Json = Record<string, unknown>;
 const OBSOLETE_KEYS = [
   ["project", "tickets", "autoStateFile"],
   ["project", "tickets", "autoMinIntervalMs"],
-  ["project", "agentSkills", "sync"],
   ["project", "board"],
+  // Ticket 0083: the minimal config. Skills load on demand through the routing rules, and
+  // the rest is a default (or, for `target`, folded into `targets`).
+  ["target"],
+  ["outDir"],
+  ["project", "lessons"],
+  ["project", "agentSkills"],
 ] as const;
 
 /**
@@ -66,14 +71,27 @@ function parentOf(raw: Json, path: readonly string[]): Json | undefined {
   return isObject(node) && path.at(-1)! in node ? node : undefined;
 }
 
+/**
+ * Keys that are only obsolete while they carry nothing the user chose: a custom `outDir`
+ * and filled `lessons` are still read, so they stay.
+ */
+function stillRead(raw: Json, path: readonly string[]): boolean {
+  const key = path.join(".");
+  const project = isObject(raw.project) ? raw.project : {};
+  if (key === "project.board") return boardStillNeeded(raw);
+  if (key === "outDir") return raw.outDir !== undefined && raw.outDir !== ".claude";
+  if (key === "project.lessons") return Array.isArray(project.lessons) && project.lessons.length > 0;
+  return false;
+}
+
 function keysToStrip(raw: Json): readonly (readonly string[])[] {
-  return boardStillNeeded(raw)
-    ? OBSOLETE_KEYS.filter((path) => path.join(".") !== "project.board")
-    : OBSOLETE_KEYS;
+  return OBSOLETE_KEYS.filter((path) => !stillRead(raw, path));
 }
 
 function withoutObsoleteKeys(raw: Json): Json {
   const copy = structuredClone(raw);
+  // The legacy single `target` is replaced by `targets`; drop it only once `targets` says the same.
+  if (typeof copy.target === "string" && copy.targets === undefined) copy.targets = [copy.target];
   for (const path of keysToStrip(raw)) delete parentOf(copy, path)?.[path.at(-1)!];
   return copy;
 }

@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0085-feat-doctor-unify-diagnostics-in-a-single-doctor
 title: "feat(doctor): Unify diagnostics in a single doctor"
 label: feature
-status: backlog
+status: done
 priority: high
 size: medium
 assignedAgent: human

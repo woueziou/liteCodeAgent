@@ -1,8 +1,8 @@
 /**
  * `litecode doctor`: detects abandoned/orphaned work that nothing else notices — the local
  * equivalent of `gsd health --repair`/forensics (ticket 0038). Read-only: it never writes
- * anything, only reports. It composes checks that already exist elsewhere (`ticket doctor`,
- * `config doctor`, install lockfile drift) with new ones specific to the worktree/branch/PR
+ * anything, only reports. It composes checks that already exist elsewhere (the ticket checks,
+ * the config checks, install lockfile drift) with new ones specific to the worktree/branch/PR
  * lifecycle `implementer` is expected to follow (ADR 0015's worktree-per-ticket flow).
  *
  * GitHub-backed checks (pushed branch without a PR, PR closed/merged but ticket still
@@ -16,7 +16,8 @@ import type { Config } from "./config.ts";
 import { buildPlan } from "./install.ts";
 import { staleFindings } from "./install-stale.ts";
 import { doctor as ticketDoctor } from "./tickets/doctor.ts";
-import { doctor as configDoctor } from "./config-doctor.ts";
+import { doctor as configDoctor, routingFindings } from "./config-doctor.ts";
+import { detect } from "./detect.ts";
 import { listTickets } from "./tickets/store.ts";
 import type { Ticket } from "./tickets/spec.ts";
 import { gh } from "./gh.ts";
@@ -309,7 +310,7 @@ async function checkInstallDrift(root: string, packsRoot: string, config: Config
     plan = await buildPlan(root, packsRoot, config);
   } catch (e) {
     // `buildPlan` also validates config/skill references (unrelated to drift) and throws on
-    // a violation. That's `config doctor`'s job to report; here it must not crash the rest
+    // a violation. That's the config checks' job to report; here it must not crash the rest
     // of `doctor`'s checks, so it degrades to a single finding instead.
     return [{ severity: "warn", message: `install plan could not be computed: ${(e as Error).message.split("\n")[0]}` }];
   }
@@ -424,11 +425,12 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   // are all properties of the primary checkout's working tree, not of whichever worktree
   // `doctor` itself happens to be invoked from (ADR 0015's worktree-per-ticket flow means a
   // ticket worktree's own copy of `docs/tickets` reflects an older commit, not the ticket's
-  // current status). Reuse ticket doctor / config doctor verbatim, against the primary root.
+  // current status). Reuse the ticket and config checks verbatim, against the primary root.
   const ticketFindings = await ticketDoctor(primaryRoot, config.project.tickets.dir);
   findings.push(...ticketFindings);
   const configFindings = await configDoctor(packsRoot, config);
   for (const f of configFindings) findings.push(f);
+  findings.push(...(await routingFindings(packsRoot, config, await detect(primaryRoot))));
 
   const tickets = await listTickets(primaryRoot, config.project.tickets.dir);
 

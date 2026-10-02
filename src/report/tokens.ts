@@ -43,7 +43,7 @@ export function formatTokens(n: number): string {
 
 /**
  * A ticket's total from its body, tolerating a body with a malformed journal block (that
- * is `ticket doctor`/`resume`'s job to report, not a reason to break a listing).
+ * is `doctor`/`resume`'s job to report, not a reason to break a listing).
  */
 export function ticketTokens(body: string, parse: (body: string) => JournalEntry[]): number | undefined {
   let journal: number | undefined;

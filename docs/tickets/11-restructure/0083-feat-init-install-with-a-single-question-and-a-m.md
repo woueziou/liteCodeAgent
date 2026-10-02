@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0083-feat-init-install-with-a-single-question-and-a-m
 title: "feat(init): Install with a single question and a minimal config"
 label: feature
-status: backlog
+status: done
 priority: high
 size: large
 assignedAgent: human

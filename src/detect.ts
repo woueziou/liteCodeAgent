@@ -1,5 +1,6 @@
 import { resolve, join, basename } from "node:path";
 import { readdir, stat } from "node:fs/promises";
+import { TARGETS, type InstallTarget } from "./config.ts";
 
 /**
  * Reads what the repo can tell us about itself, so the init wizard proposes real answers
@@ -213,4 +214,29 @@ export async function extractConventions(root: string, file: string): Promise<st
     if (bullet?.[1] && bullet[1].length > 30) out.push(bullet[1].replace(/\s+/g, " "));
   }
   return out;
+}
+
+/** The coding tools a project can receive litecode in, keyed by install target. */
+const TOOL_SIGNS: Record<InstallTarget, { dirs: string[]; binaries: string[] }> = {
+  "claude-code": { dirs: [".claude"], binaries: ["claude"] },
+  codex: { dirs: [".codex", ".agents"], binaries: ["codex"] },
+  pi: { dirs: [".pi"], binaries: ["pi"] },
+  opencode: { dirs: [".opencode"], binaries: ["opencode"] },
+  "kilo-code": { dirs: [".kilo"], binaries: ["kilo"] },
+};
+
+/**
+ * Install targets whose tool is on this machine: its directory already exists in the
+ * project, or its binary is on the PATH. Falls back to Claude Code alone when nothing is
+ * found, so the install never ends up with no target.
+ */
+export async function detectTargets(root: string, pathEnv: string | undefined = process.env.PATH): Promise<InstallTarget[]> {
+  const found: InstallTarget[] = [];
+  for (const target of TARGETS) {
+    const sign = TOOL_SIGNS[target];
+    const onDisk = (await Promise.all(sign.dirs.map((dir) => dirExists(join(root, dir))))).some(Boolean);
+    const onPath = sign.binaries.some((bin) => Bun.which(bin, { PATH: pathEnv ?? "" }) !== null);
+    if (onDisk || onPath) found.push(target);
+  }
+  return found.length > 0 ? found : ["claude-code"];
 }

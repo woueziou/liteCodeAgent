@@ -88,8 +88,7 @@ Nothing gets installed globally, and nothing is written until you say so.
 cd /path/to/your/project
 ```
 
-**2. Run setup.** It asks a handful of questions, having already guessed most of the
-answers from your repo.
+**2. Run setup.** It asks one question, having already guessed everything else from your repo.
 
 ```bash
 bunx litecodeagent setup
@@ -103,14 +102,17 @@ This is a **preview**: it shows you the files it would create, and writes nothin
 bunx litecodeagent setup --apply
 ```
 
-That's it. Your coding tool now has the agents.
+That's it. Your coding tool now has the agents. From here on the command is `litecode`
+(`/litecode` inside your coding tool). After each new release, `litecode upgrade` brings the
+project up to date, and `litecode` tells you at launch when the project is behind. In CI,
+`litecode setup --check` exits 1 if the installed files differ from the packs.
 
 <details>
 <summary>What's <code>bunx</code>, and where does the code go?</summary>
 
 `bunx` downloads a command, runs it, and keeps it in a shared cache — nothing is added to
 your project's dependencies and nothing is installed system-wide. Use
-`bunx litecodeagent@latest <command>` to force the newest release.
+`litecode <command>` to force the newest release.
 
 The generated agent files go into your coding tool's own directory (`.claude/`, `.codex/`,
 `.pi/`, and so on), alongside a small lockfile so the tool knows what it owns.
@@ -133,10 +135,10 @@ That lists every tool, what it is, where its files land, and which ones you curr
 switched on. To change the selection, let it ask you:
 
 ```bash
-bunx litecodeagent config targets
+litecode config targets
 ```
 
-Prefer to say it in one line? `bunx litecodeagent config targets set claude-code,pi` works
+Prefer to say it in one line? `litecode config targets set claude-code,pi` works
 too. Add `--apply` to write the files immediately after choosing.
 
 ## If you use Claude Code
@@ -170,7 +172,7 @@ The quick start above runs these steps for you. Here they are individually, in c
 want more control — or want to understand what just happened. Run them from the root of
 the repo you want the agents in.
 
-### 1. Answer a few questions
+### 1. Answer one question
 
 ```bash
 cd /path/to/your/project
@@ -189,26 +191,32 @@ up, across a monorepo (not just the root manifest):
 | skills you already own | `.claude/skills`, `.agents/skills`, `.pi/skills`, `.opencode/skills`, `.kilo/skills` |
 | house rules | the bullet list under a "Conventions" heading in your `CLAUDE.md`/`AGENTS.md` |
 
-You confirm or correct each one. Two things are derived rather than asked, because they're
-mechanical and drift the moment a human maintains them by hand:
+The only question is *when a ticket touches…, which guides should the agent read?* The rules
+are proposed from your detected stack: Enter accepts them, or type `N: when => guide, guide` to
+edit rule N, `when => guide, guide` to add one, `-N` to remove one, `skip` to keep none. When
+nothing is detected, it asks for at least one rule; `skip` still lets the install finish. A
+summary of the tools, check command and rules is printed before the file is written.
 
-- **`domains`** — which expert skill loads for which kind of change, from your detected stack.
-- **`agentSkills`** — what each agent preloads, from the angles and domains you just chose.
-  A stack-specific skill you already own locally (say `orpc-expert`) gets wired in wherever
-  it applies.
+Prefer no question at all? `bunx litecodeagent init --yes` writes the deduced rules as they are.
+A check command or GitHub repository it couldn't find is left out of the file: the install still
+succeeds, and the agents that need it refuse with the exact `litecode config set project.checkCommand
+"<command>"` or `litecode config set project.repo <owner/name>` to run.
 
-Prefer no questions at all? `bunx litecodeagent init --yes` writes a config from detection alone and
-marks anything it couldn't determine as `TODO`.
+The generated file holds only the tools, packs, project name, default branch, `checkCommand`,
+`typecheckCommands` and the routing rules (`project.domains`). Everything else (`tiers`,
+`worktreeRoot`, `adrDir`, `language`, `conventions`, `trustBoundaries`, angles) takes its default,
+and `litecode config set` changes it. `litecode upgrade` removes the obsolete `target`,
+`outDir`, `lessons` and `agentSkills` keys from an older config.
 
-Setup installs into all five supported coding tools by default. To see what they are, and
-which ones you have on:
+Setup installs into the coding tools it finds on your machine (their directory in the project, or
+their binary on the PATH), and Claude Code when it finds none. To see what they are, and which
+ones you have on:
 
 ```bash
 bunx litecodeagent targets
 ```
 
-To pick a subset during setup, the questions let you choose from that same list. Skipping
-the questions? Name them directly: `bunx litecodeagent init --yes --targets codex,opencode`.
+To override the detection, name them directly: `bunx litecodeagent init --yes --targets codex,opencode`.
 Configs written before this option existed keep their older single `target` setting.
 
 ### 2. Skim the result
@@ -224,15 +232,16 @@ look:
 | `project.testFirst` | `bugs` (default), `all` or `off`: which tickets `implementer` must start with a failing-test commit, which `reviewer` then checks |
 | `project.allowDefaultBranchCommits` | `false` by default. Set it to `true` only if this project really commits straight to its default branch (see step 4) |
 
-`bunx litecodeagent install` refuses to run while any `TODO` remains, because a `TODO` left in an
-agent prompt reads to the model as an instruction rather than as something you forgot.
+`litecode setup` refuses to run while any `TODO` remains, because a `TODO` left in an
+agent prompt reads to the model as an instruction rather than as something you forgot (a hand-written one;
+`init` no longer writes any).
 `examples/ts-employee-service.litecode.config.json` is a complete, real, filled-in config.
 
 ### 3. Render the packs
 
 ```bash
-bunx litecodeagent install          # dry run: shows exactly what would be written
-bunx litecodeagent install --apply
+litecode setup          # dry run: shows exactly what would be written
+litecode setup --apply
 ```
 
 This writes each tool's native agent and skill files and a lockfile under its configuration
@@ -240,7 +249,7 @@ directory. For example: `.codex/agents/*.toml`, `.agents/skills/*/SKILL.md`,
 `.opencode/agents/*.md`, `.kilo/agents/*.md`, and the Pi prompt/extension under `.pi/`.
 Claude Code keeps `.claude/agents/*.md` and `.claude/skills/*/SKILL.md`.
 
-`install` also writes `.githooks/pre-commit`, a branch guard: it refuses a commit on your
+`litecode setup --apply` also writes `.githooks/pre-commit`, a branch guard: it refuses a commit on your
 default branch unless the commit holds only ticket files (see "Work with tickets"). It
 points `core.hooksPath` at `.githooks` when that's safe. It never replaces a hook you
 already have and never touches `core.hooksPath` if it's set, or if `.git/hooks` holds real
@@ -253,23 +262,23 @@ You never have to edit `litecode.config.json` by hand for common changes.
 **To choose from a list** — run these with no arguments and they'll ask:
 
 ```bash
-bunx litecodeagent config targets   # which coding tools to install into
-bunx litecodeagent config packs     # which bundles of agents to install
-bunx litecodeagent config edit      # both, in sequence
+litecode config targets   # which coding tools to install into
+litecode config packs     # which bundles of agents to install
+litecode config edit      # both, in sequence
 ```
 
 **To say it in one line** — when you already know what you want:
 
 ```bash
-bunx litecodeagent config show                             # what is set right now
-bunx litecodeagent config targets add pi,opencode          # extend an existing install
-bunx litecodeagent config targets set claude-code,pi,codex # replace the tool list
-bunx litecodeagent config packs add web
-bunx litecodeagent config set project.defaultBranch develop
-bunx litecodeagent config targets add pi --apply           # save, then write the files
+litecode config show                             # what is set right now
+litecode config targets add pi,opencode          # extend an existing install
+litecode config targets set claude-code,pi,codex # replace the tool list
+litecode config packs add web
+litecode config set project.defaultBranch develop
+litecode config targets add pi --apply           # save, then write the files
 ```
 
-`--apply` chains `install --apply` after a change so new harness directories are written
+`--apply` chains `setup --apply` after a change so new harness directories are written
 immediately. Without it, the command updates the config only and reminds you to install.
 
 Only files recorded in LiteCodeAgent's per-tool lockfiles are managed. Existing local skills
@@ -302,10 +311,10 @@ gated: **nothing creates tracked work or writes code without you saying so.**
 
 > "Run the orchestrator on: users should be able to cancel a request after approval"
 
-Or, in Claude Code, Pi, OpenCode, or Kilo Code, invoke `/litecodeagent users should be able to
+Or, in Claude Code, Pi, OpenCode, or Kilo Code, invoke `/litecode users should be able to
 cancel a request after approval`. Codex exposes custom skills as `$skill-name`, so use
-`$litecodeagent users should be able to cancel a request after approval` there (a literal
-`/litecodeagent ...` mention also describes the skill's activation intent, but Codex does not
+`$litecode users should be able to cancel a request after approval` there (a literal
+`/litecode ...` mention also describes the skill's activation intent, but Codex does not
 register arbitrary slash commands).
 
 `orchestrator` classifies the change, picks the relevant debate angles, argues each one in
@@ -340,13 +349,13 @@ Tickets are plain files you can read and edit like any other (ADR 0015). The rul
   `resume` reads.
 
 ```bash
-bunx litecodeagent ticket new --title "Fix the flaky install test" --label bug \
+litecode ticket new --title "Fix the flaky install test" --label bug \
   --priority medium --size small --body "Body goes here."
-bunx litecodeagent ticket list
-bunx litecodeagent ticket move 0042 planned
-bunx litecodeagent ticket doctor
-bunx litecodeagent ticket migrate --apply   # once, if your tickets predate schema v2
-bunx litecodeagent ticket import-board      # once, if you still used the old GitHub board
+litecode ticket list
+litecode ticket move 0042 planned
+litecode doctor
+litecode ticket migrate --apply   # once, if your tickets predate schema v2
+litecode ticket import-board      # once, if you still used the old GitHub board
 ```
 
 ### Plan the queue
@@ -394,16 +403,15 @@ with the subject in hand:
 ### Keeping it healthy
 
 ```bash
-bunx litecodeagent status          # installed packs, versions, files the kit owns
-bunx litecodeagent doctor          # orphaned work: stranded worktrees and branches, PR-less
+litecode status          # installed packs, versions, files the kit owns
+litecode doctor          # orphaned work: stranded worktrees and branches, PR-less
                                    # branches, stale review tickets, pending ADRs, leaked writes,
-                                   # lockfile drift; plus ticket doctor and config doctor
-bunx litecodeagent ticket doctor   # local ticket buffer: malformed/misplaced/duplicate files
-bunx litecodeagent resume 0042     # where an interrupted implementer run left off, checked
+                                   # lockfile drift; plus ticket files, config and routing rules (--fix repairs config)
+litecode resume 0042     # where an interrupted implementer run left off, checked
                                    # against the worktree, branch and PR
-bunx litecodeagent verify-report --file report.txt  # implementer report vs. git, gh, ticket status
-bunx litecodeagent dashboard --serve   # live, read-only view of tickets and ADRs
-bunx litecodeagent dashboard --build   # or a static snapshot, docs/dashboard.html
+litecode verify-report --file report.txt  # implementer report vs. git, gh, ticket status
+litecode dashboard --serve   # live, read-only view of tickets and ADRs
+litecode dashboard --build   # or a static snapshot, docs/dashboard.html
 ```
 
 Claude Code creates each implementer's isolated worktree under `.claude/worktrees/agent-<id>/`
@@ -468,10 +476,10 @@ environment variable. `baseUrl` can point the matching adapter at a gateway or p
 Run any pack agent:
 
 ```bash
-bunx litecodeagent run orchestrator --prompt "users should be able to cancel a request after approval" --trace
-bunx litecodeagent run reviewer --prompt-file /tmp/review-request.md
-bunx litecodeagent run classifier --prompt "small copy fix" --usage
-bunx litecodeagent run orchestrator --prompt-file request.md --json --record .litecode/runs/latest.json
+litecode run orchestrator --prompt "users should be able to cancel a request after approval" --trace
+litecode run reviewer --prompt-file /tmp/review-request.md
+litecode run classifier --prompt "small copy fix" --usage
+litecode run orchestrator --prompt-file request.md --json --record .litecode/runs/latest.json
 ```
 
 The default stdout remains the agent's final text so shell pipelines keep working. `--usage` adds a
@@ -497,7 +505,7 @@ validation errors are not retried. Transport failures and request timeouts are a
 the runner cannot prove whether a raw POST reached the provider, so an automatic retry could charge
 for the same model turn twice. `--trace` shows every retry and any provider request id returned.
 
-The runner renders pack templates directly from the same config used by `install`; unresolved
+The runner renders pack templates directly from the same config used by `setup`; unresolved
 placeholders remain hard errors. It enforces each agent's declared tool list and supplies local
 `Read`, `Write`, `Edit`, `Grep`, `Glob`, `Bash`, and `Skill` implementations. File tools resolve
 symlinks and stay within the project and configured worktree roots. `Bash` is intentionally a real
@@ -507,12 +515,12 @@ local shell with the current user's permissions, so only agents declaring `Bash`
 When a model emits several `Agent` calls in one turn, their children run in parallel. All children
 share `maxDepth` and `maxAgentCalls` limits, and every individual loop is capped by `maxTurns`.
 
-The Pi `/litecodeagent` prompt uses a small trusted-project extension to call the direct API runner,
+The Pi `/litecode` prompt uses a small trusted-project extension to call the direct API runner,
 because Pi has prompt templates and extensions but no built-in subagent runtime. Add a `runner`
 configuration and provider API key before using it; Pi's currently selected model is not used for
 that nested run. Claude Code, OpenCode, and Kilo Code use their native agent delegation. Codex's
 custom agent definitions use its native subagent support, and its workflow is exposed as the
-`$litecodeagent` skill.
+`$litecode` skill.
 
 Project-local skills remain outside the runner unless explicitly configured. To make a local expert
 available to direct API agents, place it under a separate `<skill-dir>/<name>/SKILL.md` tree and add
@@ -551,7 +559,7 @@ something rather than guessing.
   in that tool. The direct API runner maps tiers through the configured OpenAI, Anthropic,
   or DeepSeek adapter.
 - **Dangling skill references fail the install.** If your config names a skill that is in
-  no installed pack and has no local overlay, `install` stops and tells you where each
+  no installed pack and has no local overlay, `setup` stops and tells you where each
   reference came from — rather than rendering an agent that asks the harness for something
   that isn't there.
 - **The default branch is guarded in code, not just in prompts.** The pre-commit hook
@@ -560,7 +568,7 @@ something rather than guessing.
 - **An agent's report is a claim, not a fact.** `verify-report` checks it against git, the
   PR and the ticket. `reviewer` has to prove each acceptance criterion rather than assert
   it.
-- **Lockfile, not templating-by-copy.** `install` can tell "you're behind this pack
+- **Lockfile, not templating-by-copy.** `setup` can tell "you're behind this pack
   version" apart from "you edited this file by hand", and refuses to clobber the latter
   without `--force`.
 
@@ -571,7 +579,7 @@ something rather than guessing.
 One command brings a project up to date with the latest release:
 
 ```bash
-bunx litecodeagent@latest upgrade
+litecode upgrade
 ```
 
 It shows everything it will do, then asks before touching anything:
@@ -589,9 +597,9 @@ the new version.
 Coming from a release that still used the GitHub board or GitHub-synced tickets? Follow
 [Migrating from an earlier version](#migrating-from-an-earlier-version) below.
 
-To re-render only, without the other steps: `bunx litecodeagent@latest install --apply`.
+To re-render only, without the other steps: `litecode setup --apply`.
 
-If you edited a managed file by hand, `install` reports it as `DRIFT` and stops. Either
+If you edited a managed file by hand, `setup` reports it as `DRIFT` and stops. Either
 move your change upstream into the pack (the right answer, so every project gets it), or
 re-run with `--force` to discard it.
 
@@ -632,7 +640,7 @@ From then on, a commit on your default branch is refused unless it holds only ti
 ### 2. Upgrade
 
 ```bash
-bunx litecodeagent@latest upgrade          # shows the plan, then asks
+litecode upgrade          # shows the plan, then asks
 ```
 
 It does, in one go:
@@ -654,8 +662,8 @@ details each step, if you'd rather do them by hand.
 ### 3. Import what only lives on the board
 
 ```bash
-bunx litecodeagent@latest ticket import-board            # dry run: lists what it would import
-bunx litecodeagent@latest ticket import-board --apply    # writes the tickets
+litecode ticket import-board            # dry run: lists what it would import
+litecode ticket import-board --apply    # writes the tickets
 ```
 
 - **It only reads from GitHub.** No issue or board item is changed, closed or commented on.
@@ -677,8 +685,8 @@ ADR 0019.
 ### 4. Review what came in
 
 ```bash
-bunx litecodeagent ticket list
-bunx litecodeagent ticket doctor
+litecode ticket list
+litecode doctor
 ```
 
 Each imported ticket carrying `[À CLARIFIER]` needs a decision from you: fix the status, write

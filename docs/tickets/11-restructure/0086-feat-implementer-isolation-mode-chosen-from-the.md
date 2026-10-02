@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0086-feat-implementer-isolation-mode-chosen-from-the
 title: "feat(implementer): Isolation mode chosen from the install target"
 label: feature
-status: backlog
+status: done
 priority: high
 size: large
 assignedAgent: human
