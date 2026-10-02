@@ -1,0 +1,48 @@
+{
+  "targets": [
+    "claude-code"
+  ],
+  "tiers": {
+    "fast": "haiku",
+    "balanced": "sonnet",
+    "reasoning": "opus"
+  },
+  "packs": [
+    "core"
+  ],
+  "project": {
+    "name": "baseline-shop",
+    "repo": "baseline/shop",
+    "defaultBranch": "main",
+    "allowDefaultBranchCommits": false,
+    "ci": {
+      "testChecks": [
+        "test"
+      ]
+    },
+    "checkCommand": "bun run check",
+    "typecheckCommands": [],
+    "worktreeRoot": "../worktrees",
+    "isolation": "auto",
+    "worktreeSupport": {},
+    "adrDir": "docs/decisions",
+    "conventions": [],
+    "trustBoundaries": [],
+    "angles": [
+      {
+        "name": "correctness",
+        "covers": "Does the change actually solve the stated problem, and what edge cases does it miss.",
+        "triggeredBy": "always: every non-trivial change gets this angle",
+        "skills": [],
+        "always": true
+      }
+    ],
+    "domains": [],
+    "sizeRules": [],
+    "testFirst": "bugs",
+    "tickets": {
+      "enabled": true,
+      "dir": "docs/tickets"
+    }
+  }
+}

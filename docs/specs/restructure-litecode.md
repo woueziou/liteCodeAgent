@@ -104,3 +104,7 @@ Un projet s'installe avec une seule question : valider les règles de routage ve
 - Choice rules settled in grilling: break compatibility and migrate through `upgrade` (small user base); keep `domains` and make the user validate it because an empty or wrong routing makes the model guess silently.
 - Open risk: dropping preloading relies on Domain routing, so the "no rule matched" report and the `doctor` checks are part of the slice, not optional.
 - This ticket is the spec; it is published as a ready-for-agent item. The status vocabulary has no `ready-for-agent` role, so it is recorded as `backlog` assigned to `human`, so the dispatcher does not pick the whole spec up; it is to be split into slice tickets with `to-tickets`.
+
+## Baseline (ticket 0082)
+
+Reference ticket: `0001` of a fictional pricing project, size S, backend, planned for the `implementer`. Fixture, protocol and results are in `docs/specs/restructure-baseline/README.md`. Baseline: 342,837 tokens and 0.156 USD for one implementer run (23 turns), and 10,334 words across the 12 rendered agent prompts. Ticket 0090 replays the same protocol.
