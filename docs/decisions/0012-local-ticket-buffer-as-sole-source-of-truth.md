@@ -5,7 +5,7 @@ task: "local-first tickets epic (lot 7/9)"
 
 # 0012. Local ticket buffer as sole source of truth
 
-Status: proposed
+Status: accepted, partly superseded by ADR 0015 and ADR 0017
 Date: 2026-09-21
 
 > **Partly superseded (2026-09-23) by ADR 0015.** The local ticket file stays the sole

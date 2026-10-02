@@ -5,7 +5,7 @@ task: "#10"
 
 # 0001. Local ticket buffer and GitHub sync
 
-Status: superseded by ADR 0012 (local-first tickets, lot 7/9)
+Status: superseded by ADR 0015 (tickets are purely local; first marked superseded by ADR 0012)
 Date: 2026-09-18
 
 > **Note (2026-09-21):** the "Status/Priority/Size are pushed to the board exactly once,

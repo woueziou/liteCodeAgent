@@ -5,7 +5,7 @@ task: "0034-feat-resume-journal-de-progression-par-ticket-et"
 
 # 0018. The per-ticket progress journal subsumes the ADR gate's resume-manifest
 
-Status: proposed
+Status: accepted
 Date: 2026-09-28
 
 ## Context

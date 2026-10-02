@@ -6,6 +6,7 @@ with one command.**
 
 New here? Start with the two sections below; they assume no prior knowledge of the tool.
 Already know your way around? Jump to [Quick start](#quick-start).
+Unsure what a term means (ticket, epic, pack, install target…)? See the [glossary](GLOSSARY.md).
 
 ---
 

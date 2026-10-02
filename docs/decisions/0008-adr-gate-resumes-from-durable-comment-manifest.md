@@ -5,8 +5,11 @@ task: "#28"
 
 # 0008. The ADR draft approval gate resumes from a durable comment manifest, not session memory
 
-Status: proposed
+Status: superseded by ADR 0018
 Date: 2026-09-19
+
+> **Superseded (2026-10-02) by ADR 0018.** The per-ticket progress journal replaces the
+> resume-manifest described below. The text below is the historical record.
 
 ## Context
 
