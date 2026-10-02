@@ -34,4 +34,4 @@ importedFrom:
 
 ## Bloqué par
 
-- 0082
+- Aucun. L'arête vers 0082 (base de mesure) est reportée : la base est mesurée plus tard, avant 0087.
