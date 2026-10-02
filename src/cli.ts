@@ -44,6 +44,7 @@ import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
 import { confirm, isInteractive, multiSelect } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
+import { projectBehind } from "./version-notice.ts";
 import { parseJournalEntries } from "./report/journal.ts";
 import { formatTokens, runnerJournalNote, ticketTokens, withTokensLine } from "./report/tokens.ts";
 import { tokensPerEpic } from "./dashboard/build.ts";
@@ -70,80 +71,84 @@ const c = {
 };
 
 function usage(): void {
-  console.log(`${c.bold("litecodeagent")} ${c.dim(`v${VERSION}`)}
+  console.log(`${c.bold("litecode")} ${c.dim(`v${VERSION}`)}
 
+${c.dim("First install: bunx litecodeagent setup. Afterwards the command is `litecode`.")}
+
+${c.bold("Install")}
   ${c.bold("bunx litecodeagent setup")} [--apply] [--yes]
                                      initialize the project if needed, then render its packs
                                      ${c.dim("--targets claude-code,codex,pi,opencode,kilo-code (defaults to the tools found)")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("bunx litecodeagent init")} [--yes] [--targets …] detects your repo and tools, asks one question (routing rules), writes a minimal config
+                                     ${c.dim("--check exits 1 if installed files differ from packs/ (nothing written), for CI")}
+  ${c.bold("litecode init")} [--yes] [--targets …]  detects your repo and tools, asks one question (routing rules), writes a minimal config
                                      ${c.dim("--yes skips the question and writes the rules deduced from your stack")}
-  ${c.bold("bunx litecodeagent targets")}                  list the coding tools you can install into
-  ${c.bold("bunx litecodeagent packs")}                    list available packs
-  ${c.bold("bunx litecodeagent install")} [--apply] [--force] [--check]
-                                     render packs into configured AI coding tools
-                                     ${c.dim("(dry-run by default; --apply writes)")}
-                                     ${c.dim("--check exits 1 if installed files differ from packs/ (nothing written)")}
-  ${c.bold("bunx litecodeagent status")}                   show installed packs + drift
-  ${c.bold("bunx litecodeagent config")} [show|edit|get|set|targets|packs|doctor]
+  ${c.bold("litecode targets")}                    list the coding tools you can install into
+  ${c.bold("litecode packs")}                      list available packs
+  ${c.bold("litecode config")} [show|edit|get|set|targets|packs]
                                      view or change litecode.config.json from the CLI
                                      ${c.dim("targets/packs: run with no argument to pick from a list")}
-                                     ${c.dim("or set|add|remove <list>  ·  --apply runs install")}
-  ${c.bold("bunx litecodeagent config doctor")} [--fix]     report config paths the installed packs require but are missing
-                                     ${c.dim("--fix fills in missing agentSkills keys and writes the config")}
-  ${c.bold("bunx litecodeagent run")} <agent> --prompt <text>
-                                     run a pack agent through the configured API provider
-                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>; --ticket <id> (journal tokens)")}
-  ${c.bold("bunx litecodeagent ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--epic <name>] [--force]
+                                     ${c.dim("or set|add|remove <list>  ·  --apply renders the packs")}
+  ${c.bold("litecode upgrade")} [--yes]            bring this project up to date with the running release, in one go:
+                                     re-render agents, remove files older versions generated (unedited ones only),
+                                     migrate tickets, drop obsolete config keys and data files
+                                     ${c.dim("shows the plan, then asks before applying; --yes applies without asking")}
+                                     ${c.dim("a legacy git-clone install (install.sh) updates itself first; --no-self-update skips that")}
+                                     ${c.dim("exits 0 only when the project is fully up to date, 1 when anything is left pending")}
+
+${c.bold("Plan")}
+  ${c.bold("litecode ticket new")} --title <t> --label <bug|feature|doc|chore> [--body <text>] [--priority ..] [--size ..] [--epic <name>] [--force]
                                      draft a ticket file; blocks if its title reads like an existing
                                      ticket's — pass --force to create anyway
-  ${c.bold("bunx litecodeagent ticket list")}              list ticket files with their status, priority and size
-  ${c.bold("bunx litecodeagent ticket doctor")}            check the ticket directory for malformed/misplaced/duplicate/outdated files
-  ${c.bold("bunx litecodeagent ticket migrate")} [--apply] [--force] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
+  ${c.bold("litecode ticket list")}                list ticket files with their status, priority and size
+  ${c.bold("litecode ticket migrate")} [--apply] [--force] rewrite schema-v1 (GitHub-synced) tickets as local-only v2
                                      ${c.dim("refuses to drop unknown frontmatter keys unless --force")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("bunx litecodeagent ticket import-board")} [--apply] [--board <owner>/<number>]  one-time import of the old GitHub Project board's items as local tickets
+  ${c.bold("litecode ticket import-board")} [--apply] [--board <owner>/<number>]  one-time import of the old GitHub Project board's items as local tickets
                                      ${c.dim("read-only on GitHub; requires project.board.number, or --board if config was already cleaned; see ADR 0019")}
                                      ${c.dim("(dry-run by default; --apply writes)")}
-  ${c.bold("bunx litecodeagent ticket move")} <id> <status>    validate and write a ticket's status transition
-                                     ${c.dim(`refuses a transition the pipeline's status machine doesn't allow (e.g. planned -> review)`)}
-                                     ${c.dim(`statuses: ${TICKET_STATUSES.join(", ")}`)}
-  ${c.bold("bunx litecodeagent ticket note")} <id> --file <path>   append the file's contents as a note to a ticket's body
-                                     ${c.dim("pair with --project <primary-checkout> to write there from an isolated worktree (ADR 0020)")}
-  ${c.bold("bunx litecodeagent guard-branch")}              refuse (exit 1) a commit on the default branch, unless it holds only ticket files
-                                     ${c.dim("called from .githooks/pre-commit; not meant to be run by a human")}
-  ${c.bold("bunx litecodeagent dashboard")} --build [--out <path>]
+  ${c.bold("litecode dashboard")} --build [--out <path>]
                                      regenerate the committed standalone HTML dashboard snapshot from the local
                                      ticket buffer and docs/decisions/ — goes stale as soon as either changes
                                      ${c.dim("--out defaults to docs/dashboard.html")}
-  ${c.bold("bunx litecodeagent dashboard")} --serve [--port <n>] [--host <h>] [--allow-host <name[:port]>]...
+  ${c.bold("litecode dashboard")} --serve [--port <n>] [--host <h>] [--allow-host <name[:port]>]...
                                      start a local, read-only server that re-reads the ticket buffer and
                                      docs/decisions/ on every request — always live, never writes to the repo
                                      ${c.dim("--port defaults to 4173, --host defaults to 127.0.0.1")}
                                      ${c.dim("--allow-host repeatable, allows extra Host header values (no wildcard); required to")}
                                      ${c.dim("  reach the server from another machine when --host 0.0.0.0 or :: is used")}
                                      ${c.dim("--build and --serve are mutually exclusive; one of the two is required")}
-  ${c.bold("bunx litecodeagent doctor")}                    detect orphaned work: stranded worktrees/branches, PR-less
-                                     branches, stale review/readyToMerge tickets, lockfile drift
-                                     ${c.dim("(read-only; GitHub checks report 'non vérifié' when gh is unavailable)")}
-  ${c.bold("bunx litecodeagent verify-report")} [--file <path>] [--json]
+
+${c.bold("Implement")}
+  ${c.bold("litecode run")} <agent> --prompt <text>
+                                     run a pack agent through the configured API provider
+                                     ${c.dim("--prompt-file <path>; --trace; --usage; --json; --record <path>; --ticket <id> (journal tokens)")}
+  ${c.bold("litecode ticket move")} <id> <status>  validate and write a ticket's status transition
+                                     ${c.dim(`refuses a transition the pipeline's status machine doesn't allow (e.g. planned -> review)`)}
+                                     ${c.dim(`statuses: ${TICKET_STATUSES.join(", ")}`)}
+  ${c.bold("litecode ticket note")} <id> --file <path>     append the file's contents as a note to a ticket's body
+                                     ${c.dim("pair with --project <primary-checkout> to write there from an isolated worktree (ADR 0020)")}
+  ${c.bold("litecode resume")} <ticket> [--json]   reconstruct where an implementer run left off, from the ticket's progress
+                                     journal note, cross-checked against the worktree/branch/PR; prints the
+                                     step to resume at, or the discrepancies blocking that
+  ${c.bold("litecode verify-report")} [--file <path>] [--json]
                                      check an implementer's final report (STATUS/TICKET/BRANCH/PR/CHECK_OUTPUT)
                                      against git, gh and the ticket buffer; exits 1 on any contradiction
                                      ${c.dim("reads the report from stdin when --file is omitted")}
-  ${c.bold("bunx litecodeagent token-report")} [--session <id>] [--project <path>]
+  ${c.bold("litecode guard-branch")}               refuse (exit 1) a commit on the default branch, unless it holds only ticket files
+                                     ${c.dim("called from .githooks/pre-commit; not meant to be run by a human")}
+
+${c.bold("Diagnose")}
+  ${c.bold("litecode doctor")}                     detect orphaned work: stranded worktrees/branches, PR-less
+                                     branches, stale review/readyToMerge tickets, lockfile drift
+                                     ${c.dim("(read-only; GitHub checks report 'non vérifié' when gh is unavailable)")}
+  ${c.bold("litecode status")}                     show installed packs + drift
+  ${c.bold("litecode config doctor")} [--fix]      report config paths the installed packs require but are missing
+                                     ${c.dim("--fix fills in missing agentSkills keys and writes the config")}
+  ${c.bold("litecode ticket doctor")}              check the ticket directory for malformed/misplaced/duplicate/outdated files
+  ${c.bold("litecode token-report")} [--session <id>] [--project <path>]
                                      tokens per agent (main session and each sub-agent type) from the Claude Code
                                      transcripts in ~/.claude/projects, sorted by total; latest session by default
-  ${c.bold("bunx litecodeagent resume")} <ticket> [--json]
-                                     reconstruct where an implementer run left off, from the ticket's progress
-                                     journal note, cross-checked against the worktree/branch/PR; prints the
-                                     step to resume at, or the discrepancies blocking that
-                                     ${c.dim("complements `doctor`, which finds orphaned work with no journal to go on")}
-  ${c.bold("bunx litecodeagent upgrade")} [--yes]  bring this project up to date with the running release, in one go:
-                                     re-render agents, remove files older versions generated (unedited ones only),
-                                     migrate tickets, drop obsolete config keys and data files
-                                     ${c.dim("shows the plan, then asks before applying; --yes applies without asking")}
-                                     ${c.dim("a legacy git-clone install (install.sh) updates itself first; --no-self-update skips that")}
-                                     ${c.dim("exits 0 only when the project is fully up to date, 1 when anything is left pending")}
 
 Global: --project <dir>   target repo (default: cwd)
 `);
@@ -162,7 +167,11 @@ async function cmdSetup(root: string, argv: string[]): Promise<number> {
     });
     console.log(`\n${c.green("Wrote")} ${path}\n`);
   }
-  return cmdInstall(root, argv);
+  const code = await cmdInstall(root, argv);
+  if (code === 0 && argv.includes("--apply")) {
+    console.log(`\nAfter each new release, run ${c.bold("litecode upgrade")} to bring this project up to date.`);
+  }
+  return code;
 }
 
 function arg(argv: string[], name: string): string | undefined {
@@ -381,7 +390,7 @@ function usageLine(report: RunOutcome): string {
 
 async function cmdRun(root: string, argv: string[]): Promise<number> {
   const agent = argv[1];
-  if (!agent) throw new Error("Usage: bunx litecodeagent run <agent> --prompt <text>");
+  if (!agent) throw new Error("Usage: litecode run <agent> --prompt <text>");
   const directPrompt = arg(argv, "--prompt");
   const promptFile = arg(argv, "--prompt-file");
   if (directPrompt && promptFile) throw new Error("Pass either --prompt or --prompt-file, not both");
@@ -451,7 +460,7 @@ async function chooseInteractively(
 ): Promise<string | null> {
   if (!isInteractive()) {
     console.error(
-      `Usage: bunx litecodeagent config ${kind} <set|add|remove> <list>\n` +
+      `Usage: litecode config ${kind} <set|add|remove> <list>\n` +
         `Run it in a terminal to pick from a list instead, or see \`litecode ${kind}\`.`,
     );
     return null;
@@ -503,7 +512,7 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
     }
     for (const f of findings) console.log(`  ${c.red("error")} ${f.message}`);
     if (!argv.includes("--fix")) {
-      console.log(c.dim("\nRun `bunx litecodeagent config doctor --fix` to fill in missing agentSkills keys."));
+      console.log(c.dim("\nRun `litecode config doctor --fix` to fill in missing agentSkills keys."));
       return 1;
     }
     const fill = await computeAgentSkillsFix(PACKS_ROOT, config);
@@ -528,20 +537,20 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
     if (sub === "edit") return { kind: "edit" as const };
     if (sub === "get") {
       const path = argv[2];
-      if (!path) throw new Error("Usage: bunx litecodeagent config get <path>");
+      if (!path) throw new Error("Usage: litecode config get <path>");
       return { kind: "get" as const, path };
     }
     if (sub === "set") {
       const path = argv[2];
       const value = argv[3];
-      if (!path || value === undefined) throw new Error("Usage: bunx litecodeagent config set <path> <value>");
+      if (!path || value === undefined) throw new Error("Usage: litecode config set <path> <value>");
       return { kind: "set" as const, path, value };
     }
     if (sub === "targets" || sub === "packs") {
       const action = argv[2];
       const value = argv[3];
       if (!action || !value || !["set", "add", "remove"].includes(action)) {
-        throw new Error(`Usage: bunx litecodeagent config ${sub} <set|add|remove> <list>`);
+        throw new Error(`Usage: litecode config ${sub} <set|add|remove> <list>`);
       }
       const verb = action as "set" | "add" | "remove";
       return sub === "targets"
@@ -1068,7 +1077,7 @@ async function cmdTokenReport(root: string, argv: string[]): Promise<number> {
 async function cmdResume(root: string, argv: string[]): Promise<number> {
   const ref = argv[1];
   if (!ref) {
-    console.log(c.red("resume needs a ticket: `bunx litecodeagent resume <ticket>`"));
+    console.log(c.red("resume needs a ticket: `litecode resume <ticket>`"));
     return 1;
   }
   const { config } = await loadConfig(root);
@@ -1093,7 +1102,7 @@ async function cmdResume(root: string, argv: string[]): Promise<number> {
   if (result.kind === "no-journal") {
     console.log(c.yellow(`${ticket.id}: no progress journal found on this ticket — nothing to resume from.`));
     for (const f of result.findings) console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
-    console.log(c.dim("Run `bunx litecodeagent doctor` to check for orphaned worktrees/branches instead."));
+    console.log(c.dim("Run `litecode doctor` to check for orphaned worktrees/branches instead."));
     return 1;
   }
 
@@ -1122,7 +1131,7 @@ async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
     try {
       self = await upgrade(KIT_ROOT);
     } catch (e) {
-      console.log(c.red(`Could not update litecodeagent itself (${KIT_ROOT}):\n${(e as Error).message}`));
+      console.log(c.red(`Could not update litecode itself (${KIT_ROOT}):\n${(e as Error).message}`));
       console.log(c.dim("Fix that, or re-run with --no-self-update to upgrade this project with the version you have."));
       return 1;
     }
@@ -1138,7 +1147,7 @@ async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
   }
 
   if (!(await Bun.file(join(root, CONFIG_FILENAME)).exists())) {
-    console.log(`No ${CONFIG_FILENAME} in ${root}: nothing to upgrade here. Run \`bunx litecodeagent init\` to set up a project.`);
+    console.log(`No ${CONFIG_FILENAME} in ${root}: nothing to upgrade here. Run \`litecode init\` to set up a project.`);
     return 0;
   }
 
@@ -1205,6 +1214,15 @@ if (argv.includes("--project") && (!projectArg?.trim() || projectArg.startsWith(
   process.exit(1);
 }
 const root = resolve(projectArg ?? process.cwd());
+
+// Quiet for commands that run in hooks or scripts, and for the ones that fix the lag.
+const NO_NOTICE = new Set(["--version", "-v", "--help", "-h", "setup", "init", "upgrade", "guard-branch", undefined]);
+if (!NO_NOTICE.has(argv[0])) {
+  const behind = await projectBehind(root, VERSION).catch(() => null);
+  if (behind) {
+    console.error(c.yellow(`This project was installed with litecode ${behind}, behind the installed ${VERSION}. Run \`litecode upgrade\`.`));
+  }
+}
 
 try {
   const code = await (async () => {

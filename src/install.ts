@@ -268,7 +268,7 @@ export default function (pi: ExtensionAPI) {
 `;
 
 function renderWorkflow(source: string, target: InstallTarget): string {
-  const { data, body } = parseFrontmatter(source, "core/workflows/litecodeagent.md");
+  const { data, body } = parseFrontmatter(source, "core/workflows/litecode.md");
   const description = data.description ?? "Discuss an idea and produce a plan without creating work items or implementing it.";
   const workflow = body.trim();
   if (target === "claude-code") {
@@ -290,9 +290,9 @@ function renderWorkflow(source: string, target: InstallTarget): string {
   }
   if (target === "codex") {
     return serializeFrontmatter({
-      name: "litecodeagent",
-      description: "Run the LiteCodeAgent discussion and planning workflow for an idea, feature, bug, or documentation request. Invoke when the user types /litecodeagent <request> or $litecodeagent <request>.",
-    }, `${workflow}\n\nWhen invoked, treat the text following /litecodeagent or $litecodeagent as the raw request. Delegate to the installed \`orchestrator\` Codex subagent and wait for its result; if you can't spawn it, run \`litecode run orchestrator --prompt-file <file>\` via the shell instead (ADR 0014) — never improvise the orchestrator's sequence yourself. Stop after presenting the plan. Never create an issue, update a board, or implement the work.\n`);
+      name: "litecode",
+      description: "Run the LiteCodeAgent discussion and planning workflow for an idea, feature, bug, or documentation request. Invoke when the user types /litecode <request> or $litecode <request>.",
+    }, `${workflow}\n\nWhen invoked, treat the text following /litecode or $litecode as the raw request. Delegate to the installed \`orchestrator\` Codex subagent and wait for its result; if you can't spawn it, run \`litecode run orchestrator --prompt-file <file>\` via the shell instead (ADR 0014) — never improvise the orchestrator's sequence yourself. Stop after presenting the plan. Never create an issue, update a board, or implement the work.\n`);
   }
   if (target === "opencode" || target === "kilo-code") {
     return [
@@ -450,13 +450,13 @@ function outputFiles(
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
   const body = agent ? preflightRefusal(agent[1]!, config.project) + parsed.body : parsed.body;
   const skill = /^(skills\/.+)$/.exec(file.rel);
-  const workflow = file.rel === "workflows/litecodeagent.md";
+  const workflow = file.rel === "workflows/litecode.md";
 
   if (target === "claude-code") {
     if (agent) {
       return [{ rel: join(config.outDir, file.rel), content: renderClaudeAgent(data, body, config, file.rel) }];
     }
-    if (workflow) return [{ rel: ".claude/commands/litecodeagent.md", content: renderWorkflow(rendered, target) }];
+    if (workflow) return [{ rel: ".claude/commands/litecode.md", content: renderWorkflow(rendered, target) }];
     return [{ rel: join(config.outDir, file.rel), content: serializeFrontmatter(data, body) }];
   }
 
@@ -480,15 +480,15 @@ function outputFiles(
 
   if (workflow) {
     if (target === "codex") {
-      return [{ rel: ".agents/skills/litecodeagent/SKILL.md", content: renderWorkflow(rendered, target) }];
+      return [{ rel: ".agents/skills/litecode/SKILL.md", content: renderWorkflow(rendered, target) }];
     }
     if (target === "pi") {
       return [
-        { rel: ".pi/prompts/litecodeagent.md", content: renderWorkflow(rendered, target) },
-        { rel: ".pi/extensions/litecodeagent.ts", content: PI_EXTENSION },
+        { rel: ".pi/prompts/litecode.md", content: renderWorkflow(rendered, target) },
+        { rel: ".pi/extensions/litecode.ts", content: PI_EXTENSION },
       ];
     }
-    return [{ rel: `${ROOTS[target]}/commands/litecodeagent.md`, content: renderWorkflow(rendered, target) }];
+    return [{ rel: `${ROOTS[target]}/commands/litecode.md`, content: renderWorkflow(rendered, target) }];
   }
 
   return [{ rel: join(ROOTS[target], file.rel), content: serializeFrontmatter(data, body) }];
@@ -682,7 +682,7 @@ export async function applyPlan(
   if (plan.hook?.status === "preexisting") {
     const guardLine = await guardBranchLine(projectRoot, plan.hook.kitVersion);
     console.log(
-      `\nSkipping ${plan.hook.rel}: it already exists and wasn't installed by litecodeagent, so it's left untouched.\n` +
+      `\nSkipping ${plan.hook.rel}: it already exists and wasn't installed by litecode, so it's left untouched.\n` +
         `To enable the branch guard, add this line to your existing ${plan.hook.rel}:\n\n` +
         `  ${guardLine}\n`,
     );
@@ -832,7 +832,7 @@ async function activateGitHooksPath(projectRoot: string, kitVersion: string): Pr
     // refuses every commit in the whole repo) instead of doing anything useful.
     console.warn(
       `\nWarning: ${projectRoot} is a subdirectory of the git repo at ${gitRoot}. ` +
-        "core.hooksPath is repo-wide, so litecodeagent won't change it from here.\n" + manualNotice,
+        "core.hooksPath is repo-wide, so litecode won't change it from here.\n" + manualNotice,
     );
     return false;
   }

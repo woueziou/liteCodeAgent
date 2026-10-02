@@ -35,7 +35,7 @@ test("dashboard with neither --build nor --serve prints usage and exits 1 (docum
   const { output, exitCode } = await runCliWithExit(root, ["dashboard"]);
   expect(exitCode).toBe(1);
   expect(output).not.toContain("dashboard requires --build");
-  expect(output).toContain("litecodeagent dashboard");
+  expect(output).toContain("litecode dashboard");
 });
 
 test("dashboard --build and --serve together is a usage error, exit 1", async () => {
