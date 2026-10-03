@@ -44,6 +44,6 @@ test("reviewer checks each ticket's criteria in a batch", async () => {
 test("chained-implementation can launch a batch", async () => {
   const src = await get("skills/chained-implementation/SKILL.md");
   expect(src).toMatch(/## Running a batch/);
-  expect(src).toMatch(/more than 4 tickets/);
+  expect(src).toMatch(/batch limits are `implementer-batch`/);
   expect(src).toContain("implementer-batch");
 });

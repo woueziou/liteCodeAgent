@@ -28,4 +28,4 @@ This skill takes an idea to a `Planned` ticket and nothing further. It never inv
 
 ## Hard rule
 
-Every invocation of this skill must originate from an explicit human instruction that includes the idea itself, in the current turn. It does not scan for ideas, does not run periodically, and does not chain into `implementer` under any circumstance — that boundary was deliberately kept human-gated and this skill does not change that.
+{{> humanGate that includes the idea itself}} It does not chain into `implementer` under any circumstance — that boundary was deliberately kept human-gated and this skill does not change that.
