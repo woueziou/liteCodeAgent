@@ -38,3 +38,5 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 ### Domain docs
 
 Single-context: root `GLOSSARY.md` and ADRs in `docs/decisions/`. See `docs/agents/domain.md`.
+
+Don't trust assumptions when verifiable information exists. Assess confidence before acting

@@ -1,0 +1,58 @@
+{
+  "target": "claude-code",
+  "targets": [
+    "claude-code"
+  ],
+  "tiers": {
+    "fast": "haiku",
+    "balanced": "sonnet",
+    "reasoning": "opus"
+  },
+  "packs": [
+    "core"
+  ],
+  "outDir": ".claude",
+  "project": {
+    "name": "baseline-shop",
+    "repo": "baseline/shop",
+    "defaultBranch": "main",
+    "allowDefaultBranchCommits": false,
+    "ci": {
+      "testChecks": [
+        "test"
+      ]
+    },
+    "checkCommand": "bun run check",
+    "typecheckCommands": [],
+    "worktreeRoot": "../worktrees",
+    "isolation": "inline",
+    "worktreeSupport": {},
+    "adrDir": "docs/decisions",
+    "conventions": [],
+    "trustBoundaries": [],
+    "lessons": [],
+    "agentSkills": {},
+    "angles": [
+      {
+        "name": "correctness",
+        "covers": "Does the change actually solve the stated problem, and what edge cases does it miss.",
+        "triggeredBy": "always: every non-trivial change gets this angle",
+        "skills": [],
+        "always": true
+      }
+    ],
+    "domains": [],
+    "sizeRules": [],
+    "testFirst": "bugs",
+    "board": {
+      "enabled": true,
+      "owner": "",
+      "dataFile": ".claude/data/board.json",
+      "itemIdCache": ".claude/data/github-project-item-ids.json"
+    },
+    "tickets": {
+      "enabled": true,
+      "dir": "docs/tickets"
+    }
+  }
+}

@@ -21,9 +21,9 @@ Le ticket de référence mesuré en 0082 est mesuré de nouveau avec la même co
 
 ## Critères d'acceptation
 
-- [ ] Le ticket de référence est rejoué dans les mêmes conditions que la base.
+- [ ] Le ticket de référence est rejoué avec `docs/specs/restructure-baseline/replay.sh`, cinq runs, isolation fixée à `inline`, mêmes conditions que la base.
 - [ ] Les tokens de bout en bout et la taille du prompt de chaque agent sont consignés dans `docs/specs/restructure-litecode.md`, à côté de la base.
-- [ ] L'écart par rapport à la base est chiffré, avec l'analyse de ce qui l'explique.
+- [ ] L'écart par rapport à la base est chiffré avec sa dispersion, avec l'analyse de ce qui l'explique ; un écart inférieur à environ 20 % est déclaré non prouvé.
 - [ ] Si un indicateur a régressé, un ticket de suivi est ouvert.
 
 ## Bloqué par
