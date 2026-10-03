@@ -5,8 +5,10 @@ task: "#17"
 
 # 0006. Pre-flight validate required config paths, scoped to `agentSkills`
 
-Status: accepted
+Status: superseded by ADR 0024
 Date: 2026-09-18
+
+> **Superseded (2026-10-03):** ADR 0024 removes `project.agentSkills` from rendering and installation, so the required-path check described here no longer exists. The body below is kept as written.
 
 ## Context
 
