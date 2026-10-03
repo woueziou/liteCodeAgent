@@ -97,7 +97,7 @@ test("a skill the config asks for is installed", async () => {
 
 test("the core pack still installs its always-referenced expertise skills", async () => {
   const config = await raw();
-  config.project.agentSkills = Object.fromEntries(Object.keys(config.project.agentSkills).map((k) => [k, []]));
+  config.project.agentSkills = {};
   for (const angle of config.project.angles) angle.skills = [];
   config.project.domains = [];
   const plan = await buildPlan(await tempDir(), PACKS, ConfigSchema.parse(config));

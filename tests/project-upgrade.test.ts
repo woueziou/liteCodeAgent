@@ -1,4 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
+import { legacyExampleJson } from "./helpers/legacy-example.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -54,7 +55,7 @@ afterAll(async () => {
 async function legacyProject(): Promise<string> {
   const root = await tempDir("litecode-upgrade-");
   await Bun.write(join(root, ".claude/skills/orpc-expert/SKILL.md"), "---\nname: orpc-expert\n---\n");
-  const raw = await Bun.file(EXAMPLE).json();
+  const raw = await legacyExampleJson();
   await Bun.write(join(root, "litecode.config.json"), `${JSON.stringify(raw, null, 2)}\n`);
   await applyPlan(root, await buildPlan(root, PACKS, ConfigSchema.parse(raw)), "0.14.0", { force: false });
 
@@ -448,7 +449,7 @@ test("a data folder symlinked within the project: the file is deleted, the link 
 test("ticket 0055: upgrade activating the hook for the first time warns using the project's own defaultBranch/allowDefaultBranchCommits, not the applyPlan defaults", async () => {
   const root = await tempDir("litecode-upgrade-hook-");
   await Bun.write(join(root, ".claude/skills/orpc-expert/SKILL.md"), "---\nname: orpc-expert\n---\n");
-  const raw = await Bun.file(EXAMPLE).json();
+  const raw = await legacyExampleJson();
   raw.project.defaultBranch = "master";
   await Bun.write(join(root, "litecode.config.json"), `${JSON.stringify(raw, null, 2)}\n`);
   await Bun.spawn(["git", "init", "-q", "-b", "master"], { cwd: root }).exited;

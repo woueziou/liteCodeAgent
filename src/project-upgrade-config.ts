@@ -133,18 +133,16 @@ function stripRemovedSkills(raw: Json): string[] {
       if (!isObject(entry) || !Array.isArray(entry.skills)) return true;
       const name = typeof entry.name === "string" ? entry.name : typeof entry.match === "string" ? entry.match : "";
       const label = `project.${group}[${i}]${name ? ` (${name})` : ""}`;
-      for (const skill of entry.skills as unknown[]) {
-        const to = typeof skill === "string" ? RENAMED_SKILLS[skill] : undefined;
-        if (to) done.push(`${skill} renamed ${to} in ${label}`);
-      }
-      entry.skills = [
-        ...new Set((entry.skills as unknown[]).map((skill) => (typeof skill === "string" ? (RENAMED_SKILLS[skill] ?? skill) : skill))),
-      ];
-      const removed = (entry.skills as unknown[]).filter(removedSkill);
-      if (removed.length === 0) return true;
+      const before = entry.skills as unknown[];
+      const renamed = before.map((skill) => (typeof skill === "string" ? (RENAMED_SKILLS[skill] ?? skill) : skill));
+      before.forEach((skill, k) => {
+        if (renamed[k] !== skill) done.push(`${skill} renamed ${renamed[k]} in ${label}`);
+      });
+      const unique = [...new Set(renamed)];
+      const removed = unique.filter(removedSkill);
+      entry.skills = unique.filter((skill) => !removedSkill(skill));
       for (const skill of removed) done.push(`${skill} from ${label}`);
-      entry.skills = (entry.skills as unknown[]).filter((skill) => !removedSkill(skill));
-      if (group === "angles" || (entry.skills as unknown[]).length > 0) return true;
+      if (group === "angles" || unique.length - removed.length > 0 || removed.length === 0) return true;
       done.push(`${label}, left with no skill`);
       return false;
     });

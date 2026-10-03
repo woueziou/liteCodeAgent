@@ -1,6 +1,6 @@
 ---
 name: design-expert
-description: Visual/product design expertise — layout, hierarchy, spacing, color, typography systems. Use when a change touches how something looks or is structured visually, before writing CSS/component markup, or when reviewing a design decision. General design system thinking; for React/web-specific UI patterns see ui-ux-expert, small-viewport (phone) visual rules are in its "Small viewport" section; for platform behavior on mobile see mobile-expert.
+description: Visual/product design expertise — layout, hierarchy, spacing, color, typography systems. Use when a change touches how something looks or is structured visually, before writing CSS/component markup, or when reviewing a design decision. General design system thinking, including the visual rules for small (phone) viewports in this skill's own "Small viewport" section. For React/web-specific interaction patterns see ui-ux-expert; for platform behavior on mobile see mobile-expert.
 ---
 
 # Design expert
@@ -17,11 +17,11 @@ You are evaluating or proposing a visual/design decision. This is judgment, not 
 
 ## Small viewport
 
-When a screen's look has to hold up on a phone-sized viewport, check how the existing design system compresses gracefully (see `mobile-expert` for what "mobile" means in this project) — not a separate mobile design language:
+When a screen has to hold up on a phone-sized viewport, check how the existing design system compresses gracefully rather than inventing a separate mobile design language (`mobile-expert` says what "mobile" means in this project):
 
 1. **Type scale compression** — a desktop type scale doesn't always survive shrinking 1:1; headings that work at desktop width can overwhelm a 375px viewport. Verify the largest text sizes still leave room for content, don't just scale everything down uniformly without checking hierarchy still reads.
 2. **Spacing compression, not elimination** — tighter spacing on mobile is correct, but spacing should still follow _a_ scale (not become arbitrary just because space is scarce) — reuse the same spacing tokens at smaller steps rather than inventing mobile-only ad hoc values.
-3. **Information density tradeoffs** — a dense desktop data table (this project has several — employee lists, HR request queues) usually cannot survive as a literal table on mobile; evaluate whether a card/list transformation preserves the same information hierarchy, or whether it's silently dropping fields the user needed.
+3. **Information density tradeoffs** — a dense desktop data table (this project has several — employee lists, HR request queues) usually cannot survive as a literal table on mobile; evaluate whether a card/list transformation preserves the same information hierarchy, or whether it's silently dropping fields the user needed. (This is the small-viewport side of "Density vs breathing room" above: pick the density for the task, then check it survives the shrink.)
 4. **Single-column defaults** — most mobile layouts should default to single-column; a multi-column desktop layout that just "wraps" instead of being deliberately restructured usually reads as unfinished.
 5. **Visual weight of navigation chrome** — nav bars/headers consume proportionally more of a small viewport; keep them as compact as legibility allows so content isn't starved of space.
 6. **Contrast/legibility outdoors** — mobile devices are more likely to be viewed in bright ambient light; don't let contrast ratios that pass on a calibrated monitor be the only bar — err toward higher contrast for mobile-first text.

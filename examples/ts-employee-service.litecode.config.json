@@ -141,43 +141,6 @@
       "On #111/PR #171 a reviewer note about a `previousData` type was \"fixed\" in a follow-up commit pushed without re-running `check-types`, so the real mismatch shipped to CI instead of being caught locally. Re-run the actual check after every fixup.",
       "Tool restrictions declared in an agent's frontmatter are a stated intent, not an enforced boundary here — an agent without Edit/Write declared was still able to modify a file. That is why the `Agent:` git trailer is mandatory regardless of declared tool scope."
     ],
-    "agentSkills": {
-      "debate-angle": [
-        "orpc-expert",
-        "security-expert",
-        "typescript-expert",
-        "frontend-expert",
-        "critique-expert"
-      ],
-      "planner": [
-        "orpc-expert",
-        "typescript-expert",
-        "frontend-expert"
-      ],
-      "implementer": [
-        "agent-attribution",
-        "frontend-expert",
-        "orpc-expert",
-        "typescript-expert",
-        "design-expert",
-        "ui-ux-expert",
-        "mobile-expert",
-        "security-expert"
-      ],
-      "reviewer": [
-        "agent-attribution",
-        "typescript-expert",
-        "orpc-expert",
-        "security-expert",
-        "frontend-expert",
-        "critique-expert"
-      ],
-      "triage": [],
-      "dispatcher": [],
-      "tracker": [
-        "agent-attribution"
-      ]
-    },
     "board": {
       "enabled": true,
       "owner": "kp-dev-org",
