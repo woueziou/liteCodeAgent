@@ -605,9 +605,21 @@ If you edited a managed file by hand, `setup` reports it as `DRIFT` and stops. E
 move your change upstream into the pack (the right answer, so every project gets it), or
 re-run with `--force` to discard it.
 
-To remove the kit from a project: delete the files listed in each enabled harness's
-`.litecode-lock.json`, then those lockfiles and `litecode.config.json`. Other project files are
-untouched.
+To remove the kit from a project:
+
+```bash
+litecode uninstall           # preview: lists what it would remove and what it keeps
+litecode uninstall --apply   # removes it
+```
+
+It removes the generated files listed in the lockfiles (only the ones you haven't edited;
+`--force` removes edited ones too), the lockfiles, the directories that end up empty, and
+litecode's `pre-commit` hook along with `core.hooksPath` when litecode set it.
+`litecode.config.json` stays unless you pass `--config`. It never removes `docs/tickets/`,
+`docs/decisions/`, your own files (such as your skills under `.claude/`), branches or
+worktrees. At the end it prints the commands for what lives outside the project (the
+Claude Code plugin, an `install.sh` clone) and lists agent branches and worktrees still
+there. `setup --apply` afterwards reinstalls a consistent project.
 
 ---
 

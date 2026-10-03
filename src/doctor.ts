@@ -45,7 +45,7 @@ type WorktreeEntry = { path: string; branch: string | null; prunable: boolean; b
  * worktree (the primary checkout) first, regardless of which worktree `root` points at —
  * relied on by `primaryCheckoutRoot` below.
  */
-async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
+export async function listWorktrees(root: string): Promise<WorktreeEntry[]> {
   const { stdout, code } = await git(root, ["worktree", "list", "--porcelain"]);
   if (code !== 0) return [];
   const entries: WorktreeEntry[] = [];
@@ -406,6 +406,34 @@ async function checkPendingAdrDrafts(root: string, tickets: Ticket[]): Promise<F
     severity: "warn" as const,
     message: `${p.ticketId}: ADR draft awaiting approval (${p.adrPath}) — read/approve it in ${p.ticketPath}`,
   }));
+}
+
+/**
+ * What agents leave behind in a repo: local and origin branches named `<prefix>/NNNN`
+ * (litecodeagent's convention, as `branchesForTicket` matches) and worktrees under
+ * `worktreeRoot` named `NNNN`. Read-only: `uninstall` lists them and never removes them.
+ */
+export async function agentTraces(root: string, worktreeRoot: string): Promise<{ branches: string[]; worktrees: string[] }> {
+  const entries = await listWorktrees(root);
+  const primary = primaryCheckoutRoot(root, entries);
+  const absRoot = await realpath(resolve(primary, worktreeRoot)).catch(() => resolve(primary, worktreeRoot));
+  const realPrimary = await realpath(primary).catch(() => resolve(primary));
+  const worktrees: string[] = [];
+  for (const w of entries) {
+    const abs = await realpath(w.path).catch(() => resolve(w.path));
+    if (abs === realPrimary || !abs.startsWith(`${absRoot}/`)) continue;
+    if (/^\d{4}$/.test(basename(abs))) worktrees.push(w.path);
+  }
+  const { stdout, code } = await git(root, ["for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin"]);
+  const branches = new Set<string>();
+  if (code === 0) {
+    for (const ref of stdout.split("\n").filter(Boolean)) {
+      if (ref === "refs/remotes/origin/HEAD") continue;
+      const short = ref.replace(/^refs\/heads\//, "").replace(/^refs\/remotes\/origin\//, "");
+      if (/\/\d{4}$/.test(short)) branches.add(short);
+    }
+  }
+  return { branches: [...branches], worktrees };
 }
 
 export type DoctorContext = { root: string; packsRoot: string; config: Config };
