@@ -62,8 +62,8 @@ export type HookPlanEntry = {
   status: PlanEntry["status"] | "preexisting";
 };
 
-const HOOK_LOCK_PATH = ".githooks/.litecode-hook-lock.json";
-const HOOK_REL = ".githooks/pre-commit";
+export const HOOK_LOCK_PATH = ".githooks/.litecode-hook-lock.json";
+export const HOOK_REL = ".githooks/pre-commit";
 
 /**
  * The litecodeagent version doing the rendering, read off the kit's own `package.json`
