@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { ConfigSchema, selectedTargets } from "../src/config.ts";
 import { delegationHelpers } from "../src/delegation.ts";
 import { buildPlan } from "../src/install.ts";
+import { countWords } from "../src/pack-sizes.ts";
 import { loadPack } from "../src/packs.ts";
 
 /**
@@ -29,12 +30,11 @@ async function core() {
 }
 
 const body = (source: string) => source.split("\n---\n").slice(1).join("\n---\n");
-const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
 const refNamesIn = (text: string) => [...new Set([...text.matchAll(/\{\{> reference (implementer-[a-z-]+)\}\}/g)].map((m) => m[1]!))];
 
 test("implementer.md's body stays within the word budget", async () => {
   const { get } = await core();
-  expect(words(body(get("agents/implementer.md")))).toBeLessThanOrEqual(MAX_BODY_WORDS);
+  expect(countWords(body(get("agents/implementer.md")))).toBeLessThanOrEqual(MAX_BODY_WORDS);
 });
 
 test("every implementer-* reference file is referenced by the body, and every reference exists in the pack", async () => {

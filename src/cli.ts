@@ -6,7 +6,7 @@ import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, typ
 import { buildPlan, applyPlan } from "./install.ts";
 import { staleEntries } from "./install-stale.ts";
 import { listPacks, loadPack } from "./packs.ts";
-import { compareSizes, formatDriftReport, measurePackSizes, readSnapshot, writeSnapshot } from "./pack-sizes.ts";
+import { compareSizes, formatDriftReport, measurePackSizes, readSnapshot, renderedWords, writeSnapshot } from "./pack-sizes.ts";
 import { readLockfile } from "./lockfile.ts";
 import { RateLimitError, readBoardItems } from "./gh.ts";
 import { runImportBoard } from "./tickets/import-board.ts";
@@ -84,9 +84,10 @@ ${c.bold("Install")}
   ${c.bold("litecode init")} [--yes] [--targets …]  detects your repo and tools, asks one question (routing rules), writes a minimal config
                                      ${c.dim("--yes skips the question and writes the rules deduced from your stack")}
   ${c.bold("litecode targets")}                    list the coding tools you can install into
-  ${c.bold("litecode packs")} [--sizes [--update]] list available packs
-                                     ${c.dim("--sizes: maintainer drift report (words per agent and skill vs docs/token-sizes.json), never fails")}
+  ${c.bold("litecode packs")} [--sizes [--update] [--snapshot <path>]]  list available packs
+                                     ${c.dim("--sizes: maintainer drift report (rendered words per agent, skill and reference vs the snapshot), never fails")}
                                      ${c.dim("--update records the current sizes as the snapshot, at release time")}
+                                     ${c.dim("--snapshot <path> compares with, and records to, another file (default docs/token-sizes.json)")}
   ${c.bold("litecode config")} [show|edit|get|set|targets|packs]
                                      view or change litecode.config.json from the CLI
                                      ${c.dim("targets/packs: run with no argument to pick from a list")}
@@ -265,14 +266,19 @@ async function cmdPackSizes(argv: string[]): Promise<number> {
   const before = await readSnapshot(snapshotPath);
   console.log(formatDriftReport(compareSizes(now, before ?? {}), before !== undefined));
   if (argv.includes("--update")) {
-    await writeSnapshot(snapshotPath, now);
-    console.log(`\nRecorded ${Object.keys(now).length} sizes in ${snapshotPath}`);
+    const recorded = renderedWords(now);
+    await writeSnapshot(snapshotPath, recorded);
+    console.log(`\nRecorded ${Object.keys(recorded).length} sizes in ${snapshotPath}`);
   }
   return 0;
 }
 
 async function cmdPacks(argv: string[]): Promise<number> {
   if (argv.includes("--sizes")) return cmdPackSizes(argv);
+  if (argv.includes("--update") || argv.includes("--snapshot")) {
+    console.error("--update and --snapshot only work with `litecode packs --sizes`.");
+    return 1;
+  }
   for (const name of await listPacks(PACKS_ROOT)) {
     const pack = await loadPack(PACKS_ROOT, name);
     const agents = pack.files.filter((f) => f.rel.startsWith("agents/")).length;

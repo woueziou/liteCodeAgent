@@ -7,6 +7,7 @@ import { delegationHelpers } from "../src/delegation.ts";
 import { parseFrontmatter } from "../src/frontmatter.ts";
 import { applyPlan, buildPlan, lockPath } from "../src/install.ts";
 import { hash, readLockfile, writeLockfile } from "../src/lockfile.ts";
+import { countWords } from "../src/pack-sizes.ts";
 import { loadPack } from "../src/packs.ts";
 import { applyUpgrade, planUpgrade } from "../src/project-upgrade.ts";
 
@@ -25,7 +26,6 @@ const tempDir = async () => {
   return dir;
 };
 
-const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
 async function descriptions() {
   const pack = await loadPack(PACKS, "core");
@@ -38,13 +38,13 @@ test("every agent and skill description fits in 20 words, and the total is bound
   const all = await descriptions();
   expect(all.length).toBeGreaterThanOrEqual(17);
   for (const { rel, description } of all) {
-    expect({ rel, words: words(description), ok: words(description) > 0 && words(description) <= MAX_WORDS }).toEqual({
+    expect({ rel, words: countWords(description), ok: countWords(description) > 0 && countWords(description) <= MAX_WORDS }).toEqual({
       rel,
-      words: words(description),
+      words: countWords(description),
       ok: true,
     });
   }
-  expect(all.reduce((sum, d) => sum + words(d.description), 0)).toBeLessThanOrEqual(MAX_TOTAL_WORDS);
+  expect(all.reduce((sum, d) => sum + countWords(d.description), 0)).toBeLessThanOrEqual(MAX_TOTAL_WORDS);
 });
 
 test("internal agents say in one line that orchestrator calls them", async () => {
