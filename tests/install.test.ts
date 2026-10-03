@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { legacyExampleJson } from "./helpers/legacy-example.ts";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +11,7 @@ const PACKS = join(import.meta.dir, "..", "packs");
 const EXAMPLE = join(import.meta.dir, "..", "examples", "ts-employee-service.litecode.config.json");
 
 async function exampleConfig() {
-  return ConfigSchema.parse(await Bun.file(EXAMPLE).json());
+  return ConfigSchema.parse(await legacyExampleJson());
 }
 
 /**

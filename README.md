@@ -537,7 +537,7 @@ A pack is a bundle of agents and skills installed together. There are two:
   `reviewer`, `bug-hunter`, `triage`) plus `agent-attribution`, `critique-expert`,
   `security-expert`, and the two chaining skills.
 - **`web`** — expert skills for TypeScript/React work: `typescript-expert`,
-  `frontend-expert`, `ui-ux-expert`, `design-expert`, and the three `mobile-*` experts.
+  `frontend-expert`, `ui-ux-expert` (with touch), `design-expert` (with small viewport), and `mobile-expert`.
   Requires `core`, and requires `project.web` in your config.
 
 A skill that only makes sense on one repo (a framework-specific expert, a house style

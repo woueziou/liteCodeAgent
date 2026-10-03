@@ -34,12 +34,23 @@ function boardStillNeeded(raw: Json): boolean {
 }
 
 /**
+ * Skills merged into another one (ticket 0087): a Domain rule or angle naming the old skill
+ * is rewritten to the one that absorbed it, and a list that then names it twice keeps one.
+ */
+export const RENAMED_SKILLS: Record<string, string> = {
+  "mobile-design-expert": "design-expert",
+  "mobile-ui-ux-expert": "ui-ux-expert",
+};
+
+/**
  * Skills earlier packs shipped and this one doesn't. A config still naming one keeps
  * rendering it into agents' frontmatter, and install only accepts it because the old
  * installed copy passes for a local overlay — until that orphan is deleted.
  */
 export const REMOVED_SKILLS = new Set([
   "github-project-sync",
+  // Ticket 0087: merged into another skill, see RENAMED_SKILLS for where a rule goes.
+  ...Object.keys(RENAMED_SKILLS),
   // Ticket 0068: now reference files read on demand, no longer registered skills.
   ...[
     "adr-gate",
@@ -122,11 +133,16 @@ function stripRemovedSkills(raw: Json): string[] {
       if (!isObject(entry) || !Array.isArray(entry.skills)) return true;
       const name = typeof entry.name === "string" ? entry.name : typeof entry.match === "string" ? entry.match : "";
       const label = `project.${group}[${i}]${name ? ` (${name})` : ""}`;
-      const removed = entry.skills.filter(removedSkill);
-      if (removed.length === 0) return true;
+      const before = entry.skills as unknown[];
+      const renamed = before.map((skill) => (typeof skill === "string" ? (RENAMED_SKILLS[skill] ?? skill) : skill));
+      before.forEach((skill, k) => {
+        if (renamed[k] !== skill) done.push(`${skill} renamed ${renamed[k]} in ${label}`);
+      });
+      const unique = [...new Set(renamed)];
+      const removed = unique.filter(removedSkill);
+      entry.skills = unique.filter((skill) => !removedSkill(skill));
       for (const skill of removed) done.push(`${skill} from ${label}`);
-      entry.skills = entry.skills.filter((skill) => !removedSkill(skill));
-      if (group === "angles" || (entry.skills as unknown[]).length > 0) return true;
+      if (group === "angles" || unique.length - removed.length > 0 || removed.length === 0) return true;
       done.push(`${label}, left with no skill`);
       return false;
     });

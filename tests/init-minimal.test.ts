@@ -1,4 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
+import { legacyExampleJson } from "./helpers/legacy-example.ts";
 import { chmod, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -248,7 +249,7 @@ test("without check command or GitHub repo the install succeeds and the agents r
 // ---- upgrade ------------------------------------------------------------------------
 
 test("upgrade drops the obsolete keys and keeps what is still read", async () => {
-  const raw = await Bun.file(EXAMPLE).json();
+  const raw = await legacyExampleJson();
   raw.target = "claude-code";
   raw.targets = ["claude-code", "codex"];
   raw.outDir = ".claude";
@@ -267,7 +268,7 @@ test("upgrade drops the obsolete keys and keeps what is still read", async () =>
 });
 
 test("upgrade keeps a custom outDir, filled lessons, and turns a lone legacy target into targets", async () => {
-  const raw = await Bun.file(EXAMPLE).json();
+  const raw = await legacyExampleJson();
   delete raw.targets;
   raw.target = "codex";
   raw.outDir = ".custom";
@@ -280,7 +281,7 @@ test("upgrade keeps a custom outDir, filled lessons, and turns a lone legacy tar
 });
 
 test("a config cleaned by upgrade still installs, with no skill preloaded", async () => {
-  const raw = await Bun.file(EXAMPLE).json();
+  const raw = await legacyExampleJson();
   const root = await tempDir();
   await Bun.write(join(root, ".claude/skills/orpc-expert/SKILL.md"), "---\nname: orpc-expert\n---\n");
   const config = ConfigSchema.parse(cleanedConfig(raw));
