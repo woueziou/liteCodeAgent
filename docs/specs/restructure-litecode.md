@@ -108,3 +108,5 @@ Un projet s'installe avec une seule question : valider les règles de routage ve
 ## Baseline (ticket 0082)
 
 Reference ticket: `0001` of a fictional pricing project, size S, backend, planned for the `implementer`, with `project.isolation` pinned to `inline`. Fixture, protocol, replay script and results are in `docs/specs/restructure-baseline/`. Baseline over five runs: 312,232 tokens (sd 17 %), 0.106 USD (sd 13 %), 21.2 turns (sd 8 %) per implementer run, and 10,334 words across the 12 rendered agent prompts. With five runs per condition, a gap under about 20 to 25 % is not distinguishable from noise. Ticket 0090 replays the same protocol.
+
+Closing measurement (ticket 0090, interim): over ten runs per condition, tokens -8.1 % (interval -23 % to +6.8 %), cost -2.6 %, turns -5.7 %. Not proven: every interval contains zero and every point is under the 20 % bar. The rendered prompt of the 12 agents is unchanged (10,331 words against 10,334). Details and limits in `docs/specs/restructure-baseline/README.md`.

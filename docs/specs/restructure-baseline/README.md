@@ -54,3 +54,30 @@ Mean 324,184, sd 120,549 (37 %). In the worktree runs `tsc` was not found (no `n
 - Quality varies at the same cost. In the pinned runs, two confirmed that the new test failed before the fix, two said they had not run it against the old code, and one was unclear. A lower token count can mean a skipped check.
 - Two earlier attempts stopped before writing code and are not counted: a Bash permission denial (0.10 USD), then a ticket still in `backlog` with a refused heredoc (0.08 USD). The ticket must be `planned` first.
 - The agent added `Co-Authored-By` trailers to the fixture's commits. This repo's own rule (`CLAUDE.md`) forbids them in its own commits only.
+
+## Closing measurement (ticket 0090)
+
+Date 2026-10-03. Same protocol and the same `replay.sh`. Two conditions, ten runs each, isolation pinned to `inline`, one implementer run per ticket replay, no pull request, no reviewer.
+
+- **Before:** the base `3c15b53` of the first measurement (the packs as they were before tickets 0087, 0088 and 0092). Runs 1 to 5 are the baseline above, runs 6 to 10 were added on the same base.
+- **After:** a fixture rebuilt from this directory and installed with the packs of `main` at `b1157a6` (tickets 0087, 0088, 0092 merged, 0089 changes no prompt). Base commit `141069e`.
+
+| Measure | Before (10 runs) | After (10 runs) | Change | 95 % interval on the change |
+|---|---|---|---|---|
+| Total tokens | 304,151 ± 54,708 (18 %) | 279,573 ± 39,710 (14 %) | -8.1 % | -23.0 % to +6.8 % |
+| Cost (USD) | 0.112 ± 0.017 (15 %) | 0.109 ± 0.025 (23 %) | -2.6 % | -20.7 % to +15.5 % |
+| Turns | 21.1 ± 2.0 (9 %) | 19.9 ± 1.4 (7 %) | -5.7 % | -13.3 % to +1.9 % |
+| Output tokens | 2,682 ± 339 (13 %) | 2,475 ± 239 (10 %) | -7.7 % | -18.1 % to +2.7 % |
+| Cache-creation tokens | 6,437 ± 4,005 | 7,505 ± 6,131 | +16.6 % | -60 % to +93 % |
+
+Every interval contains zero. No run had an error, a permission denial or a subagent.
+
+**Verdict: not proven.** The points are favourable (tokens -8 %, turns -6 %, output -8 %), but none exceeds the noise and all are below the 20 % bar set by ticket 0090. The first five runs of each condition suggested -17 % on tokens; ten runs shrank it to -8 %, which is what a lucky first sample looks like. Cost did not fall (-2.6 %, interval -21 % to +16 %).
+
+**Prompt size per agent (Q4b): unchanged.** The 12 agents render to 10,331 words after, against 10,334 at the first baseline. The restructure cut the sources by about 3 %, not what the model reads. The measurable change is elsewhere: no agent preloads a skill, and for a project with no routing rule only three skills are installed (`agent-attribution`, `chained-implementation`, `idea-to-planned`) instead of five.
+
+**Quality, a weak signal.** A pattern match over the final reports (so indicative, not a measurement) finds that the agent said it had not run the new test against the old code in 5 of 10 runs before and 1 of 10 after. That would mean the leaner packs did not make the agent skip checks. Ten runs cannot confirm it.
+
+**What would settle the cost question.** With a spread of about 15 %, resolving a 10 % change takes about 20 runs per condition (roughly 2 USD each side).
+
+**Limits.** No pull request, no CI wait, no reviewer: the part ticket 0081 targets (context kept through CI and review) is outside this protocol, so 0081 cannot show up here. The fixture's `litecodeagent` script runs the current repo checkout, so the CLI the agents call during a run is newer than the packs for the "before" condition; it does not change any prompt. The fixture is tiny, so absolute numbers are far below a run on this repo.
