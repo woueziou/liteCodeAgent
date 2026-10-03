@@ -48,7 +48,7 @@ import { parseJournalEntries } from "./report/journal.ts";
 import { formatTokens, runnerJournalNote, ticketTokens, withTokensLine } from "./report/tokens.ts";
 import { tokensPerEpic } from "./dashboard/build.ts";
 import { applyUpgrade, hasChanges, hasSkips, planUpgrade } from "./project-upgrade.ts";
-import { applyUninstall, describePlan, outsideNotice, planUninstall } from "./uninstall.ts";
+import { applyUninstall, describePlan, outsideNotice, parseUninstallArgs, planUninstall, UNINSTALL_USAGE } from "./uninstall.ts";
 import {
   RunCancelledError,
   RunnerExecutionError,
@@ -95,7 +95,7 @@ ${c.bold("Install")}
                                      ${c.dim("shows the plan, then asks before applying; --yes applies without asking")}
                                      ${c.dim("a legacy git-clone install (install.sh) updates itself first; --no-self-update skips that")}
                                      ${c.dim("exits 0 only when the project is fully up to date, 1 when anything is left pending")}
-  ${c.bold("litecode uninstall")} [--apply] [--force] [--config] [--yes]
+  ${c.bold("litecode uninstall")} [--apply] [--force] [--config]
                                      remove the kit from this project: unedited files its lockfiles list, the lockfiles,
                                      emptied directories, litecode's pre-commit hook and the core.hooksPath it set
                                      ${c.dim("dry-run by default; --apply removes; --force also removes files you edited")}
@@ -1226,29 +1226,48 @@ async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
 }
 
 async function cmdUninstall(root: string, argv: string[]): Promise<number> {
-  const apply = argv.includes("--apply");
+  const parsed = parseUninstallArgs(argv.slice(1));
+  if ("unknown" in parsed) {
+    console.log(c.red(`Unknown option${parsed.unknown.length > 1 ? "s" : ""}: ${parsed.unknown.join(" ")}`));
+    console.log(UNINSTALL_USAGE);
+    return 2;
+  }
   // Read before anything is removed: `--config` deletes the file these come from.
   const loaded = await loadConfig(root).catch(() => null);
   const plan = await planUninstall(root, {
-    force: argv.includes("--force"),
-    config: argv.includes("--config"),
+    force: parsed.force,
+    config: parsed.config,
     ticketsDir: loaded?.config.project.tickets.dir,
+    outDir: loaded?.config.outDir,
   });
+  if (plan.unreadable.length > 0) {
+    for (const u of plan.unreadable) console.log(c.red(`Lockfile ${u.rel} is unreadable (${u.reason}): nothing was removed.`));
+    console.log("Fix or delete that file, then run `litecode uninstall` again.");
+    return 1;
+  }
   if (!plan.found) {
     console.log(`No litecode install found in ${root} (no lockfile): nothing to remove.`);
     return 0;
   }
-  if (!apply) {
+  if (!parsed.apply) {
     for (const line of describePlan(root, plan, false)) console.log(line);
     console.log(c.dim("\nPreview only: nothing was changed. Run with --apply to remove."));
     return 0;
   }
   const done = await applyUninstall(root, plan);
   for (const line of describePlan(root, done, true)) console.log(line);
-  console.log(c.green("\nUninstalled."));
-  console.log("");
-  for (const line of await outsideNotice(root, loaded?.config.project.worktreeRoot ?? "../worktrees")) console.log(line);
-  return 0;
+  const failed = done.keep.filter((k) => k.failed);
+  if (failed.length > 0) {
+    console.log(c.red(`\n${failed.length} removal(s) failed (listed above): the rest was removed. Fix the cause and run again.`));
+  } else {
+    console.log(c.green("\nUninstalled."));
+  }
+  const removedSomething = done.remove.length > 0 || done.removeLocks.length > 0;
+  if (removedSomething) {
+    console.log("");
+    for (const line of await outsideNotice(root, loaded?.config.project.worktreeRoot ?? "../worktrees")) console.log(line);
+  }
+  return failed.length > 0 ? 1 : 0;
 }
 
 const argv = process.argv.slice(2);

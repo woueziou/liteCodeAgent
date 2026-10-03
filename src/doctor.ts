@@ -81,8 +81,8 @@ export function primaryCheckoutRoot(root: string, worktrees: WorktreeEntry[]): s
   return first && !first.bare ? first.path : root;
 }
 
-/** Local or remote branch (short name) ending in `/<number>`, litecodeagent's naming convention. */
-async function branchesForTicket(root: string, number: string): Promise<string[]> {
+/** Every local and `origin` branch as a short name (the shared source for branch lookups). */
+async function allBranchNames(root: string): Promise<string[]> {
   const { stdout, code } = await git(root, [
     "for-each-ref",
     "--format=%(refname)",
@@ -93,10 +93,14 @@ async function branchesForTicket(root: string, number: string): Promise<string[]
   const names = new Set<string>();
   for (const refname of stdout.split("\n").filter(Boolean)) {
     if (refname === "refs/remotes/origin/HEAD") continue;
-    const short = refname.replace(/^refs\/heads\//, "").replace(/^refs\/remotes\/origin\//, "");
-    if (short.endsWith(`/${number}`)) names.add(short);
+    names.add(refname.replace(/^refs\/heads\//, "").replace(/^refs\/remotes\/origin\//, ""));
   }
   return [...names];
+}
+
+/** Local or remote branch (short name) ending in `/<number>`, litecodeagent's naming convention. */
+async function branchesForTicket(root: string, number: string): Promise<string[]> {
+  return (await allBranchNames(root)).filter((name) => name.endsWith(`/${number}`));
 }
 
 async function remoteBranchExists(root: string, branch: string): Promise<boolean> {
@@ -424,16 +428,8 @@ export async function agentTraces(root: string, worktreeRoot: string): Promise<{
     if (abs === realPrimary || !abs.startsWith(`${absRoot}/`)) continue;
     if (/^\d{4}$/.test(basename(abs))) worktrees.push(w.path);
   }
-  const { stdout, code } = await git(root, ["for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin"]);
-  const branches = new Set<string>();
-  if (code === 0) {
-    for (const ref of stdout.split("\n").filter(Boolean)) {
-      if (ref === "refs/remotes/origin/HEAD") continue;
-      const short = ref.replace(/^refs\/heads\//, "").replace(/^refs\/remotes\/origin\//, "");
-      if (/\/\d{4}$/.test(short)) branches.add(short);
-    }
-  }
-  return { branches: [...branches], worktrees };
+  const branches = (await allBranchNames(root)).filter((name) => /\/\d{4}$/.test(name));
+  return { branches, worktrees };
 }
 
 export type DoctorContext = { root: string; packsRoot: string; config: Config };

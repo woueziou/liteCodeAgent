@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { lstat, mkdtemp, readdir, rm, symlink } from "node:fs/promises";
+import { chmod, lstat, mkdtemp, readdir, readlink, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hash, LOCKFILE_NAME } from "../src/lockfile.ts";
@@ -9,7 +9,10 @@ const EXAMPLE = join(import.meta.dir, "..", "examples", "ts-employee-service.lit
 const HOOK_LOCK = ".githooks/.litecode-hook-lock.json";
 
 const scratch: string[] = [];
+/** Permission changes a test makes, undone before the scratch dirs are deleted. */
+const undoers: (() => Promise<void>)[] = [];
 afterAll(async () => {
+  for (const undo of undoers) await undo().catch(() => {});
   await Promise.all(scratch.map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
@@ -52,6 +55,23 @@ async function installed(): Promise<string> {
 async function snapshot(root: string): Promise<string[]> {
   const entries = await readdir(root, { recursive: true });
   return entries.filter((e) => !e.startsWith(".git/") && e !== ".git").sort();
+}
+
+type LockShape = { files: Record<string, { pack: string; version: string; hash: string }> };
+
+/** Edits a lockfile in place, the way a tamperer (or a bug) would. */
+async function mutateLock(root: string, edit: (lock: LockShape) => void, name = LOCKFILE_NAME): Promise<void> {
+  const path = join(root, name);
+  const lock = (await Bun.file(path).json()) as LockShape;
+  edit(lock);
+  await Bun.write(path, JSON.stringify(lock));
+}
+
+const lockEntry = (content: string) => ({ pack: "core", version: "1", hash: hash(content) });
+
+async function chmodForTest(path: string, mode: number, back: number): Promise<void> {
+  await chmod(path, mode);
+  undoers.push(() => chmod(path, back));
 }
 
 async function lockedFiles(root: string): Promise<string[]> {
@@ -128,9 +148,10 @@ test("a core.hooksPath the user set to something else is untouched", async () =>
 test("a core.hooksPath of .githooks without litecode's hook lock is untouched", async () => {
   const root = await installed();
   await rm(join(root, HOOK_LOCK));
-  await run(root, ["uninstall", "--apply"]);
+  const { output } = await run(root, ["uninstall", "--apply"]);
   expect(await git(root, "config", "--get", "core.hooksPath")).toBe(".githooks");
   expect(await Bun.file(join(root, ".githooks/pre-commit")).exists()).toBe(true);
+  expect(output).toContain("hook lock is absent");
 });
 
 test("a never-installed project: says so, exits 0, deletes nothing", async () => {
@@ -153,13 +174,11 @@ test("a tampered lockfile with ../, absolute and symlinked-out paths deletes not
   await Bun.write(join(outside, "victim.txt"), "keep me\n");
   await Bun.write(join(outside, "linked.txt"), "keep me too\n");
   await symlink(outside, join(root, "escape"));
-  const lockPath = join(root, LOCKFILE_NAME);
-  const lock = (await Bun.file(lockPath).json()) as { files: Record<string, { pack: string; version: string; hash: string }> };
-  const entry = (content: string) => ({ pack: "core", version: "1", hash: hash(content) });
-  lock.files[`../${outside.split("/").pop()}/victim.txt`] = entry("keep me\n");
-  lock.files[join(outside, "victim.txt")] = entry("keep me\n");
-  lock.files["escape/linked.txt"] = entry("keep me too\n");
-  await Bun.write(lockPath, JSON.stringify(lock));
+  await mutateLock(root, (lock) => {
+    lock.files[`../${outside.split("/").pop()}/victim.txt`] = lockEntry("keep me\n");
+    lock.files[join(outside, "victim.txt")] = lockEntry("keep me\n");
+    lock.files["escape/linked.txt"] = lockEntry("keep me too\n");
+  });
   const { output, exitCode } = await run(root, ["uninstall", "--apply", "--force"]);
   expect(exitCode).toBe(0);
   expect(await Bun.file(join(outside, "victim.txt")).text()).toBe("keep me\n");
@@ -169,11 +188,10 @@ test("a tampered lockfile with ../, absolute and symlinked-out paths deletes not
 
 test("a lockfile entry naming docs/tickets or docs/decisions is never deleted", async () => {
   const root = await installed();
-  const lockPath = join(root, LOCKFILE_NAME);
-  const lock = (await Bun.file(lockPath).json()) as { files: Record<string, unknown> };
-  lock.files["docs/tickets/0001-x.md"] = { pack: "core", version: "1", hash: hash("x") };
-  lock.files["docs/decisions/0001-x.md"] = { pack: "core", version: "1", hash: hash("# 0001. X\n") };
-  await Bun.write(lockPath, JSON.stringify(lock));
+  await mutateLock(root, (lock) => {
+    lock.files["docs/tickets/0001-x.md"] = lockEntry("x");
+    lock.files["docs/decisions/0001-x.md"] = lockEntry("# 0001. X\n");
+  });
   await run(root, ["uninstall", "--apply", "--force"]);
   expect(await exists(join(root, "docs/tickets/0001-x.md"))).toBe(true);
   expect(await exists(join(root, "docs/decisions/0001-x.md"))).toBe(true);
@@ -202,10 +220,8 @@ test("setup --apply after uninstall --apply gives a consistent project: doctor r
   expect(again.exitCode).toBe(0);
   expect(await exists(join(root, LOCKFILE_NAME))).toBe(true);
   const doctor = await run(root, ["doctor"]);
-
   expect(doctor.exitCode).toBe(0);
-  expect(doctor.output).not.toMatch(/\berror\b/);
-  expect(doctor.output).not.toMatch(/drift/i);
+  expect(doctor.output).toContain("Nothing to report");
 });
 
 test("litecode --help lists uninstall in the Install group", async () => {
@@ -215,4 +231,173 @@ test("litecode --help lists uninstall in the Install group", async () => {
   const at = output.indexOf("litecode uninstall");
   expect(at).toBeGreaterThan(install);
   expect(at).toBeLessThan(plan);
+});
+
+const REFUSED = "outside the directories litecode writes to";
+
+test("a lockfile cannot widen the reach: .git, root files and the config are refused, with or without --force", async () => {
+  const root = await installed();
+  const files: Record<string, string> = {
+    "package.json": '{"name":"mine"}\n',
+    "README.md": "# mine\n",
+    ".git/HEAD": await Bun.file(join(root, ".git/HEAD")).text(),
+    ".git/config": await Bun.file(join(root, ".git/config")).text(),
+    "litecode.config.json": await Bun.file(join(root, "litecode.config.json")).text(),
+    "src/app.ts": "export {};\n",
+  };
+  for (const [rel, content] of Object.entries(files)) await Bun.write(join(root, rel), content);
+  // Both shapes of tampering: a made-up hash and the file's real hash.
+  await mutateLock(root, (lock) => {
+    for (const [rel, content] of Object.entries(files)) {
+      lock.files[rel] = rel.endsWith("HEAD") || rel === "README.md" ? lockEntry(content) : { pack: "core", version: "1", hash: "x" };
+    }
+  });
+  for (const args of [["uninstall"], ["uninstall", "--apply"], ["uninstall", "--apply", "--force"]]) {
+    const { output } = await run(root, args);
+    expect(output).toContain(REFUSED);
+    for (const [rel, content] of Object.entries(files)) {
+      // .git/config is the one file uninstall legitimately edits (it unsets core.hooksPath it set).
+      if (rel === ".git/config") expect(await exists(join(root, rel))).toBe(true);
+      else expect(await Bun.file(join(root, rel)).text()).toBe(content);
+    }
+  }
+});
+
+test("the installed hook is removable through its own lock only, never through a target lockfile", async () => {
+  const root = await installed();
+  await mutateLock(root, (lock) => {
+    lock.files[".githooks/pre-commit"] = lockEntry("whatever");
+  });
+  const { output } = await run(root, ["uninstall", "--apply", "--force"]);
+  expect(output).toContain(REFUSED);
+});
+
+test("an entry under a configured tickets dir is never deleted, even inside an output root", async () => {
+  const root = await installed();
+  const config = JSON.parse(await Bun.file(join(root, "litecode.config.json")).text());
+  config.project.tickets = { ...(config.project.tickets ?? {}), dir: ".claude/work" };
+  await Bun.write(join(root, "litecode.config.json"), JSON.stringify(config));
+  await Bun.write(join(root, ".claude/work/0002-y.md"), "ticket\n");
+  await mutateLock(root, (lock) => {
+    lock.files[".claude/work/0002-y.md"] = lockEntry("ticket\n");
+  });
+  await run(root, ["uninstall", "--apply", "--force"]);
+  expect(await Bun.file(join(root, ".claude/work/0002-y.md")).text()).toBe("ticket\n");
+});
+
+test("a generated file replaced by a symlink to a directory does not crash; --force unlinks the link only", async () => {
+  const root = await installed();
+  const target = await mkdtemp(join(tmpdir(), "litecode-uninstall-linkdir-"));
+  scratch.push(target);
+  await Bun.write(join(target, "precious.txt"), "keep\n");
+  const agent = join(root, ".claude/agents/orchestrator.md");
+  await rm(agent);
+  await symlink(target, agent);
+  const preview = await run(root, ["uninstall"]);
+  expect(preview.exitCode).toBe(0);
+  expect(preview.output).toContain("not a regular file");
+  const applied = await run(root, ["uninstall", "--apply"]);
+  expect(applied.exitCode).toBe(0);
+  expect(await readlink(agent)).toBe(target);
+  const forced = await run(root, ["uninstall", "--apply", "--force"]);
+  expect(forced.exitCode).toBe(0);
+  expect(await exists(agent)).toBe(false);
+  expect(await Bun.file(join(target, "precious.txt")).text()).toBe("keep\n");
+});
+
+test("an unreadable file is kept with its reason and the run goes on; a preview completes", async () => {
+  const root = await installed();
+  const [rel] = await lockedFiles(root);
+  const locked = join(root, rel!);
+  await chmodForTest(locked, 0o000, 0o644);
+  const preview = await run(root, ["uninstall"]);
+  expect(preview.exitCode).toBe(0);
+  expect(preview.output).toContain("cannot be read: EACCES");
+  const applied = await run(root, ["uninstall", "--apply"]);
+  expect(applied.exitCode).toBe(1);
+  expect(applied.output).toContain(`${rel}: cannot be read: EACCES`);
+  expect(await exists(locked)).toBe(true);
+  // Every other generated file went; only the unreadable one is still vouched for.
+  expect(await lockedFiles(root)).toEqual([rel!]);
+});
+
+test("a removal that fails is reported and the exit code is 1, never 'Uninstalled.'", async () => {
+  const root = await installed();
+  const dir = join(root, ".claude/agents");
+  await chmodForTest(dir, 0o555, 0o755);
+  const { output, exitCode } = await run(root, ["uninstall", "--apply"]);
+  expect(exitCode).toBe(1);
+  expect(output).toContain("Failed:");
+  expect(output).not.toContain("Uninstalled.");
+  expect(await exists(join(root, LOCKFILE_NAME))).toBe(true);
+});
+
+test("a lockfile that is not valid JSON is reported as unreadable, exit 1, nothing deleted", async () => {
+  const root = await installed();
+  await Bun.write(join(root, LOCKFILE_NAME), "{ not json");
+  const before = await snapshot(root);
+  for (const args of [["uninstall"], ["uninstall", "--apply", "--force"]]) {
+    const { output, exitCode } = await run(root, args);
+    expect(exitCode).toBe(1);
+    expect(output).toContain(LOCKFILE_NAME);
+    expect(output).toMatch(/unreadable/i);
+    expect(output).not.toMatch(/no litecode install/i);
+    expect(await snapshot(root)).toEqual(before);
+  }
+});
+
+test("unknown options fail with exit 2 and a usage line before anything is touched", async () => {
+  const root = await installed();
+  const before = await snapshot(root);
+  for (const bad of ["--aply", "--forc", "--yes", "--apply=true", "stray"]) {
+    const { output, exitCode } = await run(root, ["uninstall", "--apply", bad]);
+    expect(exitCode).toBe(2);
+    expect(output).toContain(bad);
+    expect(output).toContain("Usage: litecode uninstall [--apply] [--force] [--config]");
+    expect(await snapshot(root)).toEqual(before);
+  }
+});
+
+test("--yes is gone from the help", async () => {
+  const { output } = await run(tmpdir(), ["--help"]);
+  const at = output.indexOf("litecode uninstall");
+  expect(output.slice(at, output.indexOf("\nPlan"))).not.toContain("--yes");
+});
+
+test("the outside notice prints only after an --apply that ran", async () => {
+  const root = await installed();
+  const preview = await run(root, ["uninstall"]);
+  expect(preview.output).not.toContain("Outside this project");
+  const none = await mkdtemp(join(tmpdir(), "litecode-uninstall-none-"));
+  scratch.push(none);
+  await git(none, "init", "-q");
+  const nothing = await run(none, ["uninstall", "--apply"]);
+  expect(nothing.output).not.toContain("Outside this project");
+  const applied = await run(root, ["uninstall", "--apply"]);
+  expect(applied.output).toContain("Outside this project");
+});
+
+test("other files in .githooks keep running: the hook goes, core.hooksPath stays", async () => {
+  const root = await installed();
+  await Bun.write(join(root, ".githooks/commit-msg"), "#!/bin/sh\n");
+  const { output } = await run(root, ["uninstall", "--apply"]);
+  expect(await exists(join(root, ".githooks/pre-commit"))).toBe(false);
+  expect(await exists(join(root, ".githooks/commit-msg"))).toBe(true);
+  expect(await git(root, "config", "--get", "core.hooksPath")).toBe(".githooks");
+  expect(output).toContain("other files remain");
+});
+
+test("an agent worktree is listed with its removal command, never removed", async () => {
+  const root = await installed();
+  const wtRoot = await mkdtemp(join(tmpdir(), "litecode-uninstall-wt-"));
+  scratch.push(wtRoot);
+  const config = JSON.parse(await Bun.file(join(root, "litecode.config.json")).text());
+  config.project.worktreeRoot = wtRoot;
+  await Bun.write(join(root, "litecode.config.json"), JSON.stringify(config));
+  await git(root, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.hooksPath=/dev/null", "commit", "-q", "--allow-empty", "-m", "init");
+  await git(root, "worktree", "add", "-q", join(wtRoot, "0007"), "-b", "feat/0007");
+  const { output } = await run(root, ["uninstall", "--apply"]);
+  expect(output).toContain("git worktree remove");
+  expect(output).toContain("0007");
+  expect(await exists(join(wtRoot, "0007"))).toBe(true);
 });

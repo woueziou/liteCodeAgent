@@ -619,7 +619,12 @@ litecode's `pre-commit` hook along with `core.hooksPath` when litecode set it.
 `docs/decisions/`, your own files (such as your skills under `.claude/`), branches or
 worktrees. At the end it prints the commands for what lives outside the project (the
 Claude Code plugin, an `install.sh` clone) and lists agent branches and worktrees still
-there. `setup --apply` afterwards reinstalls a consistent project.
+there. It only ever deletes files inside the directories litecode writes to (`.claude/`,
+`.codex/`, `.agents/skills/`, and so on, plus the hook), whatever a lockfile claims.
+`setup --apply` afterwards reinstalls a consistent project, but after a partial
+uninstall (a hand-edited file was kept) it stops on that file until you move it away or
+use `--force`. Only `--apply`, `--force` and `--config` are accepted; anything else is an
+error (exit 2). The exit code is 1 if a removal failed or a lockfile is unreadable.
 
 ---
 
