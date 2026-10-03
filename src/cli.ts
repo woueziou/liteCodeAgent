@@ -330,6 +330,9 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
 }
 
 async function cmdDoctor(root: string, argv: string[]): Promise<number> {
+  if (argv.includes("--fix")) {
+    console.log(c.yellow("--fix was removed (ADR 0024): doctor only reports, and nothing it checks can be auto-fixed."));
+  }
   const { config } = await loadConfig(root);
   const findings = await fullDoctor({ root, packsRoot: PACKS_ROOT, config });
   if (findings.length === 0) {
@@ -540,6 +543,9 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
   })();
 
   const { config, path, changed } = await applyConfigMutation(root, PACKS_ROOT, mutation);
+  if (mutation.kind === "set" && /^project\.agentSkills(\.|$)/.test(mutation.path)) {
+    console.log(c.yellow(`warning: ${mutation.path} is ignored (ADR 0024): no agent preloads skills, name them in a routing rule instead.`));
+  }
   if (changed) {
     console.log(`${c.green("Updated")} ${path}`);
     if (mutation.kind === "targets" || mutation.kind === "packs" || mutation.kind === "set") {

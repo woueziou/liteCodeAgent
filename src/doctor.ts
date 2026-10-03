@@ -428,7 +428,7 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   // current status). Reuse the ticket and config checks verbatim, against the primary root.
   const ticketFindings = await ticketDoctor(primaryRoot, config.project.tickets.dir);
   findings.push(...ticketFindings);
-  const configFindings = await configDoctor(packsRoot, config);
+  const configFindings = await configDoctor(config);
   for (const f of configFindings) findings.push(f);
   findings.push(...(await routingFindings(packsRoot, config, await detect(primaryRoot))));
 

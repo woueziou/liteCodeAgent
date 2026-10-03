@@ -502,8 +502,7 @@ function referencedSkills(
   return wanted;
 }
 
-export async function buildPlan(projectRoot: string, packsRoot: string, given: Config): Promise<InstallPlan> {
-  const config = given;
+export async function buildPlan(projectRoot: string, packsRoot: string, config: Config): Promise<InstallPlan> {
   const targets = selectedTargets(config);
   const lockfilePaths = Object.fromEntries(targets.map((target) => [target, lockPath(target)])) as Partial<Record<InstallTarget, string>>;
   const previous = new Map<InstallTarget, Lockfile | null>();

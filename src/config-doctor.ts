@@ -25,7 +25,7 @@ async function packFilesAndSkills(
  * Reports what's wrong. Never mutates anything. `project.agentSkills` is still accepted by the
  * schema but nothing reads it (ADR 0024), so a config that carries a non-empty one gets a warning.
  */
-export async function doctor(_packsRoot: string, config: Config): Promise<Finding[]> {
+export async function doctor(config: Config): Promise<Finding[]> {
   if (Object.keys(config.project.agentSkills).length === 0) return [];
   return [
     {

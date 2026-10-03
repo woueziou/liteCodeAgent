@@ -22,8 +22,15 @@ This ADR supersedes ADR 0006, which was entirely about `agentSkills` required pa
 4. **The schema stays tolerant.** A config that still carries `project.agentSkills` loads without error and the key is ignored. `doctor` warns that it is ignored.
 5. **`upgrade` removes the key** (an obsolete key since ticket 0083) and its plan says custom lists are not preserved.
 
+## What changes for users
+
+Agents no longer start with any skill loaded; they pull skills on demand according to the Domain rules. A project's `agentSkills` list stops having any effect, `litecode upgrade` removes it, `doctor` warns while it is still present, and `config set project.agentSkills...` warns that the key is ignored (and still writes it). `litecode doctor --fix` no longer repairs anything: the flag prints one line saying it was removed and the command carries on as a plain `doctor`.
+
 ## Consequences
 
 - A hand-written `agentSkills` list is lost on upgrade; this is accepted. A skill a project wants available is named by a Domain rule.
-- The generic `requiredPaths` machinery stays; only the `agentSkills` scope goes. The unguarded `project.web` gap noted in ADR 0006 is unchanged by this ADR.
+- A project that relied on preloading a skill that no Domain rule names loses that skill from every agent, silently: nothing fails at install or at run time. Mitigation: add a Domain rule that names the skill.
+- `doctor --fix` is removed. An old script that passes it sees the one-line removal notice, and the exit code is the one `doctor` gives without the flag, so such a script keeps working but no longer repairs anything.
+- `doctor` is silent when `agentSkills` is missing or empty, and it warns (never errors) when the key is present. The old error severity for a missing key is gone, so a missing key can no longer fail `doctor` or the install.
+- The generic `requiredPaths` machinery stays; only the `agentSkills` scope goes. The unguarded `project.web` gap noted in ADR 0006 stays open: this ADR does not close it.
 - Rendered agents are smaller (the `skills:` line is gone).

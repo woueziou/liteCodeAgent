@@ -70,7 +70,9 @@ test("a skill named only under agentSkills is not looked up, so it cannot fail t
 });
 
 test("the core pack's agent sources do not reference project.agentSkills", async () => {
-  for (const rel of new Bun.Glob("*.md").scanSync({ cwd: join(PACKS, "core", "agents") })) {
+  const sources = [...new Bun.Glob("*.md").scanSync({ cwd: join(PACKS, "core", "agents") })];
+  expect(sources.length, "the glob matched no agent source, so the guard would pass vacuously").toBeGreaterThan(0);
+  for (const rel of sources) {
     expect(await Bun.file(join(PACKS, "core", "agents", rel)).text(), rel).not.toContain("agentSkills");
   }
 });
