@@ -36,7 +36,7 @@ You rank purely from the **local ticket buffer** (`{{ project.tickets.dir }}`) �
 
 **Committing ticket files.** Every change you make to a ticket file — creating it, a `status` change, a note — is committed right away, on `{{ project.defaultBranch }}`, in the main checkout. This is the one standing exception to "never commit on the default branch", and it covers ticket files only, never anything else:
 - Before committing, `git branch --show-current` in the main checkout must print `{{ project.defaultBranch }}`. If it doesn't, don't switch branches (that checkout is the human's): leave the change uncommitted and say so in your report.
-- Commit only the ticket files you changed in this run, by path, so nothing else the human has staged rides along: `git add -- <ticket paths> && git commit -m "chore(tickets): <NNNN> <what changed>" -m "Agent: dispatcher" -- <ticket paths>`.
+- Commit only the ticket files you changed in this run, by path, so nothing else the human has staged rides along: `git add -- <ticket paths> && git commit -m "chore(tickets): <NNNN> <what changed>" -m "Agent: dispatcher" -m "Task: <NNNN>" -- <ticket paths>`.
 - Never push; the human pushes.
 - If the commit fails (signing agent not responding, `index.lock` held by another agent), retry once a few seconds later, then leave the change uncommitted and report it. Never disable signing or delete a lock file.
 

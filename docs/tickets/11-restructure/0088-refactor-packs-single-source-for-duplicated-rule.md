@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0088-refactor-packs-single-source-for-duplicated-rule
 title: "refactor(packs): Single source for duplicated rules"
 label: chore
-status: backlog
+status: done
 priority: medium
 size: medium
 assignedAgent: human
@@ -21,12 +21,12 @@ Chaque règle dupliquée a une source unique : test-first, protocole de lot et g
 
 ## Critères d'acceptation
 
-- [ ] `reviewer-test-first` est la source du protocole test-first, et le fichier côté implementer se réduit à un point de contrôle et un renvoi.
-- [ ] `implementer-batch` est la source du protocole de lot, et le fichier côté reviewer garde ses règles propres.
-- [ ] La garde « instruction humaine explicite » de `chained-implementation` et `idea-to-planned` vient d'un partial commun.
-- [ ] La règle du trailer d'agent est une ligne dans le corps de chaque agent concerné.
-- [ ] Un test prouve que chaque règle retirée d'un texte reste imposée par un autre test ou une garde.
-- [ ] Tests au seam 2 (rendu des packs).
+- [x] `reviewer-test-first` est la source du protocole test-first, et le fichier côté implementer se réduit à un point de contrôle et un renvoi.
+- [x] `implementer-batch` est la source du protocole de lot, et le fichier côté reviewer garde ses règles propres.
+- [x] La garde « instruction humaine explicite » de `chained-implementation` et `idea-to-planned` vient d'un partial commun.
+- [x] La règle du trailer d'agent est une ligne dans le corps de chaque agent concerné.
+- [x] Un test prouve que chaque règle retirée d'un texte reste imposée par un autre test ou une garde.
+- [x] Tests au seam 2 (rendu des packs).
 
 ## Bloqué par
 

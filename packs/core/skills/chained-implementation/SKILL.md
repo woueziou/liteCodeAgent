@@ -5,7 +5,7 @@ description: Chains dispatcher then implementer on one ticket or a batch in a si
 
 # Chained implementation
 
-This skill exists to remove invocation friction, not human oversight. It still requires an explicit human instruction naming a specific ticket — it must never be invoked speculatively, on a schedule, or as a reaction to a ticket simply existing in Planned/Backlog.
+This skill exists to remove invocation friction, not human oversight: it still requires an explicit human instruction naming a specific ticket (see "Hard rule").
 
 ## When to use
 
@@ -22,7 +22,7 @@ The human says something like "enchaîne sur 0010", "chain dispatcher and implem
 
 ## Running a batch
 
-If the human names several tickets as one batch (for example "enchaîne le lot 0044, 0058, 0060"), run step 1 for each ticket, then invoke `implementer` once (step 3) with all the ids and the words "batch": it reads `implementer-batch`. Refuse a batch of more than 4 tickets or one containing a ticket that is not `small`. Step 4 runs `verify-report` on the report of each ticket (the batch report has one block per ticket, all sharing the branch and PR). Relay the reports as in step 5.
+If the human names several tickets as one batch (for example "enchaîne le lot 0044, 0058, 0060"), run step 1 for each ticket, then invoke `implementer` once (step 3) with all the ids and the words "batch": it reads `implementer-batch`. The batch limits (at most 4 tickets, all `small`) are `implementer-batch`'s, which refuses a batch outside them. Step 4 runs `verify-report` on the report of each ticket (the batch report has one block per ticket, all sharing the branch and PR). Relay the reports as in step 5.
 
 ## Delegating
 
@@ -30,4 +30,4 @@ If the human names several tickets as one batch (for example "enchaîne le lot 0
 
 ## Hard rule
 
-This skill is a convenience wrapper around two already-existing human-invoked steps, not a new autonomous trigger. It does not run on a timer, does not scan the ticket buffer for work to pick up on its own, and does not chain onto any ticket that wasn't explicitly named by the human in the current instruction.
+{{> humanGate naming a specific ticket}} This skill is a convenience wrapper around two already-existing human-invoked steps, not a new autonomous trigger: it does not chain onto any ticket that wasn't explicitly named.

@@ -173,6 +173,18 @@ function reference(target: RenderTarget, name: string, rootOverride?: string): s
   return `\`${root}/reference/${name}.md\` (relative to the primary checkout)`;
 }
 
+/**
+ * The shared "explicit human instruction only" guard of the skills that chain agents
+ * (ticket 0088): one wording, so `chained-implementation` and `idea-to-planned` cannot drift.
+ */
+function humanGate(mustContain: string): string {
+  return (
+    `Every invocation must originate from an explicit human instruction ${mustContain}, in the current turn. ` +
+    "It never runs speculatively, does not scan for work to pick up on its own, does not run periodically or on a schedule, " +
+    "and does not react to work merely existing in a queue."
+  );
+}
+
 /** Names of the agents a set of packs installs (`agents/<name>.md`). */
 export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]): Set<string> {
   return new Set(packs.flatMap(({ pack }) => pack.files.flatMap((f) => /^agents\/([^/]+)\.md$/.exec(f.rel)?.[1] ?? [])));
@@ -207,6 +219,10 @@ export function delegationHelpers(
     delegateTier(arg) {
       if (!/^[a-z]+$/.test(arg)) throw new Error(`{{> delegateTier}} needs a tier name, got '${arg}'`);
       return delegateTier(target, arg, tiers);
+    },
+    humanGate(arg) {
+      if (!arg) throw new Error("{{> humanGate}} needs a phrase saying what the human instruction must contain");
+      return humanGate(arg);
     },
     delegateImplementerIsolation(arg) {
       if (arg) throw new Error(`{{> delegateImplementerIsolation}} takes no argument, got '${arg}'`);

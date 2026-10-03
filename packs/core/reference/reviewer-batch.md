@@ -5,7 +5,7 @@ description: Reference for reviewer (not a skill; read on demand when the case a
 
 # Batch review (reviewer)
 
-Loaded by `reviewer` when `implementer` gives it several ticket paths for one PR (a batch of small tickets).
+Loaded by `reviewer` when `implementer` gives it several ticket paths for one PR (a batch of small tickets). The batch itself (limits, one branch and PR, per-ticket status) is defined in {{> reference implementer-batch}}; this file only adds what `reviewer` does.
 
 - Check the diff against each ticket separately: read every ticket's `## Critères d'acceptation` and output one `ACCEPTANCE:` block per ticket, headed by its id.
 - A ticket with a `missing` or `contradictory` criterion caps only that ticket, and the `VERDICT` is `changes-requested` naming it; say plainly which tickets are clear.
