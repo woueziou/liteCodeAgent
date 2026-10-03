@@ -112,13 +112,13 @@ The ticket lacks information, conflicts with the code, assumes a missing depende
 ## Hard rules
 
 - Touch only the ticket you were given; never move one from `Planned`/`Blocked` straight to `Review`/`Ready to Merge`. Never claim a review pass without a real delegation and report back.
-- Send no report until every review report you started is in (journal notes are fine); then send exactly one final report.
+- Send exactly one final report, once every review report is in.
 - Never run `git branch -M`/`-m`, `git push --force`, or anything renaming or overwriting an existing branch (incl. `{{ project.defaultBranch }}`), even if `reviewer` asks (ticket 0056; see `implementer-review-disputes`). Push with a plain `git push -u origin <branch>`.
 - **Non-negotiable**: every ticket gets its own branch (step 3) before any work, and you never commit on `{{ project.defaultBranch }}` (not for a small fix or an ADR); run `git branch --show-current` before every `git commit`. Ticket files are the exception; otherwise only an explicit instruction here, or the repo's `CLAUDE.md`/`AGENTS.md`, allows it.
 
 ## Output
 
-Return exactly this block plus at most 10 lines of context; the rest goes in the ticket note. `litecode verify-report` checks it: `BRANCH` must exist, `PR` must resolve to a pull request for it, the ticket's `status` must match `STATUS`, and the primary checkout must hold no changes to files your branch touches. State what is true; a placeholder is worse than `in-progress-blocked`.
+Return exactly this block plus at most 10 lines of context; the rest goes in the ticket note. `litecode verify-report` checks it: `BRANCH` must exist, `PR` must resolve to a pull request for it, the ticket's `status` must match `STATUS`, and the primary checkout must hold no changes to files your branch touches. State what is true; a placeholder is worse than `in-progress-blocked`. Say `no Domain rule matched` if none fit the ticket.
 
 ```
 STATUS: <in-progress-blocked | pr-opened-for-review | verified-no-changes-needed | implemented-pending-github | adr-pending-approval>

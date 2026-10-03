@@ -106,8 +106,8 @@
         "match": "a small viewport or touch interaction",
         "skills": [
           "mobile-expert",
-          "mobile-ui-ux-expert",
-          "mobile-design-expert"
+          "ui-ux-expert",
+          "design-expert"
         ]
       },
       {
@@ -162,8 +162,6 @@
         "design-expert",
         "ui-ux-expert",
         "mobile-expert",
-        "mobile-ui-ux-expert",
-        "mobile-design-expert",
         "security-expert"
       ],
       "reviewer": [

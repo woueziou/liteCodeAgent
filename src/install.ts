@@ -446,8 +446,10 @@ function outputFiles(
   const parsed = parseFrontmatter(rendered, file.rel);
   const skillName = /^skills\/([^/]+)\/SKILL\.md$/.exec(file.rel)?.[1];
   if (skillName && skipSkill(parsed.data, skillName, wantedSkills)) return [];
-  const data = skillName ? withoutInstallKey(parsed.data) : parsed.data;
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
+  const data = skillName ? withoutInstallKey(parsed.data) : { ...parsed.data };
+  // Nothing is preloaded by default (ticket 0087): an agent whose `skills` rendered empty has no such line.
+  if (agent && !data.skills?.trim()) delete data.skills;
   const body = agent ? preflightRefusal(agent[1]!, config.project) + parsed.body : parsed.body;
   const skill = /^(skills\/.+)$/.exec(file.rel);
   const workflow = file.rel === "workflows/litecode.md";

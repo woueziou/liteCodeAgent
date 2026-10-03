@@ -2,7 +2,6 @@
 name: bug-hunter
 description: Second review pass: hunts correctness bugs in an implemented diff, confirmed by running code. Called by implementer.
 tools: Read, Grep, Glob, Bash, Skill
-skills: critique-expert, security-expert
 tier: reasoning
 ---
 

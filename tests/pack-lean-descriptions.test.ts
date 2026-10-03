@@ -101,7 +101,7 @@ test("the core pack still installs its always-referenced expertise skills", asyn
   for (const angle of config.project.angles) angle.skills = [];
   config.project.domains = [];
   const plan = await buildPlan(await tempDir(), PACKS, ConfigSchema.parse(config));
-  for (const name of ["agent-attribution", "critique-expert", "security-expert", "idea-to-planned", "chained-implementation"]) {
+  for (const name of ["agent-attribution", "idea-to-planned", "chained-implementation"]) {
     expect(skillEntries(plan, name).length).toBeGreaterThan(0);
   }
 });

@@ -1,6 +1,6 @@
 ---
 name: mobile-expert
-description: Mobile platform engineering expertise — responsive web behavior, touch targets, viewport/safe-area handling, performance on constrained devices/networks. Use when work needs to behave correctly on a phone, whether that's a responsive web view or considering a native wrapper. For visual mobile design specifically, see mobile-design-expert; for touch UX patterns, see mobile-ui-ux-expert.
+description: Mobile platform engineering expertise — responsive web behavior, touch targets, viewport/safe-area handling, performance on constrained devices/networks. Use when work needs to behave correctly on a phone, whether that's a responsive web view or considering a native wrapper. For visual design on small viewports see design-expert; for touch interaction patterns see ui-ux-expert.
 ---
 
 # Mobile expert
