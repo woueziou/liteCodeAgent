@@ -164,6 +164,9 @@ dependencies from the committed lockfile. Behind the scenes it follows exactly t
 config validation and lockfile rules described below — it never loads the agent templates
 directly. Update it later with `/plugin update litecode-agent@litecode`.
 
+The plugin only provides `/litecode-agent:setup`. Once the project is set up, the pipeline command is
+`/litecode`, installed into the project like with any other tool.
+
 ---
 
 ## Setting up, step by step
