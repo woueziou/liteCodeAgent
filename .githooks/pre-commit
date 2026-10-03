@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Refuses commits whose author or committer is not the repository owner.
+# Enabled automatically by the `prepare` script (git config core.hooksPath .githooks).
+set -euo pipefail
+
+ALLOWED_EMAILS=("dikysmarty@gmail.com" "taas@trida.lu")
+
+is_allowed() {
+  local email="$1"
+  for allowed in "${ALLOWED_EMAILS[@]}"; do
+    [[ "$email" == "$allowed" ]] && return 0
+  done
+  return 1
+}
+
+for role in AUTHOR COMMITTER; do
+  ident="$(git var "GIT_${role}_IDENT")"
+  email="${ident##*<}"
+  email="${email%%>*}"
+  if ! is_allowed "$email"; then
+    echo "pre-commit: refusing to commit with ${role,,} <$email>." >&2
+    echo "  Allowed: ${ALLOWED_EMAILS[*]}" >&2
+    exit 1
+  fi
+done
+
+# Ticket 0033: no agent commits directly on the default branch — enforced in code
+# (`litecode guard-branch`, src/guard-branch.ts) rather than only in agent prose. This repo
+# Commits made only of ticket files pass: agents commit those on main (ADR 0015, amended). This repo
+# is litecodeagent itself, so the CLI is run straight from source rather than via `bunx`.
+if command -v bun >/dev/null 2>&1; then
+  bun run src/cli.ts guard-branch
+else
+  echo "pre-commit: bun not found, skipping the branch guard (install Bun to enforce it)." >&2
+fi
