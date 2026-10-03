@@ -206,7 +206,9 @@ The generated file holds only the tools, packs, project name, default branch, `c
 `typecheckCommands` and the routing rules (`project.domains`). Everything else (`tiers`,
 `worktreeRoot`, `adrDir`, `language`, `conventions`, `trustBoundaries`, angles) takes its default,
 and `litecode config set` changes it. `litecode upgrade` removes the obsolete `target`,
-`outDir`, `lessons` and `agentSkills` keys from an older config.
+`outDir`, `lessons` and `agentSkills` keys from an older config. `agentSkills` is ignored (no agent
+preloads a skill; they load on demand through the routing rules), so a hand-written list is not
+kept, and `doctor` warns while a config still carries it.
 
 Setup installs into the coding tools it finds on your machine (their directory in the project, or
 their binary on the PATH), and Claude Code when it finds none. To see what they are, and which

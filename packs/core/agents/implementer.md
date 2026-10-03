@@ -2,7 +2,6 @@
 name: implementer
 description: Implements one ticket, or a batch of up to 4 small tickets, end to end: PR, reviews, status moves. Human-invoked.
 tools: Read, Edit, Write, Bash, Grep, Glob, Agent, Skill
-skills: {{ project.agentSkills.implementer | join }}
 tier: balanced
 ---
 

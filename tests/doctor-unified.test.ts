@@ -81,20 +81,18 @@ test("doctor covers ticket checks that `ticket doctor` used to do", async () => 
   expect(run.out).toContain("0001-broken.md");
 });
 
-test("doctor --fix fills in the agentSkills keys that `config doctor --fix` used to", async () => {
+test("a config that still has agentSkills installs and doctor warns the key is ignored, with nothing to fix", async () => {
   const root = await installed();
   await editConfig(root, (p) => {
-    p.agentSkills = { triage: [] };
+    p.agentSkills = { triage: ["typescript-expert"] };
   });
-  const before = await cli(root, ["doctor"]);
-  expect(before.exitCode).toBe(1);
-  expect(before.out).toContain("project.agentSkills.tracker");
-  expect(before.out).toContain("doctor --fix");
-
-  const fix = await cli(root, ["doctor", "--fix"]);
-  expect(fix.out).toContain("Fixed");
-  const after = await cli(root, ["doctor"]);
-  expect(after.out).not.toContain("project.agentSkills.tracker");
+  const install = await cli(root, ["install", "--apply"]);
+  expect(install.exitCode, install.out).toBe(0);
+  const run = await cli(root, ["doctor"]);
+  expect(run.out).toContain("project.agentSkills");
+  expect(run.out).toMatch(/ignored/);
+  expect(run.out).not.toContain("--fix to fill");
+  expect(run.exitCode).toBe(0);
 });
 
 test("help no longer lists `ticket doctor` or `config doctor`", async () => {

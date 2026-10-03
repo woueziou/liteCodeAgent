@@ -101,7 +101,7 @@ test("a 0.x project gets one plan covering every migration, and planning writes 
     "project.board",
     "target",
     "outDir",
-    "project.agentSkills",
+    "project.agentSkills (custom lists are not kept: no agent preloads skills any more)",
   ]);
   expect(summaries(plans, "orphans")).toEqual(["delete .claude/agents/sync.md"]);
   expect(plans.find((p) => p.id === "orphans")!.skipped.map((s) => s.summary)).toEqual([

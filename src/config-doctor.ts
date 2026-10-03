@@ -1,7 +1,5 @@
 import type { Config } from "./config.ts";
 import { loadPack } from "./packs.ts";
-import { missingAgentSkillPaths, type MissingConfigPath } from "./install.ts";
-import { deriveAgentSkills } from "./init.ts";
 import type { Detected } from "./detect.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
@@ -23,42 +21,20 @@ async function packFilesAndSkills(
   return { files, packSkills };
 }
 
-/** Missing `project.agentSkills.*` leaves the installed packs require. Follows ADR 0006's scope. */
-export async function findMissingAgentSkills(packsRoot: string, config: Config): Promise<MissingConfigPath[]> {
-  const { files } = await packFilesAndSkills(packsRoot, config.packs);
-  return missingAgentSkillPaths(files, config.project.agentSkills);
-}
-
 /**
- * Reports what's wrong. Never mutates anything — see `computeAgentSkillsFix` for the opt-in repair.
+ * Reports what's wrong. Never mutates anything. `project.agentSkills` is still accepted by the
+ * schema but nothing reads it (ADR 0024), so a config that carries a non-empty one gets a warning.
  */
-export async function doctor(packsRoot: string, config: Config): Promise<Finding[]> {
-  const missing = await findMissingAgentSkills(packsRoot, config);
-  return missing.map((m) => ({
-    severity: "error" as const,
-    message: `${m.path} is missing (referenced by ${m.sources.join(", ")})`,
-  }));
-}
-
-/**
- * Derives values for exactly the missing `agentSkills` keys, reusing the same mechanical
- * derivation `init` uses so a repair never invents a skill list a human didn't already
- * approve the shape of via angles/domains. Returns {} when nothing is missing.
- */
-export async function computeAgentSkillsFix(
-  packsRoot: string,
-  config: Config,
-): Promise<Record<string, string[]>> {
-  const missing = await findMissingAgentSkills(packsRoot, config);
-  if (missing.length === 0) return {};
-  const { packSkills } = await packFilesAndSkills(packsRoot, config.packs);
-  const derived = deriveAgentSkills(config.project.angles, config.project.domains, packSkills);
-  const fix: Record<string, string[]> = {};
-  for (const { path } of missing) {
-    const key = path.slice("project.agentSkills.".length);
-    fix[key] = derived[key] ?? [];
-  }
-  return fix;
+export async function doctor(_packsRoot: string, config: Config): Promise<Finding[]> {
+  if (Object.keys(config.project.agentSkills).length === 0) return [];
+  return [
+    {
+      severity: "warn",
+      message:
+        "project.agentSkills is ignored: no agent preloads skills any more, they load on demand through routing rules. " +
+        "`litecode upgrade` removes the key; name the skills you want in a routing rule instead",
+    },
+  ];
 }
 
 /**

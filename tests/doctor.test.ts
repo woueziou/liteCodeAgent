@@ -21,15 +21,6 @@ const BASE_CONFIG = {
     checkCommand: "true",
     worktreeRoot: "../worktrees",
     tickets: { enabled: true, dir: "docs/tickets" },
-    agentSkills: {
-      "debate-angle": [],
-      dispatcher: [],
-      implementer: [],
-      planner: [],
-      reviewer: [],
-      tracker: [],
-      triage: [],
-    },
     angles: [{ name: "default", covers: "everything", triggeredBy: "any change", skills: [], always: true }],
   },
 };
@@ -337,10 +328,10 @@ test("ticket doctor and config doctor findings are surfaced through the aggregat
   await mkdir(join(root, "docs/tickets"), { recursive: true });
   await Bun.write(join(root, "docs/tickets/0001-broken.md"), "not frontmatter at all\n");
   const config = await exampleConfig();
-  delete (config.project.agentSkills as Record<string, string[]>).tracker;
+  config.project.agentSkills = { tracker: [] };
   const findings = await doctor({ root, packsRoot: PACKS, config });
   expect(findings.some((f) => f.message.includes("0001-broken.md"))).toBe(true);
-  expect(findings.some((f) => f.message.includes("project.agentSkills.tracker"))).toBe(true);
+  expect(findings.some((f) => f.message.includes("project.agentSkills") && f.message.includes("ignored"))).toBe(true);
 });
 
 function pendingAdrDraftBody(): string {

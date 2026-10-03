@@ -114,32 +114,6 @@ async function askRulesOnTerminal({ question, proposed }: RulesQuestion): Promis
   return askList(question, "One line per change");
 }
 
-/**
- * Per-agent skill lists derived from angles and domains. No longer written by `init`
- * (skills load on demand through the routing rules); kept for `doctor --fix`.
- */
-export function deriveAgentSkills(
-  angles: Angle[],
-  domains: { skills: string[] }[],
-  available: Set<string>,
-): Record<string, string[]> {
-  const has = (s: string) => available.has(s);
-  const angleSkills = [...new Set(angles.flatMap((a) => a.skills))].filter(has);
-  const domainSkills = [...new Set(domains.flatMap((d) => d.skills))].filter(has);
-  const attribution = ["agent-attribution"].filter(has);
-  const critique = ["critique-expert"].filter(has);
-
-  return {
-    "debate-angle": [...new Set([...angleSkills, ...critique])],
-    planner: domainSkills.filter((s) => s !== "security-expert"),
-    implementer: [...new Set([...attribution, ...domainSkills])],
-    reviewer: [...new Set([...attribution, ...domainSkills, ...critique])],
-    triage: [],
-    dispatcher: [],
-    tracker: attribution,
-  };
-}
-
 export type InitOptions = {
   packs?: string[];
   targets?: InstallTarget[];
