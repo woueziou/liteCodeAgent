@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0084-feat-cli-single-litecode-name-grouped-help-and-u
 title: "feat(cli): Single litecode name, grouped help and upgrade announcement"
 label: feature
-status: inProgress
+status: done
 priority: high
 size: medium
 assignedAgent: human
@@ -21,20 +21,15 @@ La commande s'appelle `litecode` dans tous les messages, prompts et exemples du 
 
 ## Critères d'acceptation
 
-- [ ] Les messages de la CLI et l'aide emploient `litecode`. Décision (2026-10-02) : les prompts d'agents gardent `bunx litecodeagent`, car `litecode` n'est pas dans le PATH sous `bunx`. Reste à trancher pour les exemples `bunx` du README (lignes 94, 102, 131, 179, 200, 216, 219) et `src/init.ts:268`.
-- [ ] La commande dans l'outil est `/litecode` sur chaque install target, et le plugin suit.
-- [ ] `--help` est groupé par étape (installer, planifier, implémenter, diagnostiquer).
-- [ ] `install` n'apparaît plus comme commande destinée à l'utilisateur, et `--check` reste disponible pour la CI.
-- [ ] Après `setup`, la sortie annonce `litecode upgrade`.
-- [ ] Quand le projet est en retard sur la version installée, la CLI le signale au lancement.
-- [ ] Le package npm garde son nom.
-- [ ] Tests au seam 1 (sortie de l'aide, du setup et de l'avis de retard).
+- [x] Les messages de la CLI et l'aide emploient `litecode`. Règle (2026-10-02) : toute commande exécutée via `bunx` reste `bunx litecodeagent`, car `litecode` n'est pas dans le PATH sous `bunx` ; cela couvre les prompts d'agents, les exemples `bunx` du README et le message `Next:` de `src/init.ts`.
+- [x] La commande dans l'outil est `/litecode` sur chaque install target. Le suivi du plugin est extrait dans le ticket 0091, car `bin/` et `.claude-plugin/` sont absents du dépôt.
+- [x] `--help` est groupé par étape (installer, planifier, implémenter, diagnostiquer).
+- [x] `install` n'apparaît plus comme commande destinée à l'utilisateur, et `--check` reste disponible pour la CI.
+- [x] Après `setup`, la sortie annonce `litecode upgrade`.
+- [x] Quand le projet est en retard sur la version installée, la CLI le signale au lancement.
+- [x] Le package npm garde son nom.
+- [x] Tests au seam 1 (sortie de l'aide, du setup et de l'avis de retard).
 
 ## Bloqué par
 
 - 0083
-
-## Reste à faire
-
-- Exemples `bunx litecodeagent` du README et message de `src/init.ts` : à aligner ou à garder, selon la décision sur les prompts.
-- Plugin : `bin/` et `.claude-plugin/` sont absents du dépôt, donc « le plugin suit » ne peut pas être vérifié.
