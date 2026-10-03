@@ -6,6 +6,7 @@ import { loadConfig, CONFIG_FILENAME, TARGETS, TARGET_INFO, selectedTargets, typ
 import { buildPlan, applyPlan } from "./install.ts";
 import { staleEntries } from "./install-stale.ts";
 import { listPacks, loadPack } from "./packs.ts";
+import { compareSizes, formatDriftReport, measurePackSizes, readSnapshot, writeSnapshot } from "./pack-sizes.ts";
 import { readLockfile } from "./lockfile.ts";
 import { RateLimitError, readBoardItems } from "./gh.ts";
 import { runImportBoard } from "./tickets/import-board.ts";
@@ -83,7 +84,9 @@ ${c.bold("Install")}
   ${c.bold("litecode init")} [--yes] [--targets …]  detects your repo and tools, asks one question (routing rules), writes a minimal config
                                      ${c.dim("--yes skips the question and writes the rules deduced from your stack")}
   ${c.bold("litecode targets")}                    list the coding tools you can install into
-  ${c.bold("litecode packs")}                      list available packs
+  ${c.bold("litecode packs")} [--sizes [--update]] list available packs
+                                     ${c.dim("--sizes: maintainer drift report (words per agent and skill vs docs/token-sizes.json), never fails")}
+                                     ${c.dim("--update records the current sizes as the snapshot, at release time")}
   ${c.bold("litecode config")} [show|edit|get|set|targets|packs]
                                      view or change litecode.config.json from the CLI
                                      ${c.dim("targets/packs: run with no argument to pick from a list")}
@@ -253,7 +256,23 @@ async function cmdTargets(root: string): Promise<number> {
   return 0;
 }
 
-async function cmdPacks(): Promise<number> {
+const SIZES_SNAPSHOT = join(KIT_ROOT, "docs", "token-sizes.json");
+
+/** Maintainer drift report (ticket 0089, ADR 0025): advisory, always exits 0. */
+async function cmdPackSizes(argv: string[]): Promise<number> {
+  const snapshotPath = arg(argv, "--snapshot") ?? SIZES_SNAPSHOT;
+  const now = await measurePackSizes(PACKS_ROOT);
+  const before = await readSnapshot(snapshotPath);
+  console.log(formatDriftReport(compareSizes(now, before ?? {}), before !== undefined));
+  if (argv.includes("--update")) {
+    await writeSnapshot(snapshotPath, now);
+    console.log(`\nRecorded ${Object.keys(now).length} sizes in ${snapshotPath}`);
+  }
+  return 0;
+}
+
+async function cmdPacks(argv: string[]): Promise<number> {
+  if (argv.includes("--sizes")) return cmdPackSizes(argv);
   for (const name of await listPacks(PACKS_ROOT)) {
     const pack = await loadPack(PACKS_ROOT, name);
     const agents = pack.files.filter((f) => f.rel.startsWith("agents/")).length;
@@ -1269,7 +1288,7 @@ try {
       }
       case "upgrade": return cmdUpgrade(root, argv);
       case "targets": return cmdTargets(root);
-      case "packs": return cmdPacks();
+      case "packs": return cmdPacks(argv);
       case "install": return cmdInstall(root, argv);
       case "status": return cmdStatus(root);
       case "config": return cmdConfig(root, argv);
