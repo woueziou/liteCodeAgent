@@ -408,7 +408,7 @@ with the subject in hand:
 litecode status          # installed packs, versions, files the kit owns
 litecode doctor          # orphaned work: stranded worktrees and branches, PR-less
                                    # branches, stale review tickets, pending ADRs, leaked writes,
-                                   # lockfile drift; plus ticket files, config and routing rules (--fix repairs config)
+                                   # lockfile drift; plus ticket files, config and routing rules
 litecode resume 0042     # where an interrupted implementer run left off, checked
                                    # against the worktree, branch and PR
 litecode verify-report --file report.txt  # implementer report vs. git, gh, ticket status
