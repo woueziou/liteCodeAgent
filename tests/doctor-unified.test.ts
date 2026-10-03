@@ -81,20 +81,51 @@ test("doctor covers ticket checks that `ticket doctor` used to do", async () => 
   expect(run.out).toContain("0001-broken.md");
 });
 
-test("doctor --fix fills in the agentSkills keys that `config doctor --fix` used to", async () => {
+test("a config that still has agentSkills installs and doctor warns the key is ignored, with nothing to fix", async () => {
   const root = await installed();
   await editConfig(root, (p) => {
-    p.agentSkills = { triage: [] };
+    p.agentSkills = { triage: ["typescript-expert"] };
   });
-  const before = await cli(root, ["doctor"]);
-  expect(before.exitCode).toBe(1);
-  expect(before.out).toContain("project.agentSkills.tracker");
-  expect(before.out).toContain("doctor --fix");
+  const install = await cli(root, ["install", "--apply"]);
+  expect(install.exitCode, install.out).toBe(0);
+  const run = await cli(root, ["doctor"]);
+  expect(run.out).toContain("project.agentSkills");
+  expect(run.out).toMatch(/ignored/);
+  expect(run.exitCode).toBe(0);
+});
 
-  const fix = await cli(root, ["doctor", "--fix"]);
-  expect(fix.out).toContain("Fixed");
-  const after = await cli(root, ["doctor"]);
-  expect(after.out).not.toContain("project.agentSkills.tracker");
+test("doctor --fix says it was removed, then behaves as a plain doctor with the same exit code", async () => {
+  const clean = await installed();
+  const plain = await cli(clean, ["doctor"]);
+  const fixed = await cli(clean, ["doctor", "--fix"]);
+  expect(fixed.out).toContain("--fix was removed (ADR 0024)");
+  expect(fixed.exitCode).toBe(plain.exitCode);
+  expect(fixed.exitCode).toBe(0);
+
+  const broken = await installed();
+  await Bun.write(join(broken, "docs/tickets/0001-broken.md"), "no frontmatter at all\n");
+  const failing = await cli(broken, ["doctor", "--fix"]);
+  expect(failing.out).toContain("--fix was removed (ADR 0024)");
+  expect(failing.out).toContain("0001-broken.md");
+  expect(failing.exitCode).toBe(1);
+});
+
+test("config set on project.agentSkills warns the key is ignored, and still writes", async () => {
+  const root = await installed();
+  const run = await cli(root, ["config", "set", "project.agentSkills", '{"triage":["typescript-expert"]}']);
+  expect(run.exitCode, run.out).toBe(0);
+  expect(run.out).toMatch(/project\.agentSkills is ignored \(ADR 0024\)/);
+  expect(run.out).toContain("Updated");
+  expect((await Bun.file(join(root, "litecode.config.json")).json()).project.agentSkills).toEqual({
+    triage: ["typescript-expert"],
+  });
+});
+
+test("config set on another key prints no agentSkills warning", async () => {
+  const root = await installed();
+  const run = await cli(root, ["config", "set", "project.allowDefaultBranchCommits", "false"]);
+  expect(run.exitCode, run.out).toBe(0);
+  expect(run.out).not.toContain("ADR 0024");
 });
 
 test("help no longer lists `ticket doctor` or `config doctor`", async () => {

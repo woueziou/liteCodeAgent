@@ -340,58 +340,11 @@ export function requiredPaths(files: { rel: string; source: string }[]): string[
 export type MissingConfigPath = { path: string; sources: string[] };
 
 /**
- * Missing `project.agentSkills.*` leaves the installed packs require. Scoped narrowly to
- * `agentSkills` rather than every path `requiredPaths` could in principle yield — see
- * ADR 0006 for why the broader scope was rejected (false positives on `{{#if}}`-guarded
- * and `{{#each}}` item-scoped paths). A key entirely absent from the config is the failure;
- * a key present with an empty array is a legitimate "no skills for this agent" and is fine.
- */
-export function missingAgentSkillPaths(
-  files: { rel: string; source: string; packName: string }[],
-  agentSkills: Record<string, string[]>,
-): MissingConfigPath[] {
-  // A config with no `agentSkills` at all is the minimal form (nothing preloaded), not an
-  // incomplete one: `withDefaultAgentSkills` renders it with an empty list per agent.
-  if (Object.keys(agentSkills).length === 0) return [];
-  const sourcesByPath = new Map<string, string[]>();
-  for (const file of files) {
-    for (const path of referencedPaths(file.source)) {
-      if (!/^project\.agentSkills\.[^.]+$/.test(path)) continue;
-      sourcesByPath.set(path, [...(sourcesByPath.get(path) ?? []), `${file.packName}:${file.rel}`]);
-    }
-  }
-  const missing: MissingConfigPath[] = [];
-  for (const [path, sources] of sourcesByPath) {
-    const key = path.slice("project.agentSkills.".length);
-    if (agentSkills[key] === undefined) missing.push({ path, sources: [...new Set(sources)] });
-  }
-  return missing.sort((a, b) => a.path.localeCompare(b.path));
-}
-
-/** Gives a config with no `agentSkills` an empty list for every agent key the packs read. */
-export function withDefaultAgentSkills(
-  config: Config,
-  files: { source: string }[],
-): Config {
-  if (Object.keys(config.project.agentSkills).length > 0) return config;
-  const agentSkills: Record<string, string[]> = {};
-  for (const file of files) {
-    for (const path of referencedPaths(file.source)) {
-      const m = /^project\.agentSkills\.([^.]+)$/.exec(path);
-      if (m?.[1]) agentSkills[m[1]] = [];
-    }
-  }
-  return { ...config, project: { ...config.project, agentSkills } };
-}
-
-/**
  * Missing `project.web` block despite being referenced unconditionally (no `{{#if}}` guard)
  * by an installed pack's templates — e.g. every `packs/web/**\/SKILL.md`. Unlike
- * `agentSkills`, `project.web` is a single `.optional()` object (`src/config.ts`), not a
- * per-key record, so there is no finer granularity to report: either the whole block is
- * present (in which case its own required fields are already schema-enforced) or it's
- * entirely absent. See ADR 0006's "Consequences" section, which flagged this exact gap as
- * an unfixed follow-up when #17 deliberately scoped its fix to `agentSkills` only.
+ * `project.web` is a single `.optional()` object (`src/config.ts`), not a per-key record,
+ * so there is no finer granularity to report: either the whole block is present (in which
+ * case its own required fields are already schema-enforced) or it's entirely absent.
  */
 export function missingWebConfigPaths(
   files: { rel: string; source: string; packName: string }[],
@@ -416,16 +369,12 @@ function validateRequiredConfigPaths(
   config: Config,
   files: { rel: string; source: string; packName: string }[],
 ): void {
-  const missing = [
-    ...missingAgentSkillPaths(files, config.project.agentSkills),
-    ...missingWebConfigPaths(files, config.project.web),
-  ];
+  const missing = missingWebConfigPaths(files, config.project.web);
   if (missing.length === 0) return;
   throw new Error(
     "litecode.config.json is missing config path(s) the installed packs require:\n" +
       missing.map((m) => `  - ${m.path} (referenced by ${m.sources.join(", ")})`).join("\n") +
-      "\n\nRun `litecode doctor --fix` to fill in missing agentSkills keys, or add the" +
-      " missing `project.web` block by hand (required when the `web` pack is installed).",
+      "\n\nAdd the missing `project.web` block by hand (required when the `web` pack is installed).",
   );
 }
 
@@ -505,9 +454,6 @@ async function validateSkillReferences(
 ): Promise<void> {
   const refs = new Map<string, string[]>();
   const add = (skill: string, where: string) => refs.set(skill, [...(refs.get(skill) ?? []), where]);
-  for (const [agent, skills] of Object.entries(config.project.agentSkills)) {
-    for (const skill of skills) add(skill, `agentSkills.${agent}`);
-  }
   for (const angle of config.project.angles) for (const skill of angle.skills) add(skill, `angles.${angle.name}`);
   for (const [i, domain] of config.project.domains.entries()) {
     for (const skill of domain.skills) add(skill, `domains[${i}]`);
@@ -538,7 +484,7 @@ async function validateSkillReferences(
   }
 }
 
-/** Skills something asks for: the config, or the `skills:` line of an agent being installed. */
+/** Skills something asks for: Domain rules and angles, or the `skills:` line of an agent being installed. */
 function referencedSkills(
   packs: { pack: { files: PackFile[] } }[],
   config: Config,
@@ -556,8 +502,7 @@ function referencedSkills(
   return wanted;
 }
 
-export async function buildPlan(projectRoot: string, packsRoot: string, given: Config): Promise<InstallPlan> {
-  let config = given;
+export async function buildPlan(projectRoot: string, packsRoot: string, config: Config): Promise<InstallPlan> {
   const targets = selectedTargets(config);
   const lockfilePaths = Object.fromEntries(targets.map((target) => [target, lockPath(target)])) as Partial<Record<InstallTarget, string>>;
   const previous = new Map<InstallTarget, Lockfile | null>();
@@ -584,7 +529,6 @@ export async function buildPlan(projectRoot: string, packsRoot: string, given: C
 
   const packFiles = packs.flatMap(({ packName, pack }) => pack.files.map((file) => ({ ...file, packName })));
   validateRequiredConfigPaths(config, packFiles);
-  config = withDefaultAgentSkills(config, packFiles);
 
   const agents = packAgentNames(packs);
   const wantedSkills = referencedSkills(packs, config, agents);

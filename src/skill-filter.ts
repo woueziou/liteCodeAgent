@@ -9,10 +9,9 @@ import type { Config } from "./config.ts";
 /** The frontmatter key marking a skill as install-on-reference. Never written to the output. */
 export const INSTALL_KEY = "install";
 
-/** Every skill name the config asks for, whichever agent, angle or domain it hangs off. */
+/** Every skill name the config asks for, through an angle or a Domain rule. */
 export function configSkills(project: Config["project"]): string[] {
   return [
-    ...Object.values(project.agentSkills).flat(),
     ...project.angles.flatMap((angle) => angle.skills),
     ...project.domains.flatMap((domain) => domain.skills),
   ];

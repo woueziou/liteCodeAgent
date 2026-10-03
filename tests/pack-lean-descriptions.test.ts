@@ -90,8 +90,14 @@ test("a skill an installed agent lists is installed, and the install marker neve
   for (const e of plan.entries.filter((x) => x.rel.includes("/skills/"))) expect(e.content).not.toMatch(/^install:/m);
 });
 
-test("a skill the config asks for is installed", async () => {
-  const plan = await demoPlan(await fakePacks(""), { worker: ["niche"] });
+test("a skill a Domain rule asks for is installed; agentSkills no longer counts", async () => {
+  const ignored = await demoPlan(await fakePacks(""), { worker: ["niche"] });
+  expect(skillEntries(ignored, "niche")).toEqual([]);
+  const config = await raw();
+  config.packs = ["demo"];
+  for (const angle of config.project.angles) angle.skills = [];
+  config.project.domains = [{ match: "niche work", skills: ["niche"] }];
+  const plan = await buildPlan(await tempDir(), await fakePacks(""), ConfigSchema.parse(config));
   expect(skillEntries(plan, "niche").length).toBeGreaterThan(0);
 });
 

@@ -41,17 +41,40 @@ test("no rendered agent preloads a skill, bug-hunter included", async () => {
   }
 });
 
-test("agentSkills stays an optional override: an agent the user lists preloads exactly that", async () => {
+test("project.agentSkills is ignored: no rendered agent has a skills line, whatever the config says", async () => {
   const plan = await webPlan((raw) => {
     raw.project.agentSkills = Object.fromEntries(
-      ["debate-angle", "dispatcher", "planner", "reviewer", "tracker", "triage"].map((k) => [k, []]),
+      ["debate-angle", "dispatcher", "planner", "reviewer", "tracker", "triage"].map((k) => [k, ["typescript-expert"]]),
     );
     raw.project.agentSkills.implementer = ["typescript-expert"];
   });
-  const implementer = plan.entries.find((e) => e.rel === ".claude/agents/implementer.md")!;
-  expect(implementer.content).toMatch(/^skills: typescript-expert$/m);
-  const reviewer = plan.entries.find((e) => e.rel === ".claude/agents/reviewer.md")!;
-  expect(reviewer.content).not.toMatch(/^skills:/m);
+  for (const agent of agents(plan)) expect(agent.content).not.toMatch(/^skills:/m);
+});
+
+test("agentSkills no longer counts as a wanted skill: a skill only it names is not installed", async () => {
+  const withKey = await webPlan((raw) => {
+    raw.project.domains = [{ match: "visual layout", skills: ["design-expert"] }];
+    for (const angle of raw.project.angles) angle.skills = [];
+    raw.project.agentSkills = { implementer: ["security-expert"] };
+  });
+  expect(skill(withKey, "security-expert")).toBe("");
+  expect(skill(withKey, "design-expert")).not.toBe("");
+});
+
+test("a skill named only under agentSkills is not looked up, so it cannot fail the install", async () => {
+  await expect(
+    webPlan((raw) => {
+      raw.project.agentSkills = { planner: ["nonexistent-expert"] };
+    }),
+  ).resolves.toBeDefined();
+});
+
+test("the core pack's agent sources do not reference project.agentSkills", async () => {
+  const sources = [...new Bun.Glob("*.md").scanSync({ cwd: join(PACKS, "core", "agents") })];
+  expect(sources.length, "the glob matched no agent source, so the guard would pass vacuously").toBeGreaterThan(0);
+  for (const rel of sources) {
+    expect(await Bun.file(join(PACKS, "core", "agents", rel)).text(), rel).not.toContain("agentSkills");
+  }
 });
 
 test("the implementer's report says when no Domain rule matched the ticket", async () => {

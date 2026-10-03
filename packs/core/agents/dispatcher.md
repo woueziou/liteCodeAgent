@@ -2,7 +2,6 @@
 name: dispatcher
 description: Moves Backlog tickets to Planned by priority, size and due date. Human-invoked only.
 tools: Bash, Read, Write, Edit
-skills: {{ project.agentSkills.dispatcher | join }}
 tier: fast
 ---
 

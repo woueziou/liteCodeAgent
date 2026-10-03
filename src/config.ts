@@ -145,9 +145,8 @@ export const ProjectSchema = z.object({
   lessons: z.array(z.string()).default([]),
 
   /**
-   * Skills preloaded per agent, keyed by agent name. This is what the target harness's
-   * `skills:` frontmatter is rendered from — packs never hardcode a skill list, since
-   * which experts exist depends on which packs the project installed.
+   * Ignored since ADR 0024: nothing is preloaded, skills load on demand through the Domain
+   * rules. Still accepted so an older config loads; `doctor` warns and `upgrade` removes it.
    */
   agentSkills: z.record(z.string(), z.array(z.string())).default({}),
 

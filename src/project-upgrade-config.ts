@@ -20,6 +20,12 @@ const OBSOLETE_KEYS = [
   ["project", "agentSkills"],
 ] as const;
 
+/** What the upgrade plan says next to a key whose removal loses something the user wrote. */
+const KEY_NOTES: Record<string, string> = {
+  // ADR 0024: nothing is preloaded any more, so a hand-written list has nowhere to go.
+  "project.agentSkills": "custom lists are not kept: no agent preloads skills any more",
+};
+
 /**
  * `project.board` is obsolete except while `project.board.number` is still set: that's
  * the one value `ticket import-board` (ticket 0050, ADR 0019) still reads, and stripping
@@ -110,7 +116,7 @@ function withoutObsoleteKeys(raw: Json): Json {
 const removedSkill = (skill: unknown) => typeof skill === "string" && REMOVED_SKILLS.has(skill);
 
 /**
- * Removes every removed skill from `agentSkills` lists and from each angle's and domain's
+ * Removes every removed skill from each angle's and domain's
  * `skills`. A domain that loses its last skill is dropped: it existed only to load that
  * skill, and the schema rejects a domain with none. An angle is never dropped — an empty
  * skill list is normal for one — and neither is any entry that was already empty or lost
@@ -119,13 +125,6 @@ const removedSkill = (skill: unknown) => typeof skill === "string" && REMOVED_SK
 function stripRemovedSkills(raw: Json): string[] {
   const done: string[] = [];
   const project = isObject(raw.project) ? raw.project : {};
-  if (isObject(project.agentSkills)) {
-    for (const [agent, list] of Object.entries(project.agentSkills)) {
-      if (!Array.isArray(list)) continue;
-      for (const skill of list.filter(removedSkill)) done.push(`${skill} from project.agentSkills.${agent}`);
-      project.agentSkills[agent] = list.filter((skill) => !removedSkill(skill));
-    }
-  }
   for (const group of ["angles", "domains"] as const) {
     const entries = project[group];
     if (!Array.isArray(entries)) continue;
@@ -154,7 +153,10 @@ function stripRemovedSkills(raw: Json): string[] {
 export function obsoleteConfig(raw: Json): string[] {
   const keys = keysToStrip(raw)
     .filter((path) => parentOf(raw, path))
-    .map((path) => path.join("."));
+    .map((path) => {
+      const key = path.join(".");
+      return key in KEY_NOTES ? `${key} (${KEY_NOTES[key]})` : key;
+    });
   // Skills under a key that is itself going away aren't worth listing twice.
   return [...keys, ...stripRemovedSkills(withoutObsoleteKeys(raw))];
 }

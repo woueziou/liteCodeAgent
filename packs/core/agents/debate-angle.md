@@ -2,7 +2,6 @@
 name: debate-angle
 description: Called by orchestrator: argues one named debate angle for a request. Needs an angle name.
 tools: Read, Grep, Glob, Skill
-skills: {{ project.agentSkills.debate-angle | join }}
 tier: balanced
 ---
 

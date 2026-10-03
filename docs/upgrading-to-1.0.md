@@ -15,8 +15,8 @@ It shows its plan, asks for confirmation, and does steps 1 to 3 and 5 below in o
 - deletes the orphaned `sync` agent and `github-project-sync` skill copies, when you haven't
   edited them;
 - migrates your tickets;
-- removes the obsolete settings, including `github-project-sync` from `agentSkills`, and
-  the board's data files;
+- removes the obsolete settings, including `agentSkills` (no agent preloads skills any more, so
+  custom lists are not kept; name the skills you want in a routing rule), and the board's data files;
 - if `project.board.number` is still configured, points you at step 3.5 below — it never
   imports on its own.
 

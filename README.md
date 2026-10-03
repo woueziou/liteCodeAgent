@@ -206,7 +206,9 @@ The generated file holds only the tools, packs, project name, default branch, `c
 `typecheckCommands` and the routing rules (`project.domains`). Everything else (`tiers`,
 `worktreeRoot`, `adrDir`, `language`, `conventions`, `trustBoundaries`, angles) takes its default,
 and `litecode config set` changes it. `litecode upgrade` removes the obsolete `target`,
-`outDir`, `lessons` and `agentSkills` keys from an older config.
+`outDir`, `lessons` and `agentSkills` keys from an older config. `agentSkills` is ignored (no agent
+preloads a skill; they load on demand through the routing rules), so a hand-written list is not
+kept, and `doctor` warns while a config still carries it.
 
 Setup installs into the coding tools it finds on your machine (their directory in the project, or
 their binary on the PATH), and Claude Code when it finds none. To see what they are, and which
@@ -406,7 +408,7 @@ with the subject in hand:
 litecode status          # installed packs, versions, files the kit owns
 litecode doctor          # orphaned work: stranded worktrees and branches, PR-less
                                    # branches, stale review tickets, pending ADRs, leaked writes,
-                                   # lockfile drift; plus ticket files, config and routing rules (--fix repairs config)
+                                   # lockfile drift; plus ticket files, config and routing rules
 litecode resume 0042     # where an interrupted implementer run left off, checked
                                    # against the worktree, branch and PR
 litecode verify-report --file report.txt  # implementer report vs. git, gh, ticket status

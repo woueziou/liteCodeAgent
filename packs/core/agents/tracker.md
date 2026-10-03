@@ -2,7 +2,6 @@
 name: tracker
 description: Drafts a ticket locally from an already-approved title, body, label, size and priority.
 tools: Bash, Read
-skills: {{ project.agentSkills.tracker | join }}
 tier: fast
 ---
 

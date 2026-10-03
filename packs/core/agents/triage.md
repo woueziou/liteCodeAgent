@@ -2,7 +2,6 @@
 name: triage
 description: Resolves or reroutes a blocker escalated by implementer: unblocks the ticket or escalates to the human.
 tools: Read, Grep, Glob, Bash, Agent, Write, Edit
-skills: {{ project.agentSkills.triage | join }}
 tier: balanced
 ---
 

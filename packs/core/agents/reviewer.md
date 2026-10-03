@@ -2,7 +2,6 @@
 name: reviewer
 description: Reviews an implemented diff against its plan, conventions and verification. Never implements fixes.
 tools: Read, Grep, Glob, Bash, Skill
-skills: {{ project.agentSkills.reviewer | join }}
 tier: balanced
 ---
 

@@ -255,7 +255,8 @@ test("upgrade drops the obsolete keys and keeps what is still read", async () =>
   raw.outDir = ".claude";
   raw.project.lessons = [];
   const listed = obsoleteConfig(raw);
-  for (const key of ["target", "outDir", "project.lessons", "project.agentSkills"]) expect(listed).toContain(key);
+  for (const key of ["target", "outDir", "project.lessons"]) expect(listed).toContain(key);
+  expect(listed.some((item) => item.startsWith("project.agentSkills") && /not kept/.test(item))).toBe(true);
 
   const cleaned = cleanedConfig(raw) as any;
   expect(cleaned.target).toBeUndefined();

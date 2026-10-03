@@ -2,7 +2,6 @@
 name: planner
 description: Called by orchestrator: turns a synthesized recommendation into a step-by-step plan and ADR path.
 tools: Read, Grep, Glob, Skill
-skills: {{ project.agentSkills.planner | join }}
 tier: balanced
 ---
 

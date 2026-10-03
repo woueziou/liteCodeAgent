@@ -23,6 +23,7 @@ Un seul `doctor`, avec `--fix`, absorbe les contrôles de tickets et de config. 
 
 - [ ] `litecode doctor` couvre les contrôles de l'ancien `doctor`, de `ticket doctor` et de `config doctor`.
 - [ ] `--fix` applique les corrections que faisait `config doctor --fix`.
+  - Note : ce critère est remplacé par l'ADR 0024 (`--fix` supprimé, `doctor` ne fait que diagnostiquer).
 - [ ] `doctor` échoue clairement quand une règle de routage cite un skill absent des packs installés.
 - [ ] `doctor` avertit quand la stack détectée contient une technologie sans règle de routage.
 - [ ] `doctor` avertit « aucune règle de routage » quand l'utilisateur a passé la question à l'init.

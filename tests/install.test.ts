@@ -426,9 +426,9 @@ test("a subdirectory project path containing a space is shell-quoted in the cd i
   expect(combined).toContain("(cd 'my app' &&");
 });
 
-test("a skill reference that resolves to nothing fails the install", async () => {
+test("a skill reference in a Domain rule that resolves to nothing fails the install", async () => {
   const config = await exampleConfig();
-  config.project.agentSkills.planner = ["typescript-expert", "nonexistent-expert"];
+  config.project.domains = [{ match: "anything", skills: ["typescript-expert", "nonexistent-expert"] }];
   await expect(buildPlan(await targetRepo(), PACKS, config)).rejects.toThrow(/nonexistent-expert/);
 });
 
@@ -438,31 +438,14 @@ test("a skill provided only as a local overlay is accepted", async () => {
   await expect(buildPlan(await targetRepo(), PACKS, config)).resolves.toBeDefined();
 });
 
-test("a config missing an agentSkills key a pack requires fails pre-flight with an actionable error, not a raw TemplateError", async () => {
+test("a config that still carries agentSkills installs without error, whatever keys it has or lacks", async () => {
   const config = await exampleConfig();
   delete (config.project.agentSkills as Record<string, string[]>).tracker;
-  const error = await buildPlan(await targetRepo(), PACKS, config).catch((e) => e);
-  expect(error).toBeInstanceOf(Error);
-  expect(error.message).not.toMatch(/is not defined in the project config/);
-  expect(error.message).toMatch(/project\.agentSkills\.tracker/);
-  expect(error.message).toMatch(/agents\/tracker\.md/);
-  expect(error.message).toMatch(/doctor --fix/);
-});
-
-test("a typo'd agentSkills key does not mask the real missing key", async () => {
-  const config = await exampleConfig();
-  const skills = config.project.agentSkills as Record<string, string[]>;
-  skills.agentSkils = skills.tracker ?? [];
-  delete skills.tracker;
-  await expect(buildPlan(await targetRepo(), PACKS, config)).rejects.toThrow(/project\.agentSkills\.tracker/);
-});
-
-test("nothing is written when pre-flight config validation fails", async () => {
-  const config = await exampleConfig();
-  delete (config.project.agentSkills as Record<string, string[]>).tracker;
-  const root = await targetRepo();
-  await expect(buildPlan(root, PACKS, config)).rejects.toThrow();
-  expect(await Bun.file(join(root, ".claude", "agents", "tracker.md")).exists()).toBe(false);
+  config.project.agentSkills.planner = ["nonexistent-expert"];
+  const plan = await buildPlan(await targetRepo(), PACKS, config);
+  for (const e of plan.entries.filter((x) => /\/agents\/[^/]+\.md$/.test(x.rel))) {
+    expect(e.content, e.rel).not.toMatch(/^skills:/m);
+  }
 });
 
 test("renders native agents and the discussion-to-plan command for every configured harness", async () => {

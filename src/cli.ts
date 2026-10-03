@@ -14,7 +14,6 @@ import { renderDashboard } from "./dashboard/render.ts";
 import { startDashboardServer, DEFAULT_PORT, DEFAULT_HOST } from "./dashboard/serve.ts";
 import { parseReport, verifyReport, type Finding as ReportFinding } from "./report/verify.ts";
 import { realProbes, realResumeProbes } from "./report/probes.ts";
-import { computeAgentSkillsFix } from "./config-doctor.ts";
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 import { primaryCheckoutRoot, resumeState } from "./resume.ts";
@@ -139,10 +138,10 @@ ${c.bold("Implement")}
                                      ${c.dim("called from .githooks/pre-commit; not meant to be run by a human")}
 
 ${c.bold("Diagnose")}
-  ${c.bold("litecode doctor")} [--fix]             the single diagnostic: config, routing rules (skills exist, stack covered),
+  ${c.bold("litecode doctor")}                     the single diagnostic: config, routing rules (skills exist, stack covered),
                                      ticket files, stranded worktrees/branches, PR-less branches, stale
                                      review/readyToMerge tickets, lockfile drift
-                                     ${c.dim("--fix fills in missing agentSkills keys and writes the config; GitHub checks report 'non vérifié' without gh")}
+                                     ${c.dim("GitHub checks report 'non vérifié' without gh")}
   ${c.bold("litecode status")}                     show installed packs + drift
   ${c.bold("litecode token-report")} [--session <id>] [--project <path>]
                                      tokens per agent (main session and each sub-agent type) from the Claude Code
@@ -331,15 +330,10 @@ async function cmdInstall(root: string, argv: string[]): Promise<number> {
 }
 
 async function cmdDoctor(root: string, argv: string[]): Promise<number> {
-  let { config } = await loadConfig(root);
   if (argv.includes("--fix")) {
-    const fill = await computeAgentSkillsFix(PACKS_ROOT, config);
-    if (Object.keys(fill).length > 0) {
-      const { path, changed } = await applyConfigMutation(root, PACKS_ROOT, { kind: "fix-agent-skills", fill });
-      if (changed) console.log(`${c.green("Fixed")} ${path}\n`);
-      config = (await loadConfig(root)).config;
-    }
+    console.log(c.yellow("--fix was removed (ADR 0024): doctor only reports, and nothing it checks can be auto-fixed."));
   }
+  const { config } = await loadConfig(root);
   const findings = await fullDoctor({ root, packsRoot: PACKS_ROOT, config });
   if (findings.length === 0) {
     console.log(c.green("Nothing to report: config, routing rules, tickets, worktrees, branches, PRs and install files are all consistent."));
@@ -347,9 +341,6 @@ async function cmdDoctor(root: string, argv: string[]): Promise<number> {
   }
   for (const f of findings) {
     console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
-  }
-  if (!argv.includes("--fix") && findings.some((f) => f.message.startsWith("project.agentSkills."))) {
-    console.log(c.dim("\nRun `litecode doctor --fix` to fill in missing agentSkills keys."));
   }
   return findings.some((f) => f.severity === "error") ? 1 : 0;
 }
@@ -552,6 +543,9 @@ async function cmdConfig(root: string, argv: string[]): Promise<number> {
   })();
 
   const { config, path, changed } = await applyConfigMutation(root, PACKS_ROOT, mutation);
+  if (mutation.kind === "set" && /^project\.agentSkills(\.|$)/.test(mutation.path)) {
+    console.log(c.yellow(`warning: ${mutation.path} is ignored (ADR 0024): no agent preloads skills, name them in a routing rule instead.`));
+  }
   if (changed) {
     console.log(`${c.green("Updated")} ${path}`);
     if (mutation.kind === "targets" || mutation.kind === "packs" || mutation.kind === "set") {
