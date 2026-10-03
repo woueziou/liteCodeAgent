@@ -1,9 +1,9 @@
 ---
 schemaVersion: 2
 id: 0087-feat-packs-load-skills-on-demand-and-merge-web-s
-title: "feat(packs): Load skills on demand and merge web skills from seven to four"
+title: "feat(packs): Load skills on demand and merge web skills from seven to five"
 label: feature
-status: backlog
+status: done
 priority: high
 size: large
 assignedAgent: human
@@ -17,17 +17,17 @@ importedFrom:
 
 ## Contexte
 
-Plus aucun agent ne précharge de skill : ils se chargent à la demande par les règles de routage. Les skills web passent de sept à quatre sans perdre de règle. Un ticket backend n'embarque plus les skills UI.
+Plus aucun agent ne précharge de skill : ils se chargent à la demande par les règles de routage. Les skills web passent de sept à cinq (sept moins deux fusions ; le spec disait quatre par erreur) sans perdre de règle. Un ticket backend n'embarque plus les skills UI.
 
 ## Critères d'acceptation
 
-- [ ] Aucun agent du pack n'a de skill préchargé dans son frontmatter rendu.
-- [ ] Les skills web sont quatre : le design absorbe le petit viewport, l'UX absorbe le tactile avec le bloc de confirmation dédoublonné, le mobile reste seul avec le préambule commun, le frontend et TypeScript restent séparés.
-- [ ] Chaque règle des sept skills d'origine se retrouve dans les quatre.
-- [ ] `upgrade` réécrit les anciens noms de skills dans les règles de routage des projets existants.
-- [ ] L'implementer écrit dans son rapport quand aucune règle de routage ne correspond au ticket.
-- [ ] Le tableau de mesure de la base (0082) est comparé pour un ticket backend.
-- [ ] Tests au seam 2 (rendu des packs) et seam 1 (migration par `upgrade`).
+- [x] Aucun agent du pack n'a de skill préchargé dans son frontmatter rendu.
+- [x] Les skills web sont cinq : le design absorbe le petit viewport, l'UX absorbe le tactile avec le bloc de confirmation dédoublonné, le mobile reste seul avec le préambule commun, le frontend et TypeScript restent séparés (design, UX, mobile, frontend, TypeScript).
+- [x] Chaque règle des sept skills d'origine se retrouve dans les cinq.
+- [x] `upgrade` réécrit les anciens noms de skills dans les règles de routage des projets existants.
+- [x] L'implementer écrit dans son rapport quand aucune règle de routage ne correspond au ticket.
+- [x] Le tableau de mesure de la base (0082) est comparé pour un ticket backend.
+- [x] Tests au seam 2 (rendu des packs) et seam 1 (migration par `upgrade`).
 
 ## Bloqué par
 
