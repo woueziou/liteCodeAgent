@@ -177,10 +177,11 @@ function reference(target: RenderTarget, name: string, rootOverride?: string): s
  * The shared "explicit human instruction only" guard of the skills that chain agents
  * (ticket 0088): one wording, so `chained-implementation` and `idea-to-planned` cannot drift.
  */
-function humanGate(contains: string): string {
+function humanGate(mustContain: string): string {
   return (
-    `Every invocation must originate from an explicit human instruction ${contains}, in the current turn. ` +
-    "It never runs speculatively, on a schedule, or as a reaction to work merely existing in a queue."
+    `Every invocation must originate from an explicit human instruction ${mustContain}, in the current turn. ` +
+    "It never runs speculatively, does not scan for work to pick up on its own, does not run periodically or on a schedule, " +
+    "and does not react to work merely existing in a queue."
   );
 }
 
@@ -220,7 +221,7 @@ export function delegationHelpers(
       return delegateTier(target, arg, tiers);
     },
     humanGate(arg) {
-      if (!arg) throw new Error("{{> humanGate}} needs what the instruction must contain, e.g. 'naming a specific ticket'");
+      if (!arg) throw new Error("{{> humanGate}} needs a phrase saying what the human instruction must contain");
       return humanGate(arg);
     },
     delegateImplementerIsolation(arg) {

@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
+import { ProjectSchema } from "../src/config.ts";
 import { delegationHelpers } from "../src/delegation.ts";
 import { loadPack } from "../src/packs.ts";
+import { render, templateProject } from "../src/template.ts";
 
 /**
  * Ticket 0088 (seam 2, pack rendering): a duplicated rule keeps ONE source, and a rule is
@@ -17,7 +19,16 @@ const get = (rel: string) => {
   return file.source;
 };
 
-const rows: { rule: string; removedFrom: string[]; pointer: string; survivesIn: string; phrases: RegExp[] }[] = [
+const helpers = delegationHelpers("claude-code");
+const project = templateProject(ProjectSchema.parse({ name: "demo", repo: "owner/demo", agentSkills: { implementer: [], reviewer: [] } }));
+const rendered = (rel: string) => render(get(rel), { project }, rel, helpers);
+
+/** `expect(actual).toBe(expected)` that names the file or agent in the failure message. */
+const is = (label: string, actual: unknown, expected: unknown) => expect({ label, actual }).toEqual({ label, actual: expected });
+
+type Row = { rule: string; removedFrom: string[]; pointer: string; survivesIn: string; phrases: RegExp[] };
+
+const rows: Row[] = [
   {
     rule: "test-first verification protocol and the ticket 0056 rationale",
     removedFrom: ["reference/implementer-test-first.md", "agents/reviewer.md"],
@@ -29,6 +40,9 @@ const rows: { rule: string; removedFrom: string[]; pointer: string; survivesIn: 
       /ticket 0056 exists because/,
       /not satisfied but non-blocking/,
       /\*\*blocking\*\* `FINDINGS` item/,
+      /whole file fails to load at the pre-fix code/,
+      /If the branch has \*\*not\*\* been pushed yet/,
+      /same-PR fix-up commit adding the coverage, never a history rewrite/,
     ],
   },
   {
@@ -42,14 +56,27 @@ const rows: { rule: string; removedFrom: string[]; pointer: string; survivesIn: 
       /one `Ticket: <NNNN-slug>` line/,
       /One review round/,
       /Move each ticket on its own/,
+      /`Agent: implementer` and `Task:` trailers/,
+    ],
+  },
+  {
+    rule: "reviewer-only batch rules",
+    removedFrom: [],
+    pointer: "",
+    survivesIn: "reference/reviewer-batch.md",
+    phrases: [
+      /one `ACCEPTANCE:` block per ticket/,
+      /caps only that ticket/,
+      /Attribute each finding to a ticket id/,
+      /Flag a commit or hunk that belongs to no listed ticket/,
     ],
   },
 ];
 
 test.each(rows)("$rule: the surviving source states it and the other texts only point to it", (row) => {
   const source = get(row.survivesIn);
-  for (const phrase of row.phrases) expect(source).toMatch(phrase);
-  for (const rel of row.removedFrom) expect({ rel, points: get(rel).includes(row.pointer) }).toEqual({ rel, points: true });
+  for (const phrase of row.phrases) is(`${row.survivesIn} ~ ${phrase}`, phrase.test(source), true);
+  for (const rel of row.removedFrom) is(`${rel} points to ${row.pointer}`, get(rel).includes(row.pointer), true);
 });
 
 test("the 0056 rationale appears once across the test-first texts", () => {
@@ -64,53 +91,34 @@ test("the implementer-side test-first file keeps the push checkpoint", () => {
   expect(src).toMatch(/before your first `git push` on this branch/);
 });
 
-test("reviewer-batch keeps its reviewer-only rules", () => {
-  const src = get("reference/reviewer-batch.md");
-  expect(src).toMatch(/one `ACCEPTANCE:` block per ticket/);
-  expect(src).toMatch(/caps only that ticket/);
-  expect(src).toMatch(/Attribute each finding to a ticket id/);
-  expect(src).toMatch(/belongs to no listed ticket/);
-});
-
-test("chained-implementation does not restate the batch cap", () => {
+test("chained-implementation gives the batch cap only as a pointer, and keeps its human-gate claim with its constraint", () => {
   const src = get("skills/chained-implementation/SKILL.md");
   expect(src).not.toMatch(/more than 4 tickets/);
   expect(src).toContain("implementer-batch");
+  expect(src).toMatch(/not human oversight: it still requires an explicit human instruction/);
 });
 
-test("the human-instruction gate of both skills comes from one shared partial", () => {
-  const gate = delegationHelpers("claude-code").humanGate;
-  expect(gate).toBeDefined();
-  const text = gate!("naming a specific ticket");
-  expect(text).toMatch(/explicit human instruction naming a specific ticket/);
-  expect(text).toMatch(/in the current turn/);
-  expect(text).toMatch(/speculatively, on a schedule/);
+test("both gated skills render the shared human gate, and the partial refuses an empty argument", () => {
   for (const rel of ["skills/chained-implementation/SKILL.md", "skills/idea-to-planned/SKILL.md"]) {
-    const src = get(rel);
-    expect({ rel, partial: src.includes("{{> humanGate") }).toEqual({ rel, partial: true });
-    expect({ rel, restated: /originate from an explicit human instruction|must never be invoked speculatively/.test(src) }).toEqual({
-      rel,
-      restated: false,
-    });
+    is(`${rel} uses the partial`, get(rel).includes("{{> humanGate"), true);
+    const out = rendered(rel);
+    for (const phrase of ["in the current turn", "never runs speculatively", "does not scan for work", "does not run periodically"]) {
+      is(`${rel} renders '${phrase}'`, out.includes(phrase), true);
+    }
   }
-  expect(() => delegationHelpers("claude-code").humanGate!("")).toThrow();
+  expect(rendered("skills/chained-implementation/SKILL.md")).toContain("explicit human instruction naming a specific ticket");
+  expect(rendered("skills/idea-to-planned/SKILL.md")).toContain("explicit human instruction that includes the idea itself");
+  expect(() => helpers.humanGate?.("")).toThrow("needs a phrase");
 });
 
-test("every agent that commits or checks commits states the Agent trailer rule in one line", () => {
+test("the trailer rule keeps both lines, Agent and Task, wherever an agent commits or checks commits", () => {
+  expect(rendered("agents/implementer.md")).toContain("`Agent: implementer` and `Task: <ticket id>`");
+  expect(rendered("agents/reviewer.md")).toContain("`Agent: <agent-name>` and `Task: <ticket id>`");
   for (const name of ["implementer", "tracker", "triage", "dispatcher"]) {
-    expect({ name, ok: get(`agents/${name}.md`).includes(`Agent: ${name}`) }).toEqual({ name, ok: true });
+    is(`${name} commit command`, get(`agents/${name}.md`).includes(`-m "Agent: ${name}" -m "Task: <NNNN>"`), true);
   }
-  const implementer = get("agents/implementer.md");
-  expect(implementer).toMatch(/every commit[^\n]*`Agent: implementer` trailer/i);
-  expect(get("agents/reviewer.md")).toMatch(/\*\*Attribution\*\*[^\n]*`Agent: <agent-name>` trailer/);
   // The skill stays the source for the rare cases.
   const skill = get("skills/agent-attribution/SKILL.md");
-  expect(skill).toMatch(/Every commit created by an agent/);
+  expect(skill).toMatch(/^Agent: <agent-name>\nTask: /m);
   expect(skill).toMatch(/Mismatch is a stop condition/);
-});
-
-test("rules enforced by other guards are not re-tested here", () => {
-  // Documented hand-off: verify-report (tests/report-verify.test.ts) checks the implementer's final report
-  // against the repo; tests/agents-no-force-rewrite.test.ts and tests/agents-batch.test.ts pin the rest.
-  expect(true).toBe(true);
 });

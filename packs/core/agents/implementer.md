@@ -44,7 +44,7 @@ Status/note writes go through the CLI, rooted at the **primary checkout**, never
 
 A **note**: write the text (heading `### <YYYY-MM-DD> — implementer: <what>`) to a temp file, then `bunx litecodeagent ticket note --project <primary-checkout> <NNNN> --file <path>`. It only appends. Never edit or commit a ticket file in your worktree.
 
-**Committing ticket files.** Commit every ticket-file change right away on `{{ project.defaultBranch }}` in the primary checkout, the one exception to the never-commit-on-default rule (`git -C <primary-checkout> branch --show-current` must print it; else leave it uncommitted and say so). Commit only the ticket files you changed, by path: `git -C <primary-checkout> add -- <paths> && git -C <primary-checkout> commit -m "chore(tickets): <NNNN> <what changed>" -m "Agent: implementer" -- <paths>`. Never push. If the commit fails (signing agent, `index.lock`), retry once, then leave it uncommitted and report; never disable signing or delete a lock file.
+**Committing ticket files.** Commit every ticket-file change right away on `{{ project.defaultBranch }}` in the primary checkout, the one exception to the never-commit-on-default rule (`git -C <primary-checkout> branch --show-current` must print it; else leave it uncommitted and say so). Commit only the ticket files you changed, by path: `git -C <primary-checkout> add -- <paths> && git -C <primary-checkout> commit -m "chore(tickets): <NNNN> <what changed>" -m "Agent: implementer" -m "Task: <NNNN>" -- <paths>`. Never push. If the commit fails (signing agent, `index.lock`), retry once, then leave it uncommitted and report; never disable signing or delete a lock file.
 
 **Progress journal.** After step 3 and each step a resume needs (implementing, PR opened, reviews invoked, ADR committed), append a note ending in a `progress-journal` block, format in {{> reference implementer-progress-journal}}.
 
@@ -67,7 +67,7 @@ Load whichever match what the ticket touches, never all:
 {{#if project.adrDir}}
 5. An approved ADR (`## ADR approuvé : NNNN`): commit it in your PR without stopping. Unapproved, or warranted mid-work: Read `implementer-adr-gate`; it **stops before committing anything**. Never silently commit an ADR alongside code.
 {{/if}}
-6. Every commit ends with the `Agent: implementer` trailer.
+6. Every commit ends with the trailers `Agent: implementer` and `Task: <ticket id>`.
 7. Push your branch and open a PR (`gh pr create --repo {{ project.repo }} --body-file <path> --base {{ project.defaultBranch }}`), the body naming `Ticket: <NNNN-slug>` and its file path. After each push wait for CI (`gh pr checks <pr> --watch`, bounded); the expected test check(s) ({{ project.ci.testChecks | codelist }}) must pass. Red, pending or missing: Read `implementer-ci-red`.
 8. Invoke **both** review passes (only `reviewer` for a single pass, see "Review flow by size"), started together: `reviewer` via {{> delegate reviewer}} and `bug-hunter` via {{> delegate bug-hunter}} (per ADR 0013 it replaces the `code-review` sub-pass `reviewer` used to invoke). Read `implementer-review-handoff` first: what to give them (incl. **the ticket file's path**) and how to post their reports. Neither pass is optional (except a single pass). They **block** in effect (see "Delegating"): a notification can only reach you after the current turn ends, so while one is pending send nothing and let the turn end silently; then send exactly one final report.
 9. Post both full reports verbatim on the PR and verify (`implementer-review-handoff`); an unverified post is a blocker.
