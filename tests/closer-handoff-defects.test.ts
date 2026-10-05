@@ -140,10 +140,17 @@ test("the report mapping covers every report field and every NEEDS value", () =>
 
 // --- 6. what is verified and what is not -------------------------------------------------
 
-test("the handoff reference says how far nesting is verified, in two sentences", () => {
-  const note = between(handoff, "Claude Code subagent nesting", "\n");
+test("the handoff reference says how far nesting is verified, and how to start the closer", () => {
+  const note = between(handoff, "Subagent nesting", "\n");
   expect(note).toContain("depth 3");
-  expect(note).toContain("not yet verified end to end");
+  expect(note).toContain("verified only by the measurement of ADR 0027");
   expect(note).toContain("capability table stays empty");
-  expect(note.match(/\. /g)?.length ?? 0).toBeLessThanOrEqual(1);
+  // The first real run failed because the closer was started in the foreground: say how not to.
+  const start = between(handoff, "## Starting it", "## Before delegating");
+  expect(start).toContain("never pass `run_in_background: false`");
+  expect(start).toContain("not the result block");
+});
+
+test("the closer retries before calling CI missing", () => {
+  expect(closer).toMatch(/if none is reported yet, retry every 15 seconds for up to two minutes/);
 });

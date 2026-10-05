@@ -21,7 +21,7 @@ On `attempt` above 1, run the passes again (each once) with the earlier findings
 
 ## Flow
 
-1. Wait for CI: `gh pr checks <pr> --watch`, bounded; the expected test check(s) ({{ project.ci.testChecks | codelist }}) must have run and passed. Red, pending or missing: stop, `CI` says so, `NEEDS: code-fix:ci-red` with the run URL in `EVIDENCE`. A merge conflict: `NEEDS: conflict`. `gh` unreachable: `NEEDS: github-unavailable`.
+1. Wait for CI: `gh pr checks <pr> --watch`, bounded; GitHub registers the checks a moment after the PR opens, so if none is reported yet, retry every 15 seconds for up to two minutes before calling it missing; the expected test check(s) ({{ project.ci.testChecks | codelist }}) must have run and passed. Red, pending or missing: stop, `CI` says so, `NEEDS: code-fix:ci-red` with the run URL in `EVIDENCE`. A merge conflict: `NEEDS: conflict`. `gh` unreachable: `NEEDS: github-unavailable`.
 2. Start the reviews together: `reviewer` via {{> delegate reviewer}} and `bug-hunter` via {{> delegate bug-hunter}}. Read {{> reference implementer-review-handoff}} first (the worktree is the one in your brief): what to give them (the ticket file's path, the worktree as the only place to run checks) and how to post. Proportion them to `size` and label (ADR 0021):
    - **Single pass** (a `chore`/`doc` ticket whose diff touches nothing under `src/`, or a `small` ticket with no logic change): only `reviewer`, at the `fast` tier ({{> delegateTier fast}}), told it is a single pass.
    - **`small`** (and `trivial`): both, `bug-hunter` at the `balanced` tier ({{> delegateTier balanced}}).

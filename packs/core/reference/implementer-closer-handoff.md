@@ -6,7 +6,11 @@ install: handoff
 
 # Handing the tail of the run to `closer` (implementer)
 
-Loaded by `implementer` at step 8 when the handoff is on (ADR 0027). `closer` waits for CI, runs and posts both reviews, sets the ticket status and writes its note; it never touches code. You keep the code, the disputes and the final report. Claude Code subagent nesting at depth 3 is exercised in practice (this project's transcripts show `reviewer` and `bug-hunter` at spawn depth 2 and `general-purpose` at depth 3). The chain implementer to closer to reviewer is not yet verified end to end, which is why the capability table stays empty.
+Loaded by `implementer` at step 8 when the handoff is on (ADR 0027). `closer` waits for CI, runs and posts both reviews, sets the ticket status and writes its note; it never touches code. You keep the code, the disputes and the final report. Subagent nesting at depth 3 is seen in this project's transcripts; the chain implementer to closer to reviewer is verified only by the measurement of ADR 0027, so the capability table stays empty until then.
+
+## Starting it
+
+Start `closer` like the reviews: never pass `run_in_background: false`. A foreground call blocks you, and when `closer` ends its turn to wait for its own reviews, its partial text comes back as if it were the result (the first real run did this). In the background its result arrives as a notification: end your turn silently, and treat any reply that is not the result block as not finished.
 
 ## Before delegating
 
