@@ -4,7 +4,8 @@
  * agent lists them, or the config asks for them (ticket 0068). Other skills — the ones a
  * human invokes by name — are always installed.
  */
-import type { Config } from "./config.ts";
+import type { Config, Project } from "./config.ts";
+import { resolveHandoff, type HandoffTarget } from "./handoff.ts";
 
 /** The frontmatter key marking a skill as install-on-reference. Never written to the output. */
 export const INSTALL_KEY = "install";
@@ -25,4 +26,20 @@ export function skipSkill(data: Record<string, string>, name: string, wanted: Re
 /** The frontmatter to write out: everything but the install marker. */
 export function withoutInstallKey(data: Record<string, string>): Record<string, string> {
   return Object.fromEntries(Object.entries(data).filter(([key]) => key !== INSTALL_KEY));
+}
+
+/**
+ * `install: handoff` marks a pack file (the `closer` agent and the references only it and the
+ * handoff text of `implementer` read) that exists only where the closer handoff is enabled for
+ * the target (ADR 0027, ticket 0081). With it disabled the file is neither rendered nor installed,
+ * so the default install plan, the lockfile and every session's announced agents stay as they were.
+ */
+export const INSTALL_HANDOFF = "handoff";
+
+export function skipForHandoff(
+  data: Record<string, string>,
+  project: Pick<Project, "handoff" | "handoffSupport">,
+  target: HandoffTarget,
+): boolean {
+  return data[INSTALL_KEY] === INSTALL_HANDOFF && !resolveHandoff(project, target).enabled;
 }

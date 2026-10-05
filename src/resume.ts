@@ -12,7 +12,7 @@
 
 import type { Finding, PrLookup, Probes } from "./report/verify.ts";
 import { dirname, resolve } from "node:path";
-import { parseJournal, type JournalEntry } from "./report/journal.ts";
+import { HANDOFF_STALE_MS, inFlightAge, parseJournal, type JournalEntry } from "./report/journal.ts";
 
 export type ResumeProbes = Probes & {
   worktreeExists(path: string): Promise<boolean>;
@@ -28,6 +28,8 @@ export type ResumeProbes = Probes & {
 
 export type ResumeResult =
   | { kind: "no-journal"; findings: Finding[] }
+  /** A fresh-context `closer` holds the ticket's tail (ADR 0027): no code work may be resumed. */
+  | { kind: "closer-in-flight"; entry: JournalEntry; findings: Finding[]; since?: string; ageMinutes: number; reason: string }
   | { kind: "resolved"; entry: JournalEntry; findings: Finding[]; resumeAt: string };
 
 function describePr(pr: PrLookup, prRef: string, findings: Finding[], branch: string | undefined): void {
@@ -85,7 +87,7 @@ export async function primaryCheckoutRoot(root: string): Promise<string> {
 }
 
 /** `ticketBody` is the ticket file's markdown body (frontmatter stripped), notes included. */
-export async function resumeState(ticketBody: string, probes: ResumeProbes): Promise<ResumeResult> {
+export async function resumeState(ticketBody: string, probes: ResumeProbes, now: Date = new Date()): Promise<ResumeResult> {
   const parsed = parseJournal(ticketBody);
   const findings: Finding[] = [];
   const error = (message: string) => findings.push({ severity: "error", message });
@@ -95,6 +97,26 @@ export async function resumeState(ticketBody: string, probes: ResumeProbes): Pro
 
   const entry = parsed.entries[parsed.entries.length - 1];
   if (!entry) return { kind: "no-journal", findings };
+
+  // Single-writer guard (ADR 0027): while a closer holds the ticket's tail, resuming code work
+  // would put two writers on one branch. An old marker (closer died) is stale: report it, proceed.
+  const age = inFlightAge(entry, now);
+  if (age !== undefined) {
+    const ageMinutes = Number.isFinite(age) ? Math.floor(age / 60_000) : -1;
+    if (age < HANDOFF_STALE_MS) {
+      return {
+        kind: "closer-in-flight",
+        entry,
+        findings,
+        since: entry.handoffAt,
+        ageMinutes,
+        reason: `a closer has held this ticket since ${entry.handoffAt} (${ageMinutes} min ago) — not resuming code work while it runs; wait for it, or after ${HANDOFF_STALE_MS / 3_600_000} h treat the marker as stale`,
+      };
+    }
+    warn(
+      `stale closer handoff marker (${Number.isFinite(age) ? `${ageMinutes} min old` : "no usable time"}, limit ${HANDOFF_STALE_MS / 3_600_000} h) — the closer is presumed dead, resuming anyway`,
+    );
+  }
 
   for (const bad of entry.invalid ?? []) {
     warn(`journal ${bad.field} '${bad.value}' is not a valid ${bad.field === "pr" ? "PR reference (number or URL)" : "commit sha or 'none'"} — ignored`);

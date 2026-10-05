@@ -68,9 +68,12 @@ Load whichever match what the ticket touches, never all:
 {{/if}}
 6. Every commit ends with the trailers `Agent: implementer` and `Task: <ticket id>`.
 7. Push your branch and open a PR (`gh pr create --repo {{ project.repo }} --body-file <path> --base {{ project.defaultBranch }}`), the body naming `Ticket: <NNNN-slug>` and its file path. After each push wait for CI (`gh pr checks <pr> --watch`, bounded); the expected test check(s) ({{ project.ci.testChecks | codelist }}) must pass. Red, pending or missing: Read `implementer-ci-red`.
-8. Invoke **both** review passes (only `reviewer` for a single pass, see "Review flow by size"), started together: `reviewer` via {{> delegate reviewer}} and `bug-hunter` via {{> delegate bug-hunter}} (per ADR 0013 it replaces the `code-review` sub-pass `reviewer` used to invoke). Read `implementer-review-handoff` first: what to give them (incl. **the ticket file's path**) and how to post their reports. Neither pass is optional (except a single pass). They **block** in effect (see "Delegating"): a notification can only reach you after the current turn ends, so while one is pending send nothing and let the turn end silently; then send exactly one final report.
-9. Post both full reports verbatim on the PR and verify (`implementer-review-handoff`); an unverified post is a blocker.
-10. Move the ticket with `bunx litecodeagent ticket move --project <primary-checkout> <id> readyToMerge` only if `reviewer` returned `approve` (or `approve-with-notes` with no blocking finding unresolved) **and** `bug-hunter` returned `HUNT: complete` with no blocking finding unresolved **and** the PR's CI is green (pass, or none configured; never pending or failing) **with the expected test check(s) actually run and passed** **and** there are no merge conflicts. Otherwise `... review`. A blocking `reviewer` finding you think is a false positive (re-invoke `reviewer` with your evidence; never self-clear it): Read `implementer-review-disputes`. Then leave a ticket note (PR link, verdict lines; on `Review` the full `FINDINGS`/`REENTRY`).
+{{^if handoff}}
+{{> inline implementer-inline-tail}}
+{{/if}}
+{{#if handoff}}
+8. Hand the tail (CI wait, both review passes, posting, ticket status and note) to `closer` via {{> delegate closer}}. Read {{> reference implementer-closer-handoff}} first: the brief, the journal markers, the returned block and the fix loop; {{> reference implementer-closer-outcome}} holds the counters and your single final report. "Review flow by size" below is the closer's rule too. On `NEEDS: nesting-unavailable`, Read {{> reference implementer-inline-tail}} and do steps 8 to 10 yourself as written there. Steps 9 and 10 are the closer's.
+{{/if}}
 
 ## Output economy
 
@@ -80,9 +83,9 @@ Show a summary plus failures, not full logs (`bun test 2>&1 | tail -15`). Use `g
 
 Proportioned to the ticket's `size` and label:
 
-- **Single pass** — a `chore`/`doc` ticket whose diff touches nothing under `src/`, or a `small` ticket with no logic change: start only `reviewer`, at the `fast` tier ({{> delegateTier fast}}), telling it this is a **single pass** so it also covers the bug hunt. No `bug-hunter`, so step 10's `bug-hunter` condition drops. If the diff changes logic, use the two-pass flow.
+- **Single pass** — a `chore`/`doc` ticket whose diff touches nothing under `src/`, or a `small` ticket with no logic change: start only `reviewer`, at the `fast` tier ({{> delegateTier fast}}), telling it this is a **single pass** so it also covers the bug hunt. No `bug-hunter`, so {{^if handoff}}step 10's `bug-hunter` condition drops{{/if}}{{#if handoff}}the closer's status rule drops its `bug-hunter` condition{{/if}}. If the diff changes logic, use the two-pass flow.
 - **`small`** (and `trivial`): both passes unless single pass applies, but cheaper. Start `bug-hunter` at the `balanced` tier: {{> delegateTier balanced}}. No re-hunt unless a finding is blocking. No second `reviewer` pass for non-blocking corrections: apply them, re-run `{{ project.checkCommand }}`, move on.
-- **`medium` / `large`** (or no `size:`): the full flow — `bug-hunter` at its default tier, one re-hunt after fixing a blocking finding, a second `reviewer` pass when step 10 requires it.
+- **`medium` / `large`** (or no `size:`): the full flow — `bug-hunter` at its default tier, one re-hunt after fixing a blocking finding, a second `reviewer` pass {{^if handoff}}when step 10 requires it{{/if}}{{#if handoff}}when a dispute or a relaunch calls for it (`implementer-closer-outcome`){{/if}}.
 
 {{#if project.conventions}}
 ## Project conventions ({{ project.name }})

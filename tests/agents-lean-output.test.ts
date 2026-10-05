@@ -18,7 +18,10 @@ const IMPLEMENTER_REFS = [
   "implementer-batch",
   "implementer-ci-red",
   "implementer-cli-resolution",
+  "implementer-closer-handoff", // ADR 0027: installed only where the handoff is on
+  "implementer-closer-outcome", // ADR 0027: same
   "implementer-github-outage",
+  "implementer-inline-tail", // ADR 0027: steps 8 to 10, inlined into implementer.md when the handoff is off
   "implementer-language",
   "implementer-leak-cleanup",
   "implementer-packs-edit",
@@ -114,7 +117,9 @@ test("reference files install next to the agents on every target that has agents
 });
 
 test("implementer's hard rules and steps agree with the single pass: no unconditional both-reports rule", async () => {
-  const src = (await core())("agents/implementer.md");
+  // Steps 8 to 10 live in implementer-inline-tail (ADR 0027), rendered in place when the handoff is off.
+  const get = await core();
+  const src = get("agents/implementer.md") + "\n" + get("reference/implementer-inline-tail.md");
   expect(src).not.toMatch(/reviewer` and `bug-hunter` calls first/);
   expect(src).not.toMatch(/receiving both reports/);
   expect(src).not.toMatch(/Neither pass is optional;/);
@@ -156,6 +161,6 @@ test("every reference path a rendered agent names exists after install, on every
 test("the reference helper renders the per-target root and rejects a bad name", async () => {
   const { delegationHelpers } = await import("../src/delegation.ts");
   expect(delegationHelpers("codex").reference!("reviewer-test-first")).toContain("`.codex/reference/reviewer-test-first.md`");
-  expect(delegationHelpers("claude-code", undefined, {}, "out").reference!("x-y")).toContain("`out/reference/x-y.md`");
+  expect(delegationHelpers("claude-code", { referenceRoot: "out" }).reference!("x-y")).toContain("`out/reference/x-y.md`");
   expect(() => delegationHelpers("pi").reference!("../etc")).toThrow(/needs a reference name/);
 });

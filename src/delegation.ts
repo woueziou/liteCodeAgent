@@ -13,7 +13,8 @@
  */
 
 import { TARGET_ROOTS, type InstallTarget } from "./config.ts";
-import type { Helpers } from "./template.ts";
+import { parseFrontmatter } from "./frontmatter.ts";
+import { INLINE_HELPER, type Helpers } from "./template.ts";
 
 /** Every place a pack prompt is rendered: an install target, or the built-in API runner. */
 export type RenderTarget = InstallTarget | "runner";
@@ -174,6 +175,28 @@ function reference(target: RenderTarget, name: string, rootOverride?: string): s
 }
 
 /**
+ * How a SUBAGENT waits for the agents it starts (ADR 0027, found by the first real run of the
+ * handoff). A main session may end its turn and be woken by a completion notification; a subagent
+ * may not: once its turn ends it is finished, and its partial text is handed back to its parent as
+ * if it were the result. So a subagent starts its delegations in the foreground and stays in its
+ * turn until every result is in. Only Claude Code has a background mode to switch off.
+ */
+function delegateForeground(target: RenderTarget): string {
+  switch (target) {
+    case "claude-code":
+      return "Start both in one message, each with `run_in_background: false`, so that you block until both have returned.";
+    case "runner":
+    case "opencode":
+    case "kilo-code":
+      return "Start both in one step and wait for both results in this same turn.";
+    case "codex":
+      return "Spawn both, then wait for both results in this same turn.";
+    case "pi":
+      return "Run both through `Bash` one after the other: each call returns only when that agent has finished.";
+  }
+}
+
+/**
  * The shared "explicit human instruction only" guard of the skills that chain agents
  * (ticket 0088): one wording, so `chained-implementation` and `idea-to-planned` cannot drift.
  */
@@ -191,17 +214,48 @@ export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]):
 }
 
 /**
- * The `{{> …}}` helpers pack prompts may use, bound to one render target. With `agents`
- * (the pack agents being installed), delegating to anything else — a typo, an agent from
- * a pack that isn't installed — fails the render instead of failing at run time.
+ * The body of every pack reference file (`reference/<name>.md`, frontmatter dropped, outer blank
+ * lines trimmed), keyed by name: what `{{> inline <name>}}` puts in place (ADR 0027).
  */
-export function delegationHelpers(
-  target: RenderTarget,
-  agents?: ReadonlySet<string>,
-  tiers: Record<string, string | undefined> = {},
-  referenceRoot?: string,
-): Helpers {
+export function packInlineSources(packs: { pack: { files: { rel: string; source: string }[] } }[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const { pack } of packs) {
+    for (const f of pack.files) {
+      const name = /^reference\/([^/]+)\.md$/.exec(f.rel)?.[1];
+      if (name) out.set(name, parseFrontmatter(f.source, f.rel).body.replace(/^\n+|\n+$/g, ""));
+    }
+  }
+  return out;
+}
+
+type DelegationBase = {
+  tiers?: Record<string, string | undefined>;
+  referenceRoot?: string;
+};
+
+/**
+ * What `delegationHelpers` binds. Rendering pack files (`agents` given: delegating to anything
+ * else fails the render, a typo or an agent from a pack that isn't installed) also needs
+ * `inlineSources`, because any of them may use `{{> inline}}`; a call that names `agents` without it
+ * throws at once rather than at the first inline. Without `agents`, `{{> inline}}` finds no source.
+ */
+export type DelegationOptions =
+  | (DelegationBase & { agents: ReadonlySet<string>; inlineSources: ReadonlyMap<string, string> })
+  | (DelegationBase & { agents?: undefined; inlineSources?: ReadonlyMap<string, string> });
+
+/** The `{{> …}}` helpers pack prompts may use, bound to one render target. */
+export function delegationHelpers(target: RenderTarget, options: DelegationOptions = {}): Helpers {
+  const { agents, tiers = {}, referenceRoot, inlineSources } = options;
+  if (agents && !inlineSources) {
+    throw new Error("delegationHelpers: rendering pack files (`agents`) needs `inlineSources` (packInlineSources(packs)) for {{> inline}}");
+  }
   return {
+    [INLINE_HELPER](arg) {
+      const text = inlineSources?.get(arg);
+      if (text === undefined) throw new Error(`{{> inline ${arg}}} names no pack reference file`);
+      if (new RegExp(String.raw`\{\{>\s*${INLINE_HELPER}\b`).test(text)) throw new Error(`{{> inline ${arg}}}: an inlined file cannot inline another`);
+      return text;
+    },
     reference(arg) {
       return reference(target, arg, referenceRoot);
     },
@@ -223,6 +277,10 @@ export function delegationHelpers(
     humanGate(arg) {
       if (!arg) throw new Error("{{> humanGate}} needs a phrase saying what the human instruction must contain");
       return humanGate(arg);
+    },
+    delegateForeground(arg) {
+      if (arg) throw new Error(`{{> delegateForeground}} takes no argument, got '${arg}'`);
+      return delegateForeground(target);
     },
     delegateImplementerIsolation(arg) {
       if (arg) throw new Error(`{{> delegateImplementerIsolation}} takes no argument, got '${arg}'`);

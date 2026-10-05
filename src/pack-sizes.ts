@@ -79,7 +79,11 @@ export async function measurePackSizes(packsRoot: string, base?: Config): Promis
       ...config,
       project: { ...config.project, domains: [...config.project.domains, { match: "all skills", skills: skillNames }] },
     };
-    for (const cfg of skillNames.length ? [config, wantAll] : [config]) {
+    // Files marked `install: handoff` (the closer and its references) exist only where the handoff is on:
+    // a last pass turns it on for claude-code so they get a size and a cap too (ADR 0027). Files already
+    // measured keep their default-render size, which is what every default install reads.
+    const withHandoff: Config = { ...config, project: { ...config.project, handoff: "auto", handoffSupport: { "claude-code": true } } };
+    for (const cfg of skillNames.length ? [config, wantAll, withHandoff] : [config, withHandoff]) {
       for (const entry of (await buildPlan(noProject, packsRoot, cfg)).entries) {
         if (entry.pack !== name || entry.harness !== "claude-code") continue;
         const rel = entry.rel.slice(`${cfg.outDir}/`.length);

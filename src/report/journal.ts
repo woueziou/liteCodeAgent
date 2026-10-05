@@ -11,6 +11,12 @@
 
 import { parseTokenCount } from "./tokens.ts";
 
+/** The two values of the optional `handoff:` journal field (ADR 0027). */
+export type HandoffMarker = "closer in flight" | "returned";
+
+/** An in-flight handoff marker older than this is stale: `resume` proceeds and `doctor` warns. One place. */
+export const HANDOFF_STALE_MS = 2 * 60 * 60 * 1000;
+
 export type JournalEntry = {
   /** Free-form step label, e.g. "step 4: implement" or "adr-pending-approval". */
   step: string;
@@ -22,6 +28,10 @@ export type JournalEntry = {
   pr?: string;
   /** Tokens this run consumed (ticket 0062); summed across entries for the ticket total. */
   tokens?: number;
+  /** Closer handoff marker (ADR 0027): who holds the ticket's tail right now. Unknown values are dropped. */
+  handoff?: HandoffMarker;
+  /** ISO timestamp the `handoff` marker was written at; dropped when it is not a valid date. */
+  handoffAt?: string;
   /** Present only on resume-manifest-shaped entries (the ADR draft approval gate). */
   adrPath?: string;
   boardStatus?: string;
@@ -85,6 +95,25 @@ function validTokens(raw: string | undefined): number | undefined {
   return raw === undefined ? undefined : parseTokenCount(raw);
 }
 
+function validHandoff(raw: string | undefined): HandoffMarker | undefined {
+  const v = raw?.trim().toLowerCase();
+  return v === "closer in flight" || v === "returned" ? v : undefined;
+}
+
+function validIso(raw: string | undefined): string | undefined {
+  return raw !== undefined && /^\d{4}-\d{2}-\d{2}T/.test(raw) && !Number.isNaN(Date.parse(raw)) ? raw : undefined;
+}
+
+/**
+ * Age in ms of an in-flight handoff marker at `now`; `undefined` when the entry has no
+ * in-flight marker; infinite when the marker has no usable time (it can only be treated as stale).
+ */
+export function inFlightAge(entry: JournalEntry | undefined, now: Date): number | undefined {
+  if (entry?.handoff !== "closer in flight") return undefined;
+  const at = entry.handoffAt ? Date.parse(entry.handoffAt) : NaN;
+  return Number.isNaN(at) ? Number.POSITIVE_INFINITY : Math.max(0, now.getTime() - at);
+}
+
 function validPr(raw: string | undefined): string | undefined {
   return raw !== undefined && isValidPrValue(raw) ? raw : undefined;
 }
@@ -126,6 +155,8 @@ function fromProgressJournal(fields: Map<string, string>): JournalEntry {
     checks: fields.get("checks"),
     pr: validPr(fields.get("pr")),
     tokens: validTokens(fields.get("tokens")),
+    handoff: validHandoff(fields.get("handoff")),
+    handoffAt: validIso(fields.get("handoffAt")),
   };
 }
 
@@ -220,6 +251,8 @@ export function formatJournalBlock(entry: {
   checks?: string;
   pr?: string;
   tokens?: number;
+  handoff?: HandoffMarker;
+  handoffAt?: string;
 }): string {
   const lines = [
     `step: ${entry.step}`,
@@ -230,6 +263,8 @@ export function formatJournalBlock(entry: {
     entry.checks ? `checks: ${entry.checks}` : undefined,
     entry.pr ? `pr: ${entry.pr}` : undefined,
     entry.tokens !== undefined ? `tokens: ${entry.tokens}` : undefined,
+    entry.handoff ? `handoff: ${entry.handoff}` : undefined,
+    entry.handoff && entry.handoffAt ? `handoffAt: ${entry.handoffAt}` : undefined,
   ].filter((l): l is string => l !== undefined);
   return "```progress-journal\n" + lines.join("\n") + "\n```";
 }
