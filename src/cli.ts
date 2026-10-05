@@ -150,9 +150,8 @@ ${c.bold("Diagnose")}
   ${c.bold("litecode token-report")} [--session <id>] [--project <path>] [--detail]
                                      tokens per agent (main session and each sub-agent type) from the Claude Code
                                      transcripts in ~/.claude/projects, sorted by total; latest session by default
-                                     ${c.dim("--detail adds one row per instance (main, then each sub-agent run, by first call):")}
-                                     ${c.dim("calls, first/max context, context read. Context of a call = input_tokens +")}
-                                     ${c.dim("cache_read_input_tokens + cache_creation_input_tokens (output excluded), once per message id")}
+                                     ${c.dim("--detail adds one row per agent run: calls, first/max context, context read (output excluded)")}
+                                     ${c.dim("limits: a resumed agent is one merged row; nested sub-agents have no parent link")}
 
 Global: --project <dir>   target repo (default: cwd)
 `);
@@ -1113,8 +1112,13 @@ async function cmdTokenReport(root: string, argv: string[]): Promise<number> {
     return 1;
   }
   try {
-    const report = renderReport(session, await reportForSession(dir, session));
-    console.log(argv.includes("--detail") ? `${report}\n\n${renderDetail(await instancesForSession(dir, session))}` : report);
+    const output = [renderReport(session, await reportForSession(dir, session))];
+    // `--detail` is read with a plain includes: an unknown flag such as `--detial` is ignored, like the other flags here
+    if (argv.includes("--detail")) {
+      output.push("");
+      output.push(renderDetail(await instancesForSession(dir, session)));
+    }
+    console.log(output.join("\n"));
     return 0;
   } catch (err) {
     console.log(c.red((err as Error).message));
