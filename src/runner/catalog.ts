@@ -5,6 +5,7 @@ import { parseFrontmatter, parseList } from "../frontmatter.ts";
 import { loadPack, TIERS, type Tier } from "../packs.ts";
 import { preflightRefusal, render, templateProject } from "../template.ts";
 import { delegationHelpers, packAgentNames, REFERENCE_ROOTS } from "../delegation.ts";
+import { templateContext } from "../handoff.ts";
 
 /** Where the installed `reference/*.md` files live for the runner: outDir if claude-code is installed, else the first installed target's root. */
 function runnerReferenceRoot(config: Config): string {
@@ -64,7 +65,7 @@ export class AgentCatalog {
     for (const { packName, pack } of packs) {
       for (const file of pack.files) {
         const where = `${packName}/${file.rel}`;
-        const rendered = render(file.source, { project: templateProject(config.project) }, where, helpers);
+        const rendered = render(file.source, templateContext(config.project, "runner", templateProject(config.project)), where, helpers);
         const { data, body } = parseFrontmatter(rendered, where);
         if (file.rel.startsWith("agents/")) {
           const name = data.name;

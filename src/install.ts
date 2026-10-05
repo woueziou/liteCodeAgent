@@ -6,6 +6,7 @@ import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
 import { preflightRefusal, render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames } from "./delegation.ts";
+import { templateContext } from "./handoff.ts";
 import { configSkills, skipSkill, withoutInstallKey } from "./skill-filter.ts";
 import { hash, readLockfile, writeLockfile, writeLockfileStable, type Lockfile } from "./lockfile.ts";
 
@@ -388,7 +389,7 @@ function outputFiles(
 ): { rel: string; content: string }[] {
   const rendered = render(
     file.source,
-    { project: templateProject(config.project) },
+    templateContext(config.project, target, templateProject(config.project)),
     `${file.rel}`,
     delegationHelpers(target, agents, config.tiers, target === "claude-code" ? config.outDir : undefined),
   );
@@ -495,7 +496,7 @@ function referencedSkills(
   for (const { pack } of packs) {
     for (const file of pack.files) {
       if (!/^agents\/[^/]+\.md$/.test(file.rel)) continue;
-      const rendered = render(file.source, { project: templateProject(config.project) }, file.rel, helpers);
+      const rendered = render(file.source, templateContext(config.project, "claude-code", templateProject(config.project)), file.rel, helpers);
       for (const skill of parseList(parseFrontmatter(rendered, file.rel).data.skills)) wanted.add(skill);
     }
   }

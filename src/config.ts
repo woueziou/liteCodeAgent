@@ -131,6 +131,15 @@ export const ProjectSchema = z.object({
   isolation: z.enum(["auto", "worktree", "inline"]).default("auto"),
   /** Overrides of the built-in worktree capability table, per target (ADR 0023). */
   worktreeSupport: z.partialRecord(z.enum(["claude-code", "codex", "pi", "opencode", "kilo-code", "runner"]), z.boolean()).default({}),
+  /**
+   * Hand the tail of an implementer run to a fresh-context `closer` (ADR 0027, ticket 0081):
+   * `off` (default) keeps every step in-line; `auto` hands off on the targets where
+   * `HANDOFF_SUPPORT` (overridable by `handoffSupport`) says it is enabled. Optional with a
+   * default, so an older config parses unchanged.
+   */
+  handoff: z.enum(["auto", "off"]).default("off"),
+  /** Overrides of the built-in handoff capability table, per target (ADR 0027). */
+  handoffSupport: z.partialRecord(z.enum(["claude-code", "codex", "pi", "opencode", "kilo-code", "runner"]), z.boolean()).default({}),
   /** Where ADRs live, or null if this project does not use ADRs. */
   adrDir: z.string().nullable().default("docs/decisions"),
 
@@ -351,6 +360,21 @@ export const TARGET_INFO: Record<InstallTarget, { label: string; description: st
  */
 export const WORKTREE_SUPPORT: Record<InstallTarget | "runner", boolean> = {
   "claude-code": true,
+  codex: false,
+  pi: false,
+  opencode: false,
+  "kilo-code": false,
+  runner: false,
+};
+
+/**
+ * Whether handing the tail of an implementer run to a fresh-context `closer` is enabled for
+ * each target when `project.handoff` is `auto` (ADR 0027). Empty of supported targets on
+ * purpose: `claude-code` is added only after the measurement of ADR 0027 Decision 9 shows the
+ * handoff pays off. A user overrides it with `project.handoffSupport`.
+ */
+export const HANDOFF_SUPPORT: Record<InstallTarget | "runner", boolean> = {
+  "claude-code": false,
   codex: false,
   pi: false,
   opencode: false,
