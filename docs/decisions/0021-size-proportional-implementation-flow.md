@@ -8,6 +8,8 @@ task: "0061"
 Status: accepted
 Date: 2026-09-29
 
+> **Extended (2026-10-03)** by [ADR 0025](0025-token-control-in-layers.md): the word cap now covers every agent and skill, with a drift report. The implementer caps below are unchanged.
+
 ## Context
 
 Tokens declared by each implementer on 2026-09-28/29 ran from 80k to 190k per ticket (median about 135k), before the reviewers, plus 70k to 150k on every resume after an ADR. Ticket 0044, a few-line regex fix, cost about as much as a medium feature. Two causes: `implementer.md` had grown to about 7,400 words (roughly 10k tokens, three times `reviewer` and eight times `bug-hunter`), reloaded on every run and resume, one rule per incident, most of them only useful in rare cases; and every ticket ran the same flow (worktree, PR, CI, `reviewer`, `bug-hunter` at the most expensive tier, often a re-hunt and a second review).

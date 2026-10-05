@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { ConfigSchema } from "../src/config.ts";
 import { buildPlan } from "../src/install.ts";
 import { AgentCatalog } from "../src/runner/catalog.ts";
+import { countWords } from "../src/pack-sizes.ts";
 import { loadPack } from "../src/packs.ts";
 
 /** Ticket 0064: lean tool output, capped final report, single review pass, lighter reviewer.md. */
@@ -42,7 +43,6 @@ async function core() {
   };
 }
 const body = (source: string) => source.split("\n---\n").slice(1).join("\n---\n");
-const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
 test("implementer: targeted tests while working, full suite once before the push, filtered output", async () => {
   const src = (await core())("agents/implementer.md");
@@ -73,7 +73,7 @@ test("implementer: chore/doc without src changes and small without logic get one
 test("reviewer.md stays within the word budget; rare cases are reference files, not registered skills", async () => {
   const get = await core();
   const src = get("agents/reviewer.md");
-  expect(words(body(src))).toBeLessThanOrEqual(MAX_REVIEWER_WORDS);
+  expect(countWords(body(src))).toBeLessThanOrEqual(MAX_REVIEWER_WORDS);
   const pack = await loadPack(PACKS, "core");
   const refs = [
     "chained-implementation-no-report",
