@@ -20,7 +20,7 @@ async function packFiles() {
 
 /**
  * The one sanctioned mention: implementer's step 8 naming what `bug-hunter` replaced. It's
- * stripped verbatim, from implementer.md only, before scanning — so any other mention of
+ * stripped verbatim, from implementer-inline-tail.md only (step 8 moved there, ADR 0027), before scanning — so any other mention of
  * code-review, in any file (including reviewer, and implementer itself), fails.
  */
 const HISTORICAL_MENTION = "it replaces the `code-review` sub-pass `reviewer` used to invoke";
@@ -28,7 +28,7 @@ const HISTORICAL_MENTION = "it replaces the `code-review` sub-pass `reviewer` us
 test("no pack file depends on the Claude-only code-review skill", async () => {
   const offenders = (await packFiles())
     .filter((f) => {
-      const scanned = f.rel === "agents/implementer.md" ? f.source.replace(HISTORICAL_MENTION, "") : f.source;
+      const scanned = f.rel === "reference/implementer-inline-tail.md" ? f.source.replace(HISTORICAL_MENTION, "") : f.source;
       return /code[-_ ]review/i.test(scanned);
     })
     .map((f) => `${f.name}/${f.rel}`);
@@ -36,12 +36,12 @@ test("no pack file depends on the Claude-only code-review skill", async () => {
 });
 
 test("the sanctioned historical mention is still there verbatim", async () => {
-  const implementer = (await packFiles()).find((f) => f.rel === "agents/implementer.md")!;
+  const implementer = (await packFiles()).find((f) => f.rel === "reference/implementer-inline-tail.md")!;
   expect(implementer.source).toContain(HISTORICAL_MENTION);
 });
 
 test("implementer invokes bug-hunter alongside reviewer, and gates Ready to Merge on it", async () => {
-  const implementer = (await packFiles()).find((f) => f.rel === "agents/implementer.md")!;
+  const implementer = (await packFiles()).find((f) => f.rel === "reference/implementer-inline-tail.md")!;
   expect(implementer.source).toContain("{{> delegate bug-hunter}}");
   expect(implementer.source).toContain("`HUNT: complete`");
 });

@@ -43,7 +43,8 @@ test("reviewer and bug-hunter both know post-merge-base ticket commits on the ba
 });
 
 test("implementer requires re-running reviewer with evidence before Ready to Merge on a suspected false positive", async () => {
-  const implementer = (await packFiles()).find((f) => f.rel === "agents/implementer.md")!;
+  // Step 10 lives in implementer-inline-tail (ADR 0027), rendered in place when the handoff is off.
+  const implementer = (await packFiles()).find((f) => f.rel === "reference/implementer-inline-tail.md")!;
   expect(implementer.source).toMatch(/false positive/);
   expect(implementer.source).toMatch(/re-invoke `reviewer` with your evidence/);
 });

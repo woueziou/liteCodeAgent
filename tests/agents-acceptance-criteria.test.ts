@@ -57,8 +57,9 @@ test("reviewer requires the ticket path and refuses to guess it", async () => {
 
 test("implementer's step 8 hands reviewer the ticket file's path", async () => {
   const core = await loadPack(PACKS, "core");
-  const implementer = core.files.find((f) => f.rel === "agents/implementer.md");
-  if (!implementer) throw new Error("agents/implementer.md not found in core pack");
+  // Step 8 lives in implementer-inline-tail (ADR 0027), rendered in place when the handoff is off.
+  const implementer = core.files.find((f) => f.rel === "reference/implementer-inline-tail.md");
+  if (!implementer) throw new Error("reference/implementer-inline-tail.md not found in core pack");
   expect(implementer.source).toMatch(/\*\*the ticket file's path\*\*/);
 });
 

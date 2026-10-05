@@ -24,7 +24,8 @@ test("implementer.md no longer treats a delegation notification as a sign of a b
 });
 
 test("implementer.md's step 8 and hard rules both say to send exactly one final report", async () => {
-  const source = await coreSource("agents/implementer.md");
+  // Step 8 lives in implementer-inline-tail (ADR 0027), rendered in place when the handoff is off.
+  const source = (await coreSource("agents/implementer.md")) + (await coreSource("reference/implementer-inline-tail.md"));
   const occurrences = source.match(/send exactly one final report/gi) ?? [];
   expect(occurrences.length).toBeGreaterThanOrEqual(2);
 });
@@ -34,7 +35,7 @@ test("implementer.md no longer tells an agent to never end its turn while waitin
   // the current turn ends, so forbidding ending the turn while waiting for one is a self-
   // contradiction. Letting the turn end silently is the correct way to wait; only sending a
   // report (final or interim) before every delegation has reported back is forbidden.
-  const source = await coreSource("agents/implementer.md");
+  const source = (await coreSource("agents/implementer.md")) + (await coreSource("reference/implementer-inline-tail.md"));
   expect(source).not.toMatch(/never end your turn/i);
   expect(source).toMatch(/can only reach you after the current turn/);
 });

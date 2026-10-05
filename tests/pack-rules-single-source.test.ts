@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { join } from "node:path";
 import { ProjectSchema } from "../src/config.ts";
-import { delegationHelpers } from "../src/delegation.ts";
+import { delegationHelpers, packInlineSources } from "../src/delegation.ts";
 import { loadPack } from "../src/packs.ts";
 import { render, templateProject } from "../src/template.ts";
 
@@ -19,7 +19,7 @@ const get = (rel: string) => {
   return file.source;
 };
 
-const helpers = delegationHelpers("claude-code");
+const helpers = delegationHelpers("claude-code", undefined, {}, undefined, packInlineSources([{ pack: core }]));
 const project = templateProject(ProjectSchema.parse({ name: "demo", repo: "owner/demo", agentSkills: { implementer: [], reviewer: [] } }));
 const rendered = (rel: string) => render(get(rel), { project }, rel, helpers);
 

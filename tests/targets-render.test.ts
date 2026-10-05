@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadConfig, TARGETS, type InstallTarget } from "../src/config.ts";
 import { buildPlan, type PlanEntry } from "../src/install.ts";
-import { delegationHelpers, packAgentNames } from "../src/delegation.ts";
+import { delegationHelpers, packAgentNames, packInlineSources } from "../src/delegation.ts";
 import { listPacks, loadPack } from "../src/packs.ts";
 import { referencedPaths, render, TemplateError } from "../src/template.ts";
 
@@ -134,7 +134,7 @@ test("the runner renders every pack file with its own wording and no leftover he
   const packs = await Promise.all(
     (await listPacks(PACKS)).filter((n) => config.packs.includes(n)).map(async (name) => ({ name, pack: await loadPack(PACKS, name) })),
   );
-  const helpers = delegationHelpers("runner", packAgentNames(packs));
+  const helpers = delegationHelpers("runner", packAgentNames(packs), {}, undefined, packInlineSources(packs));
   for (const { name, pack } of packs) {
     for (const file of pack.files) {
       const out = render(file.source, { project: config.project }, `${name}/${file.rel}`, helpers);

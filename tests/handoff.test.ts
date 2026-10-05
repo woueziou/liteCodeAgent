@@ -8,7 +8,7 @@ import { buildPlan } from "../src/install.ts";
 import { listPacks, loadPack } from "../src/packs.ts";
 import { render, templateProject } from "../src/template.ts";
 import { templateContext } from "../src/handoff.ts";
-import { delegationHelpers } from "../src/delegation.ts";
+import { delegationHelpers, packInlineSources } from "../src/delegation.ts";
 import { loadConfig } from "../src/config.ts";
 
 const project = (extra: Record<string, unknown> = {}) =>
@@ -97,8 +97,10 @@ test("with the default config every real pack file renders byte-identically with
   const { config } = await loadConfig(join(import.meta.dir, ".."));
   const packsRoot = join(import.meta.dir, "..", "packs");
   const agents = new Set<string>();
+  const allPacks = [];
   for (const name of await listPacks(packsRoot)) {
     const pack = await loadPack(packsRoot, name);
+    allPacks.push({ pack });
     for (const f of pack.files) {
       const m = /^agents\/([^/]+)\.md$/.exec(f.rel);
       if (m) agents.add(m[1]!);
@@ -109,7 +111,7 @@ test("with the default config every real pack file renders byte-identically with
     const pack = await loadPack(packsRoot, name);
     for (const file of pack.files) {
       for (const target of [...TARGETS, "runner"] as (InstallTarget | "runner")[]) {
-        const helpers = delegationHelpers(target, agents, config.tiers);
+        const helpers = delegationHelpers(target, agents, config.tiers, undefined, packInlineSources(allPacks));
         const before = render(file.source, { project: templateProject(config.project) }, file.rel, helpers);
         const after = render(file.source, templateContext(config.project, target, templateProject(config.project)), file.rel, helpers);
         expect(after).toBe(before);

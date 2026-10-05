@@ -9,6 +9,9 @@
  *                               {{ field }} resolves against the item first, then the root
  *   {{> name arg}}              call a helper supplied by the caller (e.g. the install
  *                               target's delegation wording); an unknown helper is an error
+ *   {{> inline name}}           the one helper whose text is itself a template: rendered in place
+ *                               with the same context and helpers (a pack reference file's body,
+ *                               so a passage lives in one source file, ADR 0027)
  *
  * Anything unresolved is a hard error, never a silently empty string: a prompt with a
  * hole in it is worse than a build that fails.
@@ -124,14 +127,18 @@ function renderScope(tpl: string, scopes: Ctx[], where: string, helpers: Helpers
 
 const HELPER = /^>\s*([A-Za-z][\w-]*)(?:\s+(.*))?$/;
 
-function callHelper(expr: string, where: string, helpers: Helpers): string {
+/** The helper whose result is itself a template, rendered in the caller's scope (ADR 0027). */
+export const INLINE_HELPER = "inline";
+
+function callHelper(expr: string, scopes: Ctx[], where: string, helpers: Helpers): string {
   const call = HELPER.exec(expr);
   if (!call) throw new TemplateError(`${where}: malformed helper call '{{ ${expr} }}' — expected '{{> name arg}}'`);
   const name = call[1]!;
   // Own properties only: `helpers.toString` & co. exist on every object and aren't helpers.
   if (!Object.hasOwn(helpers, name)) throw new TemplateError(`${where}: unknown helper '{{> ${name}}}'`);
   try {
-    return helpers[name]!((call[2] ?? "").trim());
+    const text = helpers[name]!((call[2] ?? "").trim());
+    return name === INLINE_HELPER ? renderScope(stripStandaloneTags(text), scopes, `${where} (inline ${call[2]})`, helpers) : text;
   } catch (e) {
     throw new TemplateError(`${where}: ${(e as Error).message}`);
   }
@@ -139,7 +146,7 @@ function callHelper(expr: string, where: string, helpers: Helpers): string {
 
 function renderLeaf(tpl: string, scopes: Ctx[], where: string, helpers: Helpers): string {
   return tpl.replace(/\{\{([^#^/][^}]*)\}\}/g, (_full, rawExpr: string) => {
-    if (rawExpr.trim().startsWith(">")) return callHelper(rawExpr.trim(), where, helpers);
+    if (rawExpr.trim().startsWith(">")) return callHelper(rawExpr.trim(), scopes, where, helpers);
     const [rawPath, filter] = rawExpr.split("|").map((s) => s.trim());
     const value = lookup(rawPath ?? "", scopes);
     if (value === undefined) {

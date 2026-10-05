@@ -16,7 +16,16 @@ const PACKS = join(import.meta.dir, "..", "packs");
 const EXAMPLE = join(import.meta.dir, "..", "examples", "ts-employee-service.litecode.config.json");
 const MAX_WORDS = 20;
 const MAX_TOTAL_WORDS = 17 * MAX_WORDS;
-const INTERNAL = ["classifier", "panel-selector", "debate-angle", "synthesizer", "planner"];
+// Agents only another agent calls, with the caller their description names. The closer (ADR 0027) is
+// called by implementer only, and installed only where the handoff is on, so it is announced nowhere by default.
+const INTERNAL: Record<string, string> = {
+  classifier: "orchestrator",
+  "panel-selector": "orchestrator",
+  "debate-angle": "orchestrator",
+  synthesizer: "orchestrator",
+  planner: "orchestrator",
+  closer: "implementer",
+};
 
 const dirs: string[] = [];
 afterAll(() => Promise.all(dirs.map((d) => rm(d, { recursive: true, force: true }))));
@@ -47,11 +56,11 @@ test("every agent and skill description fits in 20 words, and the total is bound
   expect(all.reduce((sum, d) => sum + countWords(d.description), 0)).toBeLessThanOrEqual(MAX_TOTAL_WORDS);
 });
 
-test("internal agents say in one line that orchestrator calls them", async () => {
+test("internal agents say in one line which agent calls them", async () => {
   const all = await descriptions();
-  for (const name of INTERNAL) {
+  for (const [name, caller] of Object.entries(INTERNAL)) {
     const entry = all.find((d) => d.rel === `agents/${name}.md`)!;
-    expect(entry.description).toMatch(/orchestrator/);
+    expect(entry.description).toMatch(new RegExp(caller));
   }
 });
 

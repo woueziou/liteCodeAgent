@@ -26,3 +26,15 @@ export function skipSkill(data: Record<string, string>, name: string, wanted: Re
 export function withoutInstallKey(data: Record<string, string>): Record<string, string> {
   return Object.fromEntries(Object.entries(data).filter(([key]) => key !== INSTALL_KEY));
 }
+
+/**
+ * `install: handoff` marks a pack file (the `closer` agent and the references only it and the
+ * handoff text of `implementer` read) that exists only where the closer handoff is enabled for
+ * the target (ADR 0027, ticket 0081). With it disabled the file is neither rendered nor installed,
+ * so the default install plan, the lockfile and every session's announced agents stay as they were.
+ */
+export const INSTALL_HANDOFF = "handoff";
+
+export function skipForHandoff(data: Record<string, string>, handoffEnabled: boolean): boolean {
+  return data[INSTALL_KEY] === INSTALL_HANDOFF && !handoffEnabled;
+}

@@ -52,7 +52,11 @@ test("every implementer-* reference file is referenced by the body, and every re
 
 test("every implementer-* reference file is installed under each target's root, and loads no template syntax", async () => {
   const { pack } = await core();
-  const names = pack.files.map((f) => /^reference\/(implementer-[a-z-]+)\.md$/.exec(f.rel)?.[1]).filter(Boolean) as string[];
+  // `install: handoff` references exist only where the closer handoff is on (ADR 0027); tests/closer-handoff.test.ts covers them.
+  const names = pack.files
+    .filter((f) => !/^install: handoff$/m.test(f.source.split("\n---\n")[0]!))
+    .map((f) => /^reference\/(implementer-[a-z-]+)\.md$/.exec(f.rel)?.[1])
+    .filter(Boolean) as string[];
   const config = ConfigSchema.parse(await Bun.file(EXAMPLE).json());
   const root = await mkdtemp(join(tmpdir(), "litecode-"));
   await Bun.write(join(root, ".claude", "skills", "orpc-expert", "SKILL.md"), "---\nname: orpc-expert\n---\n");

@@ -191,6 +191,21 @@ export function packAgentNames(packs: { pack: { files: { rel: string }[] } }[]):
 }
 
 /**
+ * The body of every pack reference file (`reference/<name>.md`, frontmatter dropped, outer blank
+ * lines trimmed), keyed by name: what `{{> inline <name>}}` puts in place (ADR 0027).
+ */
+export function packInlineSources(packs: { pack: { files: { rel: string; source: string }[] } }[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const { pack } of packs) {
+    for (const f of pack.files) {
+      const name = /^reference\/([^/]+)\.md$/.exec(f.rel)?.[1];
+      if (name) out.set(name, f.source.replace(/^---\n[\s\S]*?\n---\n/, "").replace(/^\n+|\n+$/g, ""));
+    }
+  }
+  return out;
+}
+
+/**
  * The `{{> …}}` helpers pack prompts may use, bound to one render target. With `agents`
  * (the pack agents being installed), delegating to anything else — a typo, an agent from
  * a pack that isn't installed — fails the render instead of failing at run time.
@@ -200,8 +215,15 @@ export function delegationHelpers(
   agents?: ReadonlySet<string>,
   tiers: Record<string, string | undefined> = {},
   referenceRoot?: string,
+  inlineSources?: ReadonlyMap<string, string>,
 ): Helpers {
   return {
+    inline(arg) {
+      const text = inlineSources?.get(arg);
+      if (text === undefined) throw new Error(`{{> inline ${arg}}} names no pack reference file`);
+      if (/\{\{>\s*inline\b/.test(text)) throw new Error(`{{> inline ${arg}}}: an inlined file cannot inline another`);
+      return text;
+    },
     reference(arg) {
       return reference(target, arg, referenceRoot);
     },
