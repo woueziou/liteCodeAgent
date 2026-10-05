@@ -31,3 +31,9 @@ Mesuré : dans le run du ticket 0069, l'implementer garde tout son contexte de c
 
 ## Hors périmètre
 Modifier le contenu des relectures ; fusionner `reviewer` et `bug-hunter`.
+
+## ADR à valider : 0027
+
+L'ADR est rédigé : `docs/decisions/0027-hand-the-tail-of-an-implementer-run-to-a-fresh-context-closer.md` (statut `proposed`). Le fusionner vaut validation ; il pose cinq questions à la fin. Aucun code n'est écrit avant.
+
+Mesure faite pour l'ADR (la prémisse du ticket reposait sur un seul run) : sur 42 runs réels d'implementer avec une PR, la part du contexte lu après `gh pr create` est de 55,8 % en moyenne (médiane 55,0 %, de 22,6 % à 95,4 %). Méthode et script : `docs/specs/restructure-baseline/tail-share.py`.
