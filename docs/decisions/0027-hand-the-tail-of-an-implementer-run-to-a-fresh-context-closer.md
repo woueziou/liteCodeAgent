@@ -10,6 +10,8 @@ Date: 2026-10-05
 
 > **Accepted (2026-10-05):** validated by merging PR #146 with the five proposals of "Questions for the validation" as written (name `closer`, default `off`, two relaunches, two hours, 25 %). Implementation: ticket 0081.
 
+> **Measured (2026-10-05):** the gate of Decision 9 is **not met**. Over five runs per condition with a real pull request, the implementer's share of context read after the PR moved from 65 % to 59 % (a 9 % relative fall, against the quarter required); total tokens -7 % and cost -1 %, both inside the noise; four of five handoff runs ended in `review` with a partial bug hunt. The handoff stays off and `HANDOFF_SUPPORT` stays empty. The measurement also found two defects of the closer that tests and reviews had missed (a subagent that ends its turn to wait for notifications returns early; start it and its reviews in the foreground). Details and limits: `docs/specs/restructure-baseline/README.md`.
+
 ## Context
 
 After it opens its pull request, `implementer` still has to wait for CI, start `reviewer` and `bug-hunter`, post their reports, move the ticket and write a note (steps 8 to 10 of `implementer.md`). None of that needs the code it wrote, yet every call of that tail re-reads the whole context the run has accumulated, up to about 170,000 tokens. Ticket 0081 measured it on one run (ticket 0069) and asked for a handoff.

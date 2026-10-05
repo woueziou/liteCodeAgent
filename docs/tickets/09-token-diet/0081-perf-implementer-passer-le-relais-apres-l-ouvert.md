@@ -47,3 +47,7 @@ Reste, pour clore le ticket (ADR 0027, décision 9) :
 - si la part du contexte lu après la PR baisse d'au moins un quart, sans nouvel échec de `verify-report` : ajouter `claude-code` à la table et passer le défaut à `auto`.
 
 Non vérifié de bout en bout : la chaîne implementer, closer, reviewer sur Claude Code. Les transcripts montrent des sous-agents jusqu'à la profondeur 3 dans ce projet, mais pas ce parcours précis.
+
+## Mesure (2026-10-05)
+
+Cinq runs par condition avec une vraie PR, sur un dépôt GitHub jetable : la porte de l'ADR 0027 (décision 9) n'est **pas atteinte**. Part du contexte lu après la PR : 65 % sans relais, 59 % avec (il en fallait un quart de moins). Coût et tokens totaux : -1 % et -7 %, dans le bruit. Le relais reste désactivé. La mesure a aussi trouvé deux défauts du `closer` (corrigés). Détails et limites : `docs/specs/restructure-baseline/README.md`.
