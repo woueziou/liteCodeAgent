@@ -10,7 +10,7 @@ Loaded by `implementer` at step 8 when the handoff is on (ADR 0027). `closer` wa
 
 ## Starting it
 
-Start `closer` like the reviews: never pass `run_in_background: false`. A foreground call blocks you, and when `closer` ends its turn to wait for its own reviews, its partial text comes back as if it were the result (the first real run did this). In the background its result arrives as a notification: end your turn silently, and treat any reply that is not the result block as not finished.
+Start `closer` with {{> delegate closer}}, like the reviews. It waits for its own reviews inside its turn, so its result is the block below, never a status sentence: treat any reply that is not the result block as not finished, do not start a second `closer`, and let the notification (or the call) bring the result.
 
 ## Before delegating
 

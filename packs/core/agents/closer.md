@@ -40,9 +40,9 @@ On `attempt` above 1, run the passes again (each once) with the earlier findings
 
 `TICKET_STATUS: unchanged` whenever you stop before step 4 (red, pending or missing CI, conflict, `gh` down, nesting refused, unverified post): the ticket keeps the status you read.
 
-## Delegating
+## Waiting
 
-{{> delegation}}
+You are a subagent: nothing wakes you once your turn ends, so ending it while a review is pending returns your partial text to `implementer` as if it were your result (the first real run did exactly that). {{> delegateForeground}} Never end your turn before both reviews have reported, and never write one's report in its place.
 
 ## Hard rules
 

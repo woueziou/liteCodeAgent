@@ -147,10 +147,25 @@ test("the handoff reference says how far nesting is verified, and how to start t
   expect(note).toContain("capability table stays empty");
   // The first real run failed because the closer was started in the foreground: say how not to.
   const start = between(handoff, "## Starting it", "## Before delegating");
-  expect(start).toContain("never pass `run_in_background: false`");
   expect(start).toContain("not the result block");
+  expect(start).toContain("do not start a second `closer`");
 });
 
 test("the closer retries before calling CI missing", () => {
   expect(closer).toMatch(/if none is reported yet, retry every 15 seconds for up to two minutes/);
+});
+
+// --- 7. the closer waits for its reviews in the foreground (first real run) ---------------
+// A subagent that ends its turn to "wait for a notification" is finished: nothing wakes it, the
+// reviews' notifications go to the root session, and the closer's partial text is handed back
+// to the implementer as if it were the result (pilot runs of ADR 0027, 2026-10-05).
+
+test("the closer is told to wait in the same turn, never to end its turn while a review is pending", () => {
+  expect(closer).toContain("## Waiting");
+  expect(closer).toContain("nothing wakes you");
+  expect(closer).toMatch(/Never end your turn before both reviews have reported/);
+  // The generic delegation text tells a main session to let the turn end and wait for a
+  // notification: that is exactly wrong for a subagent.
+  expect(closer).not.toContain("let the turn end without writing anything");
+  expect(closer).not.toContain("## Delegating");
 });

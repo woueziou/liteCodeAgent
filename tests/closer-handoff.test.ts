@@ -168,6 +168,11 @@ test.each(Object.keys(OWN_WORDING))("enabled for %s: the closer renders that tar
   if (target === "claude-code") expect(closer).toContain('pass `model: "haiku"` on that call');
   else expect(closer).toContain("cannot choose a model per call");
   expect(closer).toContain("--project <primary-checkout>");
+  // The closer is a subagent: it waits for its reviews in the same turn (first real run, ADR 0027).
+  // Only Claude Code has a background mode to switch off; no other target may mention it.
+  expect(closer).toContain("## Waiting");
+  if (target === "claude-code") expect(closer).toContain("each with `run_in_background: false`");
+  else expect(closer).not.toContain("run_in_background");
 });
 
 test("enabled for pi: no native agent file, and the implementer keeps the in-line steps", async () => {
@@ -214,7 +219,9 @@ test("the closer never fixes code or rewrites history, and Write is for temporar
   expect(closer).toMatch(/`Write` only for temporary comment and note files outside any checkout/);
   expect(closer).toContain("--project <primary-checkout>");
   expect(closer).toMatch(/never rewrite history/);
-  expect(closer).toContain("{{> delegation}}");
+  // A subagent waits in the foreground: it uses the foreground helper, not the generic delegation text.
+  expect(closer).toContain("{{> delegateForeground}}");
+  expect(closer).not.toContain("{{> delegation}}");
 });
 
 test("the closer decides the status with the conditions of the in-line step 10, and the CI wait is bounded", () => {
