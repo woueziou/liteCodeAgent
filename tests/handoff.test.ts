@@ -111,7 +111,7 @@ test("with the default config every real pack file renders byte-identically with
     const pack = await loadPack(packsRoot, name);
     for (const file of pack.files) {
       for (const target of [...TARGETS, "runner"] as (InstallTarget | "runner")[]) {
-        const helpers = delegationHelpers(target, agents, config.tiers, undefined, packInlineSources(allPacks));
+        const helpers = delegationHelpers(target, { agents, tiers: config.tiers, inlineSources: packInlineSources(allPacks) });
         const before = render(file.source, { project: templateProject(config.project) }, file.rel, helpers);
         const after = render(file.source, templateContext(config.project, target, templateProject(config.project)), file.rel, helpers);
         expect(after).toBe(before);

@@ -7,7 +7,7 @@ description: Reference for implementer (not a skill; read on demand when the cas
 
 Loaded by `implementer` when a `gh`/push call fails for connectivity or outage reasons.
 
-Steps 1-6 and 10 (reading the ticket, status writes, worktree/branch, implement, commit) are purely local — keep going through them even if you've already seen `gh` fail elsewhere; don't let an outage stop you from finishing safe local work. Only step 7 (push + PR), step 8 (`reviewer` and `bug-hunter` inspecting the live PR) and step 9 (posting the verdicts on the PR) need GitHub.
+{{^if handoff}}Steps 1-6 and 10 ({{/if}}{{#if handoff}}Steps 1-6 ({{/if}}reading the ticket, status writes, worktree/branch, implement, commit) are purely local — keep going through them even if you've already seen `gh` fail elsewhere; don't let an outage stop you from finishing safe local work. {{^if handoff}}Only step 7 (push + PR), step 8 (`reviewer` and `bug-hunter` inspecting the live PR) and step 9 (posting the verdicts on the PR) need GitHub.{{/if}}{{#if handoff}}Only step 7 (push + PR) and `closer`'s work (the CI wait, `reviewer` and `bug-hunter` inspecting the live PR, posting the verdicts) need GitHub; it reports that as `NEEDS: github-unavailable`.{{/if}}
 
 If a `gh`/push call fails for connectivity/outage reasons:
 

@@ -13,7 +13,8 @@
  */
 
 import { TARGET_ROOTS, type InstallTarget } from "./config.ts";
-import type { Helpers } from "./template.ts";
+import { parseFrontmatter } from "./frontmatter.ts";
+import { INLINE_HELPER, type Helpers } from "./template.ts";
 
 /** Every place a pack prompt is rendered: an install target, or the built-in API runner. */
 export type RenderTarget = InstallTarget | "runner";
@@ -199,29 +200,38 @@ export function packInlineSources(packs: { pack: { files: { rel: string; source:
   for (const { pack } of packs) {
     for (const f of pack.files) {
       const name = /^reference\/([^/]+)\.md$/.exec(f.rel)?.[1];
-      if (name) out.set(name, f.source.replace(/^---\n[\s\S]*?\n---\n/, "").replace(/^\n+|\n+$/g, ""));
+      if (name) out.set(name, parseFrontmatter(f.source, f.rel).body.replace(/^\n+|\n+$/g, ""));
     }
   }
   return out;
 }
 
+type DelegationBase = {
+  tiers?: Record<string, string | undefined>;
+  referenceRoot?: string;
+};
+
 /**
- * The `{{> …}}` helpers pack prompts may use, bound to one render target. With `agents`
- * (the pack agents being installed), delegating to anything else — a typo, an agent from
- * a pack that isn't installed — fails the render instead of failing at run time.
+ * What `delegationHelpers` binds. Rendering pack files (`agents` given: delegating to anything
+ * else fails the render, a typo or an agent from a pack that isn't installed) also needs
+ * `inlineSources`, because any of them may use `{{> inline}}`; a call that names `agents` without it
+ * throws at once rather than at the first inline. Without `agents`, `{{> inline}}` finds no source.
  */
-export function delegationHelpers(
-  target: RenderTarget,
-  agents?: ReadonlySet<string>,
-  tiers: Record<string, string | undefined> = {},
-  referenceRoot?: string,
-  inlineSources?: ReadonlyMap<string, string>,
-): Helpers {
+export type DelegationOptions =
+  | (DelegationBase & { agents: ReadonlySet<string>; inlineSources: ReadonlyMap<string, string> })
+  | (DelegationBase & { agents?: undefined; inlineSources?: ReadonlyMap<string, string> });
+
+/** The `{{> …}}` helpers pack prompts may use, bound to one render target. */
+export function delegationHelpers(target: RenderTarget, options: DelegationOptions = {}): Helpers {
+  const { agents, tiers = {}, referenceRoot, inlineSources } = options;
+  if (agents && !inlineSources) {
+    throw new Error("delegationHelpers: rendering pack files (`agents`) needs `inlineSources` (packInlineSources(packs)) for {{> inline}}");
+  }
   return {
-    inline(arg) {
+    [INLINE_HELPER](arg) {
       const text = inlineSources?.get(arg);
       if (text === undefined) throw new Error(`{{> inline ${arg}}} names no pack reference file`);
-      if (/\{\{>\s*inline\b/.test(text)) throw new Error(`{{> inline ${arg}}}: an inlined file cannot inline another`);
+      if (new RegExp(String.raw`\{\{>\s*${INLINE_HELPER}\b`).test(text)) throw new Error(`{{> inline ${arg}}}: an inlined file cannot inline another`);
       return text;
     },
     reference(arg) {

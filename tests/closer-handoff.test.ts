@@ -40,18 +40,23 @@ async function plan(project: Record<string, unknown>, targets: InstallTarget[] =
   return (await buildPlan(root, PACKS, config)).entries;
 }
 
-const isHandoffFile = (rel: string) => /(^|\/)(closer\.(md|toml)|implementer-closer-handoff\.md|implementer-inline-tail\.md)$/.test(rel);
+const isHandoffFile = (rel: string) => /(^|\/)(closer\.(md|toml)|implementer-closer-handoff\.md|implementer-closer-outcome\.md|implementer-inline-tail\.md)$/.test(rel);
 const enabledFor = (...targets: InstallTarget[]) => ({ handoff: "auto", handoffSupport: Object.fromEntries(targets.map((t) => [t, true])) });
 
 // --- the inline helper -------------------------------------------------------------------
 
 test("{{> inline name}} renders a reference body in place, in the caller's context and helpers", () => {
-  const helpers = delegationHelpers("codex", new Set(["reviewer"]), {}, undefined, new Map([["x", "Ask {{> delegate reviewer}} about {{ project.repo }}.\n{{#if handoff}}\nON\n{{/if}}"]]));
+  const helpers = delegationHelpers("codex", { agents: new Set(["reviewer"]), inlineSources: new Map([["x", "Ask {{> delegate reviewer}} about {{ project.repo }}.\n{{#if handoff}}\nON\n{{/if}}"]]) });
   const out = render("A\n{{> inline x}}\nB", { project: { repo: "o/r" }, handoff: true }, "t", helpers);
   expect(out).toBe("A\nAsk a Codex subagent — spawn the `reviewer` custom agent by name and wait for its result about o/r.\nON\n\nB");
   expect(() => render("{{> inline nope}}", {}, "t", helpers)).toThrow(/names no pack reference file/);
-  const nested = delegationHelpers("codex", undefined, {}, undefined, new Map([["a", "{{> inline b}}"], ["b", "x"]]));
+  const nested = delegationHelpers("codex", { inlineSources: new Map([["a", "{{> inline b}}"], ["b", "x"]]) });
   expect(() => render("{{> inline a}}", {}, "t", nested)).toThrow(/cannot inline another/);
+});
+
+test("delegationHelpers names the missing inlineSources when it is given agents, at call time", () => {
+  // @ts-expect-error pack rendering (agents) requires inlineSources
+  expect(() => delegationHelpers("codex", { agents: new Set(["reviewer"]) })).toThrow(/needs `inlineSources`/);
 });
 
 test("packInlineSources keys every reference by name, frontmatter and outer blank lines dropped", () => {
@@ -85,7 +90,7 @@ test("with handoff auto but no target in the table, the plan is the default plan
 test("the default render of steps 8 to 10 is the in-line text, followed by Output economy", async () => {
   const entries = await plan({}, ["claude-code"]);
   const implementer = entries.find((e) => e.rel === ".claude/agents/implementer.md")!.content;
-  const tail = render(packInlineSources([{ pack: core }]).get("implementer-inline-tail")!, {}, "t", delegationHelpers("claude-code", undefined, {}));
+  const tail = render(packInlineSources([{ pack: core }]).get("implementer-inline-tail")!, {}, "t", delegationHelpers("claude-code"));
   expect(implementer).toContain(`${tail}\n\n## Output economy`);
 });
 
@@ -97,23 +102,34 @@ test("the runner catalog has no closer by default", async () => {
 
 // --- enabled for one target --------------------------------------------------------------
 
-test("enabled for claude-code only: the closer and its two references are installed there, nowhere else", async () => {
+const HANDOFF_FILES = [
+  ".claude/agents/closer.md",
+  ".claude/reference/implementer-closer-handoff.md",
+  ".claude/reference/implementer-closer-outcome.md",
+  ".claude/reference/implementer-inline-tail.md",
+];
+// Reference files whose text names a step of the in-line flow: their enabled render words it for the handoff.
+const CONDITIONAL = new Set(
+  ["ci-red", "github-outage", "progress-journal", "rehunt", "resume", "review-disputes", "review-handoff", "stacked-pr", "verification-only"].map((n) => `.claude/reference/implementer-${n}.md`),
+);
+
+test("enabled for claude-code only: the closer and its three references are installed there, nowhere else", async () => {
   const entries = await plan({ ...enabledFor("claude-code") });
-  expect(entries.filter((e) => isHandoffFile(e.rel)).map((e) => e.rel).sort()).toEqual([
-    ".claude/agents/closer.md",
-    ".claude/reference/implementer-closer-handoff.md",
-    ".claude/reference/implementer-inline-tail.md",
-  ]);
+  expect(entries.filter((e) => isHandoffFile(e.rel)).map((e) => e.rel).sort()).toEqual(HANDOFF_FILES);
   expect(entries.some((e) => /^install: /m.test(e.content))).toBe(false);
+});
+
+test("enabled for claude-code only: the implementer hands over, and only the handoff-aware files differ from the default", async () => {
+  const entries = await plan({ ...enabledFor("claude-code") });
   const claude = entries.find((e) => e.rel === ".claude/agents/implementer.md")!.content;
   expect(claude).toContain("`closer`");
   expect(claude).toContain("`.claude/reference/implementer-closer-handoff.md`");
   expect(claude).toContain("`.claude/reference/implementer-inline-tail.md`");
   expect(claude).not.toContain("8. Invoke **both** review passes");
   expect(claude).not.toContain("{{");
-  // every other target, and every other agent, is what it is by default
   const dflt = await plan({});
-  const rest = (list: PlanEntry[]) => list.filter((e) => e.rel !== ".claude/agents/implementer.md" && !isHandoffFile(e.rel)).map((e) => [e.rel, e.content]);
+  const rest = (list: PlanEntry[]) =>
+    list.filter((e) => e.rel !== ".claude/agents/implementer.md" && !isHandoffFile(e.rel) && !CONDITIONAL.has(e.rel)).map((e) => [e.rel, e.content]);
   expect(rest(entries)).toEqual(rest(dflt));
   for (const e of entries.filter((x) => /implementer\.(md|toml)$/.test(x.rel) && x.harness !== "claude-code")) expect(e.content).not.toMatch(/closer/);
 });
@@ -172,25 +188,15 @@ test("enabled for the runner: the catalog carries the closer, worded for the run
 
 // --- pins: the surviving sources keep the contract ---------------------------------------
 
-test("the closer states the brief fields of Decision 2", () => {
+test("the closer is the single source of the brief fields; the reference points to it", () => {
   const closer = source("agents/closer.md");
-  for (const field of [
-    "ticket id and file path",
-    "`size` and label",
-    "branch, base, PR number and URL",
-    "the worktree path",
-    "the primary checkout's absolute path",
-    "the head commit",
-    "`CHECK_OUTPUT`",
-    "the expected CI test check(s)",
-    "the attempt number",
-    "the verdicts and counters of earlier attempts (re-hunts used)",
-  ]) expect(closer).toContain(field);
-  // the same fields are what the implementer is told to send
-  const ref = source("reference/implementer-closer-handoff.md");
-  for (const field of ["ticket id and file path", "`size` and label", "PR number and URL", "primary checkout's absolute path", "head commit", "`CHECK_OUTPUT`", "attempt number", "re-hunts used"]) {
-    expect(ref).toContain(field);
+  const brief = closer.slice(closer.indexOf("## The brief"), closer.indexOf("## Flow"));
+  for (const field of ["ticket id and file path", "`size` and label", "PR number and URL", "worktree path", "primary checkout's absolute path", "head commit", "`CHECK_OUTPUT`", "expected CI test check(s)", "`attempt`", "`rehunts_used`"]) {
+    expect(brief).toContain(field);
   }
+  const ref = source("reference/implementer-closer-handoff.md");
+  expect(ref).toContain("`closer`'s page describes under \"The brief\"");
+  expect(ref).not.toContain("primary checkout's absolute path");
 });
 
 test("the closer returns the block of Decision 4, with its NEEDS values", () => {
@@ -199,63 +205,52 @@ test("the closer returns the block of Decision 4, with its NEEDS values", () => 
   for (const key of ["VERDICTS", "CI", "POSTED", "TICKET_STATUS", "NEEDS", "EVIDENCE", "TOKENS"]) expect(block).toMatch(new RegExp(`^${key}: <`, "m"));
   expect(block).toContain("<none | code-fix:ci-red | code-fix:review | conflict | github-unavailable | nesting-unavailable>");
   expect(closer).toContain("`NEEDS: nesting-unavailable`");
-  expect(closer).toMatch(/Return one result block and nothing else/);
+  expect(closer).toMatch(/one result block/);
 });
 
-test("the closer never writes to the worktree or the primary checkout, never fixes code or rewrites history", () => {
+test("the closer never fixes code or rewrites history, and Write is for temporary files outside any checkout", () => {
   const closer = source("agents/closer.md");
   expect(closer).toMatch(/Never write a file in the worktree or the primary checkout/);
-  expect(closer).toMatch(/only writes are PR comments and `ticket move`\/`ticket note` with `--project <primary-checkout>`/);
-  expect(closer).toMatch(/Never fix code, never rewrite history/);
+  expect(closer).toMatch(/`Write` only for temporary comment and note files outside any checkout/);
+  expect(closer).toContain("--project <primary-checkout>");
+  expect(closer).toMatch(/never rewrite history/);
   expect(closer).toContain("{{> delegation}}");
 });
 
-test("the closer decides the status with the conditions of step 10, and the CI wait is bounded", () => {
+test("the closer decides the status with the conditions of the in-line step 10, and the CI wait is bounded", () => {
   const closer = source("agents/closer.md");
-  const tail = source("reference/implementer-inline-tail.md");
-  for (const phrase of [
-    "`approve-with-notes` with no blocking finding unresolved",
-    "`HUNT: complete` with no blocking finding unresolved",
-    "CI is green (pass, or none configured; never pending or failing)",
-    "the expected test check(s) run and passed",
-    "there are no merge conflicts",
-  ]) expect(closer).toContain(phrase);
-  expect(tail).toContain("`approve-with-notes` with no blocking finding unresolved");
-  expect(closer).toContain("`gh pr checks <pr> --watch`, bounded");
-  expect(closer).toContain("{{> delegate reviewer}}");
-  expect(closer).toContain("{{> delegate bug-hunter}}");
-  expect(closer).toContain("{{> delegateTier balanced}}");
+  const step4 = closer.slice(closer.indexOf("\n4. "), closer.indexOf("\n5. "));
+  for (const phrase of ["approve-with-notes", "HUNT: complete", "never pending or failing", "test check(s) run and passed", "merge conflicts"]) expect(step4).toContain(phrase);
+  expect(source("reference/implementer-inline-tail.md")).toContain("approve-with-notes");
+  expect(closer).toContain("--watch`, bounded");
+  for (const helper of ["{{> delegate reviewer}}", "{{> delegate bug-hunter}}", "{{> delegateTier balanced}}"]) expect(closer).toContain(helper);
 });
 
-test("the handoff reference pins the journal markers, the relaunch limit, the fix loop and the fallback", () => {
+test("the handoff reference pins the journal markers, the relaunch limit and the fallback", () => {
   const ref = source("reference/implementer-closer-handoff.md");
-  expect(ref).toContain("`handoff: closer in flight`");
-  expect(ref).toContain("`handoffAt: <now, ISO 8601 UTC>`");
+  for (const phrase of ["`handoff: closer in flight`", "`handoffAt: <now, ISO 8601 UTC>`", "`handoff: returned`", "`attempt` plus one", "**two relaunches**", "do the tail yourself", "`implementer-inline-tail`"]) expect(ref).toContain(phrase);
   expect(ref).toMatch(/\*\*before\*\* you start `closer`/);
-  expect(ref).toContain("`handoff: returned`");
-  expect(ref).toMatch(/At most \*\*two relaunches\*\*/);
-  expect(ref).toMatch(/attempt number plus one/);
-  expect(ref).toMatch(/Move the ticket `review` to `inProgress` \*\*before\*\* touching code/);
-  expect(ref).toContain("`TOKENS` is yours plus the closer's");
-  expect(ref).toMatch(/`NEEDS: nesting-unavailable`: do the tail yourself, exactly as in-line/);
   for (const needs of ["code-fix:ci-red", "code-fix:review", "conflict", "github-unavailable", "none"]) expect(ref).toContain(needs);
+  expect(source("reference/implementer-closer-outcome.md")).toContain("`TOKENS` is yours plus every closer's");
 });
 
 test("implementer.md carries the handoff only behind the flag, and the step text exists once", () => {
   const implementer = source("agents/implementer.md");
-  const flagged = [...implementer.matchAll(/\{\{#if handoff\}\}([\s\S]*?)\{\{\/if\}\}/g)].map((m) => m[1]);
-  expect(flagged).toHaveLength(1);
-  expect(flagged[0]).toContain("{{> delegate closer}}");
-  expect(flagged[0]).toContain("{{> reference implementer-closer-handoff}}");
-  expect(flagged[0]).toContain("{{> reference implementer-inline-tail}}");
-  expect(implementer.replace(flagged[0]!, "")).not.toMatch(/closer/);
+  // the block form, one per line: the hand-over of step 8; the other mentions are inline, in "Review flow by size"
+  const block = /^\{\{#if handoff\}\}\n([\s\S]*?)\n\{\{\/if\}\}$/m.exec(implementer)![1]!;
+  expect(block).toContain("{{> delegate closer}}");
+  expect(block).toContain("{{> reference implementer-closer-handoff}}");
+  expect(block).toContain("{{> reference implementer-inline-tail}}");
+  const inline = [...implementer.matchAll(/\{\{#if handoff\}\}(.*?)\{\{\/if\}\}/g)].map((m) => m[1]!);
+  expect(inline).toHaveLength(2);
+  expect(implementer.replace(block, "").replace(/\{\{#if handoff\}\}.*?\{\{\/if\}\}/g, "")).not.toMatch(/closer/);
   expect(implementer).toContain("{{> inline implementer-inline-tail}}");
   expect(implementer).not.toContain("Invoke **both** review passes");
   expect(source("reference/implementer-inline-tail.md")).toContain("Invoke **both** review passes");
 });
 
 test("every file only the handoff uses is marked, and the closer's description fits", () => {
-  for (const rel of ["agents/closer.md", "reference/implementer-closer-handoff.md", "reference/implementer-inline-tail.md"]) {
+  for (const rel of ["agents/closer.md", "reference/implementer-closer-handoff.md", "reference/implementer-closer-outcome.md", "reference/implementer-inline-tail.md"]) {
     expect(source(rel).split("\n---\n")[0]).toMatch(/^install: handoff$/m);
   }
   const description = /^description: (.*)$/m.exec(source("agents/closer.md"))![1]!;
@@ -267,7 +262,7 @@ test("every file only the handoff uses is marked, and the closer's description f
 
 test("the size report covers the files only the handoff installs", async () => {
   const sizes = await measurePackSizes(PACKS, await loadBaselineConfig());
-  for (const rel of ["agents/closer.md", "reference/implementer-closer-handoff.md", "reference/implementer-inline-tail.md"]) {
+  for (const rel of ["agents/closer.md", "reference/implementer-closer-handoff.md", "reference/implementer-closer-outcome.md", "reference/implementer-inline-tail.md"]) {
     expect(sizes[`core/${rel}`]?.rendered).toBeGreaterThan(0);
   }
 });

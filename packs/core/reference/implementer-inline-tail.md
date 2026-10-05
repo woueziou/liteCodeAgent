@@ -2,6 +2,8 @@
 name: implementer-inline-tail
 description: Reference for implementer (not a skill; read on demand when the case arises).
 install: handoff
+# The inline helper of implementer.md pastes the body below in place when the handoff is off, and the closer fallback
+# Reads it as a file: this is the single source of steps 8 to 10. The comment lines are dropped when rendered.
 ---
 
 8. Invoke **both** review passes (only `reviewer` for a single pass, see "Review flow by size"), started together: `reviewer` via {{> delegate reviewer}} and `bug-hunter` via {{> delegate bug-hunter}} (per ADR 0013 it replaces the `code-review` sub-pass `reviewer` used to invoke). Read `implementer-review-handoff` first: what to give them (incl. **the ticket file's path**) and how to post their reports. Neither pass is optional (except a single pass). They **block** in effect (see "Delegating"): a notification can only reach you after the current turn ends, so while one is pending send nothing and let the turn end silently; then send exactly one final report.

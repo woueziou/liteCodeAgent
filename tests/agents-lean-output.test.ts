@@ -19,6 +19,7 @@ const IMPLEMENTER_REFS = [
   "implementer-ci-red",
   "implementer-cli-resolution",
   "implementer-closer-handoff", // ADR 0027: installed only where the handoff is on
+  "implementer-closer-outcome", // ADR 0027: same
   "implementer-github-outage",
   "implementer-inline-tail", // ADR 0027: steps 8 to 10, inlined into implementer.md when the handoff is off
   "implementer-language",
@@ -160,6 +161,6 @@ test("every reference path a rendered agent names exists after install, on every
 test("the reference helper renders the per-target root and rejects a bad name", async () => {
   const { delegationHelpers } = await import("../src/delegation.ts");
   expect(delegationHelpers("codex").reference!("reviewer-test-first")).toContain("`.codex/reference/reviewer-test-first.md`");
-  expect(delegationHelpers("claude-code", undefined, {}, "out").reference!("x-y")).toContain("`out/reference/x-y.md`");
+  expect(delegationHelpers("claude-code", { referenceRoot: "out" }).reference!("x-y")).toContain("`out/reference/x-y.md`");
   expect(() => delegationHelpers("pi").reference!("../etc")).toThrow(/needs a reference name/);
 });

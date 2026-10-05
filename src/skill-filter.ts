@@ -4,7 +4,8 @@
  * agent lists them, or the config asks for them (ticket 0068). Other skills — the ones a
  * human invokes by name — are always installed.
  */
-import type { Config } from "./config.ts";
+import type { Config, Project } from "./config.ts";
+import { resolveHandoff, type HandoffTarget } from "./handoff.ts";
 
 /** The frontmatter key marking a skill as install-on-reference. Never written to the output. */
 export const INSTALL_KEY = "install";
@@ -35,6 +36,10 @@ export function withoutInstallKey(data: Record<string, string>): Record<string, 
  */
 export const INSTALL_HANDOFF = "handoff";
 
-export function skipForHandoff(data: Record<string, string>, handoffEnabled: boolean): boolean {
-  return data[INSTALL_KEY] === INSTALL_HANDOFF && !handoffEnabled;
+export function skipForHandoff(
+  data: Record<string, string>,
+  project: Pick<Project, "handoff" | "handoffSupport">,
+  target: HandoffTarget,
+): boolean {
+  return data[INSTALL_KEY] === INSTALL_HANDOFF && !resolveHandoff(project, target).enabled;
 }

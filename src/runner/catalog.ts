@@ -5,7 +5,7 @@ import { parseFrontmatter, parseList } from "../frontmatter.ts";
 import { loadPack, TIERS, type Tier } from "../packs.ts";
 import { preflightRefusal, render, templateProject } from "../template.ts";
 import { delegationHelpers, packAgentNames, packInlineSources, REFERENCE_ROOTS } from "../delegation.ts";
-import { resolveHandoff, templateContext } from "../handoff.ts";
+import { templateContext } from "../handoff.ts";
 import { skipForHandoff } from "../skill-filter.ts";
 
 /** Where the installed `reference/*.md` files live for the runner: outDir if claude-code is installed, else the first installed target's root. */
@@ -62,13 +62,18 @@ export class AgentCatalog {
     }
     const catalog = new AgentCatalog(projectRoot, config.outDir, runnerSkillRoots);
     const packs = await Promise.all(config.packs.map(async (packName) => ({ packName, pack: await loadPack(packsRoot, packName) })));
-    const helpers = delegationHelpers("runner", packAgentNames(packs), config.tiers, runnerReferenceRoot(config), packInlineSources(packs));
+    const helpers = delegationHelpers("runner", {
+      agents: packAgentNames(packs),
+      tiers: config.tiers,
+      referenceRoot: runnerReferenceRoot(config),
+      inlineSources: packInlineSources(packs),
+    });
     for (const { packName, pack } of packs) {
       for (const file of pack.files) {
         const where = `${packName}/${file.rel}`;
         const rendered = render(file.source, templateContext(config.project, "runner", templateProject(config.project)), where, helpers);
         const { data, body } = parseFrontmatter(rendered, where);
-        if (skipForHandoff(data, resolveHandoff(config.project, "runner").enabled)) continue;
+        if (skipForHandoff(data, config.project, "runner")) continue;
         if (file.rel.startsWith("agents/")) {
           const name = data.name;
           const tier = data.tier as Tier;

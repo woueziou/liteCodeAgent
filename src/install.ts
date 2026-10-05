@@ -6,8 +6,8 @@ import { loadPack, type PackFile } from "./packs.ts";
 import { parseFrontmatter, parseList, serializeFrontmatter, type Frontmatter } from "./frontmatter.ts";
 import { preflightRefusal, render, referencedPaths, templateProject } from "./template.ts";
 import { delegationHelpers, packAgentNames, packInlineSources } from "./delegation.ts";
-import { resolveHandoff, templateContext } from "./handoff.ts";
-import { configSkills, skipForHandoff, skipSkill, withoutInstallKey } from "./skill-filter.ts";
+import { templateContext } from "./handoff.ts";
+import { configSkills, INSTALL_HANDOFF, skipForHandoff, skipSkill, withoutInstallKey } from "./skill-filter.ts";
 import { hash, readLockfile, writeLockfile, writeLockfileStable, type Lockfile } from "./lockfile.ts";
 
 export type PlanEntry = {
@@ -392,14 +392,14 @@ function outputFiles(
     file.source,
     templateContext(config.project, target, templateProject(config.project)),
     `${file.rel}`,
-    delegationHelpers(target, agents, config.tiers, target === "claude-code" ? config.outDir : undefined, inline),
+    delegationHelpers(target, { agents, tiers: config.tiers, referenceRoot: target === "claude-code" ? config.outDir : undefined, inlineSources: inline }),
   );
   const parsed = parseFrontmatter(rendered, file.rel);
   const skillName = /^skills\/([^/]+)\/SKILL\.md$/.exec(file.rel)?.[1];
   if (skillName && skipSkill(parsed.data, skillName, wantedSkills)) return [];
-  if (skipForHandoff(parsed.data, resolveHandoff(config.project, target).enabled)) return [];
+  if (skipForHandoff(parsed.data, config.project, target)) return [];
   const agent = /^agents\/([^/]+)\.md$/.exec(file.rel);
-  const data = skillName || parsed.data.install === "handoff" ? withoutInstallKey(parsed.data) : { ...parsed.data };
+  const data = skillName || parsed.data.install === INSTALL_HANDOFF ? withoutInstallKey(parsed.data) : { ...parsed.data };
   // Nothing is preloaded by default (ticket 0087): an agent whose `skills` rendered empty has no such line.
   if (agent && !data.skills?.trim()) delete data.skills;
   const body = agent ? preflightRefusal(agent[1]!, config.project) + parsed.body : parsed.body;
@@ -495,7 +495,7 @@ function referencedSkills(
   inline: ReadonlyMap<string, string>,
 ): Set<string> {
   const wanted = new Set(configSkills(config.project));
-  const helpers = delegationHelpers("claude-code", agents, config.tiers, config.outDir, inline);
+  const helpers = delegationHelpers("claude-code", { agents, tiers: config.tiers, referenceRoot: config.outDir, inlineSources: inline });
   for (const { pack } of packs) {
     for (const file of pack.files) {
       if (!/^agents\/[^/]+\.md$/.test(file.rel)) continue;

@@ -19,7 +19,7 @@ const get = (rel: string) => {
   return file.source;
 };
 
-const helpers = delegationHelpers("claude-code", undefined, {}, undefined, packInlineSources([{ pack: core }]));
+const helpers = delegationHelpers("claude-code", { inlineSources: packInlineSources([{ pack: core }]) });
 const project = templateProject(ProjectSchema.parse({ name: "demo", repo: "owner/demo", agentSkills: { implementer: [], reviewer: [] } }));
 const rendered = (rel: string) => render(get(rel), { project }, rel, helpers);
 

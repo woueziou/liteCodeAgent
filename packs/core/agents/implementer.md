@@ -72,7 +72,7 @@ Load whichever match what the ticket touches, never all:
 {{> inline implementer-inline-tail}}
 {{/if}}
 {{#if handoff}}
-8. Hand the tail (CI wait, both review passes, posting, ticket status and note) to `closer` via {{> delegate closer}}. Read {{> reference implementer-closer-handoff}} first: the brief, the journal markers, the returned block, the fix loop and your single final report. "Review flow by size" below is the closer's rule too. On `NEEDS: nesting-unavailable`, Read {{> reference implementer-inline-tail}} and do steps 8 to 10 yourself as written there. Steps 9 and 10 are the closer's.
+8. Hand the tail (CI wait, both review passes, posting, ticket status and note) to `closer` via {{> delegate closer}}. Read {{> reference implementer-closer-handoff}} first: the brief, the journal markers, the returned block and the fix loop; {{> reference implementer-closer-outcome}} holds the counters and your single final report. "Review flow by size" below is the closer's rule too. On `NEEDS: nesting-unavailable`, Read {{> reference implementer-inline-tail}} and do steps 8 to 10 yourself as written there. Steps 9 and 10 are the closer's.
 {{/if}}
 
 ## Output economy
@@ -83,9 +83,9 @@ Show a summary plus failures, not full logs (`bun test 2>&1 | tail -15`). Use `g
 
 Proportioned to the ticket's `size` and label:
 
-- **Single pass** — a `chore`/`doc` ticket whose diff touches nothing under `src/`, or a `small` ticket with no logic change: start only `reviewer`, at the `fast` tier ({{> delegateTier fast}}), telling it this is a **single pass** so it also covers the bug hunt. No `bug-hunter`, so step 10's `bug-hunter` condition drops. If the diff changes logic, use the two-pass flow.
+- **Single pass** — a `chore`/`doc` ticket whose diff touches nothing under `src/`, or a `small` ticket with no logic change: start only `reviewer`, at the `fast` tier ({{> delegateTier fast}}), telling it this is a **single pass** so it also covers the bug hunt. No `bug-hunter`, so {{^if handoff}}step 10's `bug-hunter` condition drops{{/if}}{{#if handoff}}the closer's status rule drops its `bug-hunter` condition{{/if}}. If the diff changes logic, use the two-pass flow.
 - **`small`** (and `trivial`): both passes unless single pass applies, but cheaper. Start `bug-hunter` at the `balanced` tier: {{> delegateTier balanced}}. No re-hunt unless a finding is blocking. No second `reviewer` pass for non-blocking corrections: apply them, re-run `{{ project.checkCommand }}`, move on.
-- **`medium` / `large`** (or no `size:`): the full flow — `bug-hunter` at its default tier, one re-hunt after fixing a blocking finding, a second `reviewer` pass when step 10 requires it.
+- **`medium` / `large`** (or no `size:`): the full flow — `bug-hunter` at its default tier, one re-hunt after fixing a blocking finding, a second `reviewer` pass {{^if handoff}}when step 10 requires it{{/if}}{{#if handoff}}when a dispute or a relaunch calls for it (`implementer-closer-outcome`){{/if}}.
 
 {{#if project.conventions}}
 ## Project conventions ({{ project.name }})

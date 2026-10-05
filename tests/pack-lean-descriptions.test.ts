@@ -122,7 +122,7 @@ test("the core pack still installs its always-referenced expertise skills", asyn
 });
 
 test("reference paths tolerate a trailing slash in outDir", () => {
-  const out = delegationHelpers("claude-code", undefined, {}, ".claude/").reference!("implementer-resume");
+  const out = delegationHelpers("claude-code", { referenceRoot: ".claude/" }).reference!("implementer-resume");
   expect(out).toBe("`.claude/reference/implementer-resume.md` (relative to the primary checkout)");
 });
 

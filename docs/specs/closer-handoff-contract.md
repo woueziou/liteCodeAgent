@@ -48,8 +48,8 @@ handoff: closer in flight   # or: returned
 handoffAt: 2026-10-05T10:00:00Z   # ISO timestamp of that write
 ```
 
-`implementer` writes `closer in flight` before spawning the closer; the closer writes
-`returned` when done. While the latest entry says `closer in flight` and is under 2 hours old
+`implementer` writes `closer in flight` before spawning the closer and `returned` when the
+closer has answered or failed (ADR 0027 Decision 7); the closer never writes the journal. While the latest entry says `closer in flight` and is under 2 hours old
 (`HANDOFF_STALE_MS` in `src/report/journal.ts`), `litecode resume <NNNN>` refuses and exits 1.
 Older, it is stale: `resume` warns and proceeds, and `litecode doctor` warns naming the ticket
 and the age. Unknown `handoff` values and non-ISO `handoffAt` values are ignored.

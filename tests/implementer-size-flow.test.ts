@@ -133,7 +133,7 @@ test("the flow is proportioned to size in implementer.md and reviewer.md", async
 
 test("delegateTier picks the model per call where the target allows it, and says so where it doesn't", () => {
   expect(delegationHelpers("claude-code").delegateTier!("balanced")).toBe('pass `model: "sonnet"` on that call (the `balanced` tier)');
-  expect(delegationHelpers("claude-code", undefined, { balanced: "haiku" }).delegateTier!("balanced")).toContain('model: "haiku"');
+  expect(delegationHelpers("claude-code", { tiers: { balanced: "haiku" } }).delegateTier!("balanced")).toContain('model: "haiku"');
   for (const target of ["runner", "opencode", "kilo-code", "codex", "pi"] as const) {
     const text = delegationHelpers(target).delegateTier!("balanced");
     expect(text).toMatch(/cannot choose a model per call/);
