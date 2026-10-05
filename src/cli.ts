@@ -18,8 +18,8 @@ import { realProbes, realResumeProbes } from "./report/probes.ts";
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 import { primaryCheckoutRoot, resumeState } from "./resume.ts";
-import { renderReport } from "./token-report/aggregate.ts";
-import { latestSession, reportForSession, transcriptsDir } from "./token-report/transcripts.ts";
+import { renderDetail, renderReport } from "./token-report/aggregate.ts";
+import { instancesForSession, latestSession, reportForSession, transcriptsDir } from "./token-report/transcripts.ts";
 import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, setTicketStatus, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
@@ -147,9 +147,12 @@ ${c.bold("Diagnose")}
                                      review/readyToMerge tickets, lockfile drift
                                      ${c.dim("GitHub checks report 'non vérifié' without gh")}
   ${c.bold("litecode status")}                     show installed packs + drift
-  ${c.bold("litecode token-report")} [--session <id>] [--project <path>]
+  ${c.bold("litecode token-report")} [--session <id>] [--project <path>] [--detail]
                                      tokens per agent (main session and each sub-agent type) from the Claude Code
                                      transcripts in ~/.claude/projects, sorted by total; latest session by default
+                                     ${c.dim("--detail adds one row per instance (main, then each sub-agent run, by first call):")}
+                                     ${c.dim("calls, first/max context, context read. Context of a call = input_tokens +")}
+                                     ${c.dim("cache_read_input_tokens + cache_creation_input_tokens (output excluded), once per message id")}
 
 Global: --project <dir>   target repo (default: cwd)
 `);
@@ -1110,7 +1113,8 @@ async function cmdTokenReport(root: string, argv: string[]): Promise<number> {
     return 1;
   }
   try {
-    console.log(renderReport(session, await reportForSession(dir, session)));
+    const report = renderReport(session, await reportForSession(dir, session));
+    console.log(argv.includes("--detail") ? `${report}\n\n${renderDetail(await instancesForSession(dir, session))}` : report);
     return 0;
   } catch (err) {
     console.log(c.red((err as Error).message));
