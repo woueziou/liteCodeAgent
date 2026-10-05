@@ -5,8 +5,10 @@ task: "0081"
 
 # 0027. The tail of an implementer run is handed to a fresh-context `closer`
 
-Status: proposed
+Status: accepted
 Date: 2026-10-05
+
+> **Accepted (2026-10-05):** validated by merging PR #146 with the five proposals of "Questions for the validation" as written (name `closer`, default `off`, two relaunches, two hours, 25 %). Implementation: ticket 0081.
 
 ## Context
 
