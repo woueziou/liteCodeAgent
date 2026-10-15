@@ -64,7 +64,7 @@ async function realAncestor(path: string): Promise<string> {
  * `rm`. The check is made on the real location of the file's directory; the file itself
  * may be a symlink, since `rm` removes the link, not what it points to.
  */
-async function insideProject(root: string, rel: string): Promise<string | null> {
+export async function insideProject(root: string, rel: string): Promise<string | null> {
   const path = resolve(root, rel);
   if (!isInside(root, path)) return null;
   const realRoot = await realAncestor(root);
@@ -77,7 +77,7 @@ async function insideProject(root: string, rel: string): Promise<string | null> 
  * Best-effort: the file it held is already gone, so a failure here must not be reported
  * as if that deletion hadn't happened.
  */
-async function removeIfEmpty(dir: string): Promise<void> {
+export async function removeIfEmpty(dir: string): Promise<void> {
   try {
     if ((await lstat(dir)).isDirectory() && (await readdir(dir)).length === 0) await rmdir(dir);
   } catch {
@@ -90,7 +90,7 @@ async function removeIfEmpty(dir: string): Promise<void> {
  * time, since the user may have edited the file while reading the plan — then removes
  * its directory if that left it empty (a removed skill's folder, say).
  */
-async function deleteIfUnchanged(path: string, expected: string, rel: string): Promise<void> {
+export async function deleteIfUnchanged(path: string, expected: string, rel: string): Promise<void> {
   if (!(await exists(path))) return;
   if (hash(await Bun.file(path).text()) !== expected) {
     throw new Error(`${rel} changed since the plan was shown; left in place`);
