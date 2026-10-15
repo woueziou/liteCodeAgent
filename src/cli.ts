@@ -44,6 +44,7 @@ import { init, summarize } from "./init.ts";
 import { applyConfigMutation } from "./config-edit.ts";
 import { confirm, isInteractive, multiSelect } from "./prompt.ts";
 import { upgrade } from "./upgrade.ts";
+import { unknownArguments } from "./cli-options.ts";
 import { projectBehind } from "./version-notice.ts";
 import { parseJournalEntries } from "./report/journal.ts";
 import { formatTokens, runnerJournalNote, ticketTokens, withTokensLine } from "./report/tokens.ts";
@@ -1170,6 +1171,13 @@ async function cmdResume(root: string, argv: string[]): Promise<number> {
  * is migrated by the code it just fetched rather than by the code already running.
  */
 async function cmdUpgrade(root: string, argv: string[]): Promise<number> {
+  // `--yes` applies changes and `--no-self-update` skips a step: a mistyped one must not be ignored.
+  const unknown = unknownArguments(argv.slice(1), ["--yes", "-y", "--no-self-update"], ["--project"]);
+  if (unknown.length > 0) {
+    console.log(c.red(`Unknown argument${unknown.length > 1 ? "s" : ""} for upgrade: ${unknown.join(", ")}`));
+    console.log("Usage: litecode upgrade [--yes] [--no-self-update]");
+    return 2;
+  }
   if (!argv.includes("--no-self-update")) {
     let self: Awaited<ReturnType<typeof upgrade>>;
     try {
