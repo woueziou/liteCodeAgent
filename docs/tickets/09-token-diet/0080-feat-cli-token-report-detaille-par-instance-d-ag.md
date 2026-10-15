@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0080-feat-cli-token-report-detaille-par-instance-d-ag
 title: "feat(cli): token-report détaillé par instance d'agent"
 label: feature
-status: backlog
+status: done
 priority: medium
 size: small
 assignedAgent: human

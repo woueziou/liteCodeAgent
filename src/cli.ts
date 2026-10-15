@@ -18,8 +18,8 @@ import { realProbes, realResumeProbes } from "./report/probes.ts";
 import { doctor as fullDoctor } from "./doctor.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 import { primaryCheckoutRoot, resumeState } from "./resume.ts";
-import { renderReport } from "./token-report/aggregate.ts";
-import { latestSession, reportForSession, transcriptsDir } from "./token-report/transcripts.ts";
+import { renderDetail, renderReport } from "./token-report/aggregate.ts";
+import { instancesForSession, latestSession, reportForSession, transcriptsDir } from "./token-report/transcripts.ts";
 import { appendTicketNote, createTicket, listTickets, listTicketsDetailed, setTicketStatus, writeTicket } from "./tickets/store.ts";
 import {
   ALLOWED_TRANSITIONS,
@@ -147,9 +147,11 @@ ${c.bold("Diagnose")}
                                      review/readyToMerge tickets, lockfile drift
                                      ${c.dim("GitHub checks report 'non vérifié' without gh")}
   ${c.bold("litecode status")}                     show installed packs + drift
-  ${c.bold("litecode token-report")} [--session <id>] [--project <path>]
+  ${c.bold("litecode token-report")} [--session <id>] [--project <path>] [--detail]
                                      tokens per agent (main session and each sub-agent type) from the Claude Code
                                      transcripts in ~/.claude/projects, sorted by total; latest session by default
+                                     ${c.dim("--detail adds one row per agent run: calls, first/max context, context read (output excluded)")}
+                                     ${c.dim("limits: a resumed agent is one merged row; nested sub-agents have no parent link")}
 
 Global: --project <dir>   target repo (default: cwd)
 `);
@@ -1110,7 +1112,13 @@ async function cmdTokenReport(root: string, argv: string[]): Promise<number> {
     return 1;
   }
   try {
-    console.log(renderReport(session, await reportForSession(dir, session)));
+    const output = [renderReport(session, await reportForSession(dir, session))];
+    // `--detail` is read with a plain includes: an unknown flag such as `--detial` is ignored, like the other flags here
+    if (argv.includes("--detail")) {
+      output.push("");
+      output.push(renderDetail(await instancesForSession(dir, session)));
+    }
+    console.log(output.join("\n"));
     return 0;
   } catch (err) {
     console.log(c.red((err as Error).message));
