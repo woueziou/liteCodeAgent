@@ -17,3 +17,11 @@ does this, so the install renders nothing differently.
 Possible follow-up (not done, needs verification): on opencode, set `permission.task.<name>: deny`
 for the five agents on the session's primary agent(s) in `opencode.json`, while `orchestrator`
 keeps them allowed. That is a config-level change, outside the agent-file rendering.
+
+## The `closer` (ADR 0027)
+
+`closer` is only called by `implementer`, so it is the same case as the five agents above, and
+no target can hide it either. Instead it is not installed at all where the handoff is off: its
+frontmatter says `install: handoff`, and `litecode install` renders it (and the two references
+only the handoff reads) only for a target whose `project.handoff` decision is enabled. With the
+default config its description is announced nowhere.

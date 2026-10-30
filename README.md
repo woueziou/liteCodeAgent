@@ -235,6 +235,7 @@ look:
 | `project.trustBoundaries` | what `security-expert` must assume; only you know these |
 | `project.lessons` | incidents this project already lived through, injected into `implementer` so the lesson travels with the agent |
 | `project.testFirst` | `bugs` (default), `all` or `off`: which tickets `implementer` must start with a failing-test commit, which `reviewer` then checks |
+| `project.handoff`, `project.handoffSupport` | `off` by default, and no target enables it yet. `auto` lets `implementer` hand the tail of its run to a fresh-context `closer` on the targets enabled in `handoffSupport` (a map of target to `true`/`false`); see [ADR 0027](docs/decisions/0027-hand-the-tail-of-an-implementer-run-to-a-fresh-context-closer.md) |
 | `project.allowDefaultBranchCommits` | `false` by default. Set it to `true` only if this project really commits straight to its default branch (see step 4) |
 
 `litecode setup` refuses to run while any `TODO` remains, because a `TODO` left in an

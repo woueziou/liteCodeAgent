@@ -16,6 +16,7 @@ const PACKS = join(import.meta.dir, "..", "packs");
 //  file: cap   // rendered words when the cap was set
 const CAPS: Record<string, number> = {
   "core/agents/bug-hunter.md": 975, // 901 now
+  "core/agents/closer.md": 1050, // 1045 now; ADR 0027, handoff on only; +CI registration retry found by the first real run
   "core/agents/classifier.md": 295, // 271 now
   "core/agents/debate-angle.md": 230, // 210 now
   "core/agents/dispatcher.md": 1005, // 927 now
@@ -32,7 +33,10 @@ const CAPS: Record<string, number> = {
   "core/reference/implementer-batch.md": 325, // 297 now
   "core/reference/implementer-ci-red.md": 175, // 162 now
   "core/reference/implementer-cli-resolution.md": 130, // 118 now
+  "core/reference/implementer-closer-handoff.md": 565, // 525 now; ADR 0027, handoff on only; +how to start the closer, found by the first real run
+  "core/reference/implementer-closer-outcome.md": 365, // 337 now; ADR 0027, counters and final report, handoff on only
   "core/reference/implementer-github-outage.md": 230, // 209 now
+  "core/reference/implementer-inline-tail.md": 265, // 244 now; ADR 0027, steps 8 to 10 moved here from implementer.md
   "core/reference/implementer-language.md": 20, // 18 now
   "core/reference/implementer-leak-cleanup.md": 395, // 365 now
   "core/reference/implementer-packs-edit.md": 75, // 68 now

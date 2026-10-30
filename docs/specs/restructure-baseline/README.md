@@ -54,3 +54,37 @@ Mean 324,184, sd 120,549 (37 %). In the worktree runs `tsc` was not found (no `n
 - Quality varies at the same cost. In the pinned runs, two confirmed that the new test failed before the fix, two said they had not run it against the old code, and one was unclear. A lower token count can mean a skipped check.
 - Two earlier attempts stopped before writing code and are not counted: a Bash permission denial (0.10 USD), then a ticket still in `backlog` with a refused heredoc (0.08 USD). The ticket must be `planned` first.
 - The agent added `Co-Authored-By` trailers to the fixture's commits. This repo's own rule (`CLAUDE.md`) forbids them in its own commits only.
+
+## Handoff measurement with a real pull request (ticket 0081, ADR 0027)
+
+Date 2026-10-05. Same ticket (`0001`, size S), same code (litecode at `f455b2c`), same prompt, run with the implementer's full flow: pull request, CI, the review passes. Two conditions that differ only by configuration:
+
+- **A**: `project.handoff` off (the default). The implementer runs steps 8 to 10 itself.
+- **B**: `project.handoff: "auto"` with `project.handoffSupport: {"claude-code": true}`. The implementer hands the tail to the `closer`.
+
+Fixture: this directory plus a CI workflow (`bun run check`, `bun test`) in a throwaway private GitHub repository. `replay-pr.sh` resets the checkout **and** the remote `main` to the base, closes the previous run's pull request, and refuses to start unless the start state is exactly the base. `analyze-pr-runs.py` computes the figures below from the `claude -p` JSON and the session transcripts, with the context definition of `litecode token-report --detail`.
+
+Five valid runs per condition, alternated. Every run had its own pull request (distinct head commit) and a CI run for it.
+
+| Measure | A (off) | B (closer) | Change B vs A | 95 % interval |
+|---|---|---|---|---|
+| Cost (USD) | 0.52 ± 0.03 | 0.51 ± 0.04 | -0.9 % | -12 % to +10 % |
+| All-instance tokens (context read + output) | 1,307,117 ± 108,358 | 1,219,426 ± 185,432 | -6.7 % | -25 % to +11 % |
+| Implementer context read | 1,164,750 ± 112,266 | 772,782 ± 181,157 | -33.7 % | -53 % to -14 % |
+| Implementer calls | 40.6 ± 4.0 | 27.2 ± 4.2 | -33.0 % | -48 % to -18 % |
+| Implementer context read after the PR | 762,931 ± 114,537 | 468,076 ± 191,249 | -38.6 % | -70 % to -8 % |
+| Duration (s) | 197 ± 60 | 262 ± 45 | +33 % | -7 % to +73 % |
+
+Implementer share of its own context read after the PR: A 65 %, B 59 %.
+
+**Verdict against ADR 0027, decision 9.** The gate asks for the share after the PR to fall by at least a quarter, with no new `verify-report` failure and no half-finished run. It is **not met**: the share moved from 65 % to 59 % (a 9 % relative fall), and four of the five B runs ended with the ticket in `review` and a partial bug hunt, against one of five for A (A also lost one run to a CI that had not reported yet). The handoff stays off.
+
+**What the data does show.** The closer takes work off the implementer: its calls and its own context read fall by a third. But the closer, the reviewers and the extra turns add about the same back, so the total (tokens, dollars) does not move: -7 % and -1 %, both inside the noise. Duration rises by about a third (a second agent to start, CI waited by the closer).
+
+**Why this fixture may understate the benefit.** The implementer's context here is small (about 29,000 tokens per call on average, against 130,000 to 180,000 in real runs). A fresh context saves roughly (implementer context - closer context) per call of the tail, so the saving grows with the size of the ticket. This is a hypothesis; it was not measured.
+
+**Outcome quality, B.** The closer ran, started `reviewer` and `bug-hunter` in the foreground at depth 2, and posted both reports in most runs. But the bug-hunter at depth 2 had Bash commands refused (3 to 5 refusals per B run against 0 or 1 per A run, under `--permission-mode dontAsk` with an allowlist), so its hunt was partial and the ticket stayed in `review`. Whether that is a property of nesting under a permission allowlist or of this harness is not established; in an interactive session the user would approve those commands.
+
+**Defects the measurement found and that tests and reviews had not** (all fixed on the branch of PR #147): the closer, started in the foreground by the implementer, handed its partial text back as a result (first run); the closer ended its turn to wait for background reviews that no longer had anyone to notify (second run); GitHub queues the checks about 90 seconds after the pull request opens, so agents declared CI missing (a flaw of the default flow too, not touched).
+
+**Limits.** Five runs per condition, one tiny ticket, one model configuration, one machine; a gap under about 20 % is not proven (rule of ticket 0090). A first series of eight runs was discarded because a failed `git switch` left each run starting from the previous run's work; the script now forces and verifies the start state. The measurement cost about 9 USD in total, 1.14 USD of it for the discarded series.

@@ -1140,13 +1140,18 @@ async function cmdResume(root: string, argv: string[]): Promise<number> {
 
   if (argv.includes("--json")) {
     console.log(JSON.stringify({ ticket: ticket.id, ...result }, null, 2));
-    return result.kind === "no-journal" || result.findings.some((f) => f.severity === "error") ? 1 : 0;
+    return result.kind === "no-journal" || result.kind === "closer-in-flight" || result.findings.some((f) => f.severity === "error") ? 1 : 0;
   }
 
   if (result.kind === "no-journal") {
     console.log(c.yellow(`${ticket.id}: no progress journal found on this ticket — nothing to resume from.`));
     for (const f of result.findings) console.log(`  ${f.severity === "error" ? c.red("error") : c.yellow("warn ")} ${f.message}`);
     console.log(c.dim("Run `litecode doctor` to check for orphaned worktrees/branches instead."));
+    return 1;
+  }
+
+  if (result.kind === "closer-in-flight") {
+    console.log(c.yellow(`${ticket.id}: closer in flight — ${result.reason}`));
     return 1;
   }
 

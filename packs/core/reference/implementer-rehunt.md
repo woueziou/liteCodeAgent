@@ -13,4 +13,4 @@ A gap noticed by you, `reviewer` or `bug-hunter` (a non-blocking finding, a "sho
 
 ## A blocking `bug-hunter` finding
 
-The check is `bug-hunter` itself: commit and push the fix, re-invoke `bug-hunter` on the fixed branch with the worktree path (step 8), and post its new report on the PR (step 9) — `{{ project.checkCommand }}` says nothing about whether the failure scenario still happens. One re-hunt per run: a new blocking finding lands the ticket on `Review` with both reports, no looping.
+The check is `bug-hunter` itself: commit and push the fix, {{^if handoff}}re-invoke `bug-hunter` on the fixed branch with the worktree path (step 8), and post its new report on the PR (step 9){{/if}}{{#if handoff}}relaunch `closer` with `rehunts_used` 1 (`implementer-closer-outcome`), which re-hunts and posts the new report{{/if}} — `{{ project.checkCommand }}` says nothing about whether the failure scenario still happens. One re-hunt per run: a new blocking finding lands the ticket on `Review` with both reports, no looping.

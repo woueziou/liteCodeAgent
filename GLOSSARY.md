@@ -53,6 +53,12 @@ Panel dont au moins un membre n'a pas répondu de façon lisible, ce qui bloque 
 **Implementer**:
 Agent qui réalise un ticket dans un worktree isolé et ouvre une pull request.
 
+**Closer**:
+Agent qui prend en charge la fin d'un run d'implementer après l'ouverture de la PR : attente de la CI, relectures, publication des rapports, statut du ticket. Il ne touche jamais au code.
+
+**Handoff**:
+Passage de relais de l'implementer au closer pour la fin d'un run, réglé par `project.handoff` (désactivé par défaut).
+
 **Isolation mode**:
 Manière dont l'implementer travaille par rapport au checkout principal : `worktree` (copie isolée) ou `inline` (même checkout, même session). Le mode `auto` choisit selon les capacités de l'install target.
 

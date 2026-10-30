@@ -21,6 +21,7 @@ import { detect } from "./detect.ts";
 import { listTickets } from "./tickets/store.ts";
 import type { Ticket } from "./tickets/spec.ts";
 import { gh } from "./gh.ts";
+import { HANDOFF_STALE_MS, inFlightAge, parseJournal } from "./report/journal.ts";
 import { listPendingAdrs } from "./decisions/pending.ts";
 
 export type Finding = { severity: "error" | "warn"; message: string };
@@ -163,6 +164,22 @@ async function checkOrphanedInProgressTickets(
         message: `${t.id}: status inProgress but no worktree and no branch found — work may have been abandoned`,
       });
     }
+  }
+  return findings;
+}
+
+/** A ticket whose latest journal says `handoff: closer in flight` for over HANDOFF_STALE_MS: the closer likely died (ADR 0027). */
+export function checkStaleCloserHandoff(tickets: Ticket[], now: Date = new Date()): Finding[] {
+  const findings: Finding[] = [];
+  for (const t of tickets) {
+    const { entries } = parseJournal(t.body);
+    const age = inFlightAge(entries[entries.length - 1], now);
+    if (age === undefined || age < HANDOFF_STALE_MS) continue;
+    const how = Number.isFinite(age) ? `${Math.floor(age / 3_600_000)} h ${Math.floor((age % 3_600_000) / 60_000)} min old` : "with no usable timestamp";
+    findings.push({
+      severity: "warn",
+      message: `${t.id}: closer handoff marker 'closer in flight' is stale (${how}) — the closer likely died; \`litecode resume ${ticketNumber(t.id)}\` will proceed`,
+    });
   }
   return findings;
 }
@@ -435,6 +452,7 @@ export async function doctor(ctx: DoctorContext): Promise<Finding[]> {
   const tickets = await listTickets(primaryRoot, config.project.tickets.dir);
 
   findings.push(...(await checkOrphanedInProgressTickets(root, worktrees, tickets)));
+  findings.push(...checkStaleCloserHandoff(tickets));
   findings.push(...(await checkOrphanedWorktrees(primaryRoot, config.project.worktreeRoot, worktrees, tickets)));
   findings.push(...checkPrunableWorktrees(worktrees));
   findings.push(...(await checkPushedBranchWithoutPr(root, config.project.repo, tickets, prCache)));

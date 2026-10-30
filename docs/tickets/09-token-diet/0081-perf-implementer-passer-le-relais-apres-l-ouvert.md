@@ -3,7 +3,7 @@ schemaVersion: 2
 id: 0081-perf-implementer-passer-le-relais-apres-l-ouvert
 title: "perf(implementer): passer le relais après l'ouverture de la PR à un agent au contexte vierge"
 label: feature
-status: backlog
+status: inProgress
 priority: high
 size: medium
 assignedAgent: human
@@ -37,3 +37,17 @@ Modifier le contenu des relectures ; fusionner `reviewer` et `bug-hunter`.
 L'ADR est rédigé : `docs/decisions/0027-hand-the-tail-of-an-implementer-run-to-a-fresh-context-closer.md` (statut `proposed`). Le fusionner vaut validation ; il pose cinq questions à la fin. Aucun code n'est écrit avant.
 
 Mesure faite pour l'ADR (la prémisse du ticket reposait sur un seul run) : sur 42 runs réels d'implementer avec une PR, la part du contexte lu après `gh pr create` est de 55,8 % en moyenne (médiane 55,0 %, de 22,6 % à 95,4 %). Méthode et script : `docs/specs/restructure-baseline/tail-share.py`.
+
+## Avancement (2026-10-05)
+
+Livré, **désactivé par défaut** (ADR 0027, décision 8) : le réglage `project.handoff`, la table des capacités (vide), l'agent `closer` au niveau `fast`, le texte de relais de l'implementer, le marqueur de journal et la protection de `litecode resume`. Avec la config par défaut, le rendu de tous les agents est identique octet pour octet à celui d'avant (454 sorties comparées contre le commit de base).
+
+Reste, pour clore le ticket (ADR 0027, décision 9) :
+- la mesure avant/après sur de vraies PR (dépôt GitHub jetable, au moins cinq runs par condition, `litecode token-report --detail`, méthode du ticket 0090) ;
+- si la part du contexte lu après la PR baisse d'au moins un quart, sans nouvel échec de `verify-report` : ajouter `claude-code` à la table et passer le défaut à `auto`.
+
+Non vérifié de bout en bout : la chaîne implementer, closer, reviewer sur Claude Code. Les transcripts montrent des sous-agents jusqu'à la profondeur 3 dans ce projet, mais pas ce parcours précis.
+
+## Mesure (2026-10-05)
+
+Cinq runs par condition avec une vraie PR, sur un dépôt GitHub jetable : la porte de l'ADR 0027 (décision 9) n'est **pas atteinte**. Part du contexte lu après la PR : 65 % sans relais, 59 % avec (il en fallait un quart de moins). Coût et tokens totaux : -1 % et -7 %, dans le bruit. Le relais reste désactivé. La mesure a aussi trouvé deux défauts du `closer` (corrigés). Détails et limites : `docs/specs/restructure-baseline/README.md`.
